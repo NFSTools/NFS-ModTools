@@ -1,4 +1,4 @@
-﻿namespace StreamEd
+﻿namespace VltEd
 {
     partial class Form1
     {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace StreamEd
+namespace GlobalEd
 {
     static class Program
     {
@@ -16,7 +16,7 @@ namespace StreamEd
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new StreamEdMain());
+            Application.Run(new Form1());
         }
     }
 }

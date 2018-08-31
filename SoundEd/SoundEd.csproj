@@ -4,10 +4,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{2F17A967-E481-445D-BD73-21143B7295F4}</ProjectGuid>
+    <ProjectGuid>{78926D02-4761-418B-A876-5681BC2223F8}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>StreamEd</RootNamespace>
-    <AssemblyName>StreamEd</AssemblyName>
+    <RootNamespace>SoundEd</RootNamespace>
+    <AssemblyName>SoundEd</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -45,20 +45,16 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Data\LocationBundle.cs" />
-    <Compile Include="Data\Vector3.cs" />
-    <Compile Include="StreamEdMain.cs">
+    <Compile Include="SoundEdMain.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="StreamEdMain.Designer.cs">
-      <DependentUpon>StreamEdMain.cs</DependentUpon>
+    <Compile Include="SoundEdMain.Designer.cs">
+      <DependentUpon>SoundEdMain.cs</DependentUpon>
     </Compile>
-    <Compile Include="GameBundleManager.cs" />
-    <Compile Include="Games\MostWantedManager.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <EmbeddedResource Include="StreamEdMain.resx">
-      <DependentUpon>StreamEdMain.cs</DependentUpon>
+    <EmbeddedResource Include="SoundEdMain.resx">
+      <DependentUpon>SoundEdMain.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
