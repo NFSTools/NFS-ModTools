@@ -3,13 +3,12 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Windows.Forms;
 using Common;
+using Common.Textures.Data;
 using Pfim;
-using TexEd.Data;
-
 using SysPixelFormat = System.Drawing.Imaging.PixelFormat;
 
 namespace TexEd
@@ -171,14 +170,18 @@ namespace TexEd
             {
                 var fileName = openFileDialog.FileName;
 
-                _chunkManager = new ChunkManager();
+                _chunkManager = null;
+                GC.Collect();
+                _chunkManager = new ChunkManager(GameDetector.Game.Unknown);
 
-                //try
-                //{
+                try
+                {
                     messageLabel.Text = $"Loading: {fileName}";
 
                     _texturePacks.Clear();
                     _textures.Clear();
+
+                    GC.Collect();
 
                     var stopwatch = new Stopwatch();
                     stopwatch.Start();
@@ -186,7 +189,12 @@ namespace TexEd
                     stopwatch.Stop();
                     messageLabel.Text = $"Loaded {fileName} [{stopwatch.ElapsedMilliseconds}ms]";
 
-                    _texturePacks = new BindingList<TexturePack>(_chunkManager.TexturePacks);
+                    _texturePacks = new BindingList<TexturePack>(
+                        _chunkManager.Chunks
+                            .Select(c => c.Resource)
+                            .Where(r => r is TexturePack)
+                            .Cast<TexturePack>()
+                            .ToList());
                     _tpkSource.DataSource = null;
                     _tpkSource.DataSource = _texturePacks;
 
@@ -194,12 +202,12 @@ namespace TexEd
                     {
                         tpkDataGrid.Rows[0].Selected = true;
                     }
-                //}
-                //catch (Exception ex)
-                //{
-                //    Console.WriteLine(ex.StackTrace);
-                //    MessageUtil.ShowError(ex.Message);
-                //}
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.StackTrace);
+                    MessageUtil.ShowError(ex.Message);
+                }
             }
         }
     }

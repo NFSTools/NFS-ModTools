@@ -41,13 +41,13 @@
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.bundleSelectionBox = new System.Windows.Forms.ComboBox();
             this.sectionsDataGrid = new System.Windows.Forms.DataGridView();
-            this.messageLabel = new System.Windows.Forms.Label();
             this.SectionName = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.SectionChunkNumber = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.SectionPosition = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.SectionStreamOffset = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.SectionSize = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.SectionOtherSize = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.messageLabel = new System.Windows.Forms.Label();
             this.menuStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.sectionsDataGrid)).BeginInit();
             this.SuspendLayout();
@@ -78,7 +78,7 @@
             // openToolStripMenuItem
             // 
             this.openToolStripMenuItem.Name = "openToolStripMenuItem";
-            this.openToolStripMenuItem.Size = new System.Drawing.Size(138, 22);
+            this.openToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
             this.openToolStripMenuItem.Text = "Open";
             this.openToolStripMenuItem.Click += new System.EventHandler(this.openToolStripMenuItem_Click);
             // 
@@ -86,18 +86,19 @@
             // 
             this.saveToolStripMenuItem.Enabled = false;
             this.saveToolStripMenuItem.Name = "saveToolStripMenuItem";
-            this.saveToolStripMenuItem.Size = new System.Drawing.Size(138, 22);
+            this.saveToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
             this.saveToolStripMenuItem.Text = "Save Stream";
+            this.saveToolStripMenuItem.Click += new System.EventHandler(this.saveToolStripMenuItem_Click);
             // 
             // toolStripSeparator1
             // 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(135, 6);
+            this.toolStripSeparator1.Size = new System.Drawing.Size(149, 6);
             // 
             // closeToolStripMenuItem
             // 
             this.closeToolStripMenuItem.Name = "closeToolStripMenuItem";
-            this.closeToolStripMenuItem.Size = new System.Drawing.Size(138, 22);
+            this.closeToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
             this.closeToolStripMenuItem.Text = "Close";
             // 
             // streamToolStripMenuItem
@@ -163,15 +164,6 @@
             this.sectionsDataGrid.Size = new System.Drawing.Size(1264, 596);
             this.sectionsDataGrid.TabIndex = 3;
             // 
-            // messageLabel
-            // 
-            this.messageLabel.AutoSize = true;
-            this.messageLabel.Location = new System.Drawing.Point(12, 660);
-            this.messageLabel.Name = "messageLabel";
-            this.messageLabel.Size = new System.Drawing.Size(83, 13);
-            this.messageLabel.TabIndex = 4;
-            this.messageLabel.Text = "INFO: Waiting...";
-            // 
             // SectionName
             // 
             this.SectionName.DataPropertyName = "Name";
@@ -213,6 +205,15 @@
             this.SectionOtherSize.HeaderText = "Other Size";
             this.SectionOtherSize.Name = "SectionOtherSize";
             this.SectionOtherSize.ReadOnly = true;
+            // 
+            // messageLabel
+            // 
+            this.messageLabel.AutoSize = true;
+            this.messageLabel.Location = new System.Drawing.Point(12, 660);
+            this.messageLabel.Name = "messageLabel";
+            this.messageLabel.Size = new System.Drawing.Size(83, 13);
+            this.messageLabel.TabIndex = 4;
+            this.messageLabel.Text = "INFO: Waiting...";
             // 
             // StreamEdMain
             // 

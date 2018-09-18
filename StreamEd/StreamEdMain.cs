@@ -1,11 +1,12 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using System.Windows.Forms;
 using Common;
-using StreamEd.Data;
-using StreamEd.Games;
+using Common.Stream;
+using Common.Stream.Data;
 
 namespace StreamEd
 {
@@ -22,6 +23,8 @@ namespace StreamEd
         private readonly BindingSource _sectionsSource;
 
         private const string WindowTitle = "StreamEd v0.0.1 by heyitsleo";
+
+        private string _currentGameDir;
 
         public StreamEdMain()
         {
@@ -77,9 +80,9 @@ namespace StreamEd
                 exportSectionsToolStripMenuItem.Enabled = false;
                 bundleSelectionBox.Enabled = false;
 
-                var game = GameDetector.DetectGame(gameFolderBrowser.SelectedPath);
+                var game = GameDetector.DetectGame(_currentGameDir = gameFolderBrowser.SelectedPath);
 
-                if (game != GameDetector.Game.MostWanted)
+                if (game != GameDetector.Game.MostWanted && game != GameDetector.Game.ProStreet && game != GameDetector.Game.World)
                 {
                     MessageUtil.ShowError("Unsupported game directory.");
                     return;
@@ -94,6 +97,16 @@ namespace StreamEd
                             _bundleManager = new MostWantedManager();
                             break;
                         }
+                    case GameDetector.Game.ProStreet:
+                    {
+                        _bundleManager = new ProStreetManager();
+                        break;
+                    }
+                    case GameDetector.Game.World:
+                    {
+                        _bundleManager = new World15Manager();
+                        break;
+                    }
                     case GameDetector.Game.Unknown:
                         goto default;
                     default: throw new Exception("Shouldn't ever get here");
@@ -143,21 +156,49 @@ namespace StreamEd
         {
             var currentBundle = _bundles[bundleSelectionBox.SelectedIndex];
 
-            if (gameFolderBrowser.ShowDialog(this) == DialogResult.OK)
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
+
+            try
             {
-                var stopwatch = new Stopwatch();
-                stopwatch.Start();
-                _bundleManager.ExtractBundleSections(currentBundle, gameFolderBrowser.SelectedPath);
+                _bundleManager.ExtractBundleSections(currentBundle, Path.Combine(_currentGameDir, "TRACKS", $"sections_{currentBundle.Name}"));
                 stopwatch.Stop();
 
                 MessageUtil.ShowInfo($"Extracted in {stopwatch.ElapsedMilliseconds}ms");
             }
-            else
+            catch (Exception ex)
             {
-                MessageUtil.ShowInfo("Doing nothing, since the dialog was closed.");
+                stopwatch.Stop();
+                MessageUtil.ShowError(ex.Message);
             }
 
             //_bundleManager.ExtractBundleSections(currentBundle);
+        }
+
+        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var currentBundle = _bundles[bundleSelectionBox.SelectedIndex];
+            var stopwatch = new Stopwatch();
+
+            if (!File.Exists(currentBundle.File + ".bak"))
+            {
+                File.Copy(currentBundle.File, currentBundle.File + ".bak");
+            }
+
+            var masterStreamPath = Path.Combine(Path.GetDirectoryName(currentBundle.File), $"STREAM{currentBundle.Name}.BUN");
+
+            if (!File.Exists(masterStreamPath + ".bak"))
+            {
+                File.Copy(masterStreamPath, masterStreamPath + ".bak");
+            }
+
+            stopwatch.Start();
+            _bundleManager.WriteLocationBundle(
+                currentBundle.File, 
+                currentBundle, 
+                Path.Combine(_currentGameDir, "TRACKS", $"sections_{currentBundle.Name}"));
+            stopwatch.Stop();
+            messageLabel.Text = $"Saved in {stopwatch.ElapsedMilliseconds}ms";
         }
     }
 }

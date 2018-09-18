@@ -9,6 +9,17 @@ namespace Common
     {
         public const string DoubleFixedPoint = "0.###################################################################################################################################################################################################################################################################################################################################################";
 
+        /// <summary>
+        /// Packed floats are bizarre. Enough said.
+        /// </summary>
+        /// <param name="buf"></param>
+        /// <param name="pos"></param>
+        /// <returns></returns>
+        public static unsafe float GetPackedFloat(byte* buf, int pos)
+        {
+            return (float)((long)((short*)buf)[pos]) / (float)0x8000;
+        }
+
         // Note this MODIFIES THE GIVEN ARRAY then returns a reference to the modified array.
         public static byte[] Reverse(this byte[] b)
         {
@@ -41,7 +52,15 @@ namespace Common
             var result = binRdr.ReadBytes(byteCount);
 
             if (result.Length != byteCount)
-                throw new EndOfStreamException(string.Format("{0} bytes required from stream, but only {1} returned.", byteCount, result.Length));
+                throw new EndOfStreamException(
+                    $"{byteCount} bytes required from stream, but only {result.Length} returned.");
+
+            return result;
+        }
+
+        public static byte[] ReadBytes(this BinaryReader binRdr, uint byteCount)
+        {
+            var result = binRdr.ReadBytes((int) byteCount);
 
             return result;
         }

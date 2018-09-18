@@ -45,16 +45,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Data\LocationBundle.cs" />
-    <Compile Include="Data\Vector3.cs" />
     <Compile Include="StreamEdMain.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="StreamEdMain.Designer.cs">
       <DependentUpon>StreamEdMain.cs</DependentUpon>
     </Compile>
-    <Compile Include="GameBundleManager.cs" />
-    <Compile Include="Games\MostWantedManager.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="StreamEdMain.resx">
