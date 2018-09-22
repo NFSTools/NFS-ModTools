@@ -34,16 +34,16 @@
             this.saveToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.closeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.importModelToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.helpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openBundleDialog = new System.Windows.Forms.OpenFileDialog();
             this.messageLabel = new System.Windows.Forms.Label();
-            this.glControl1 = new OpenTK.GLControl();
             this.treeView1 = new System.Windows.Forms.TreeView();
             this.gameFolderBrowser = new System.Windows.Forms.FolderBrowserDialog();
-            this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
-            this.importModelToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openModelDialog = new System.Windows.Forms.OpenFileDialog();
+            this.panel1 = new System.Windows.Forms.Panel();
             this.menuStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -73,7 +73,7 @@
             // openToolStripMenuItem
             // 
             this.openToolStripMenuItem.Name = "openToolStripMenuItem";
-            this.openToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.openToolStripMenuItem.Size = new System.Drawing.Size(103, 22);
             this.openToolStripMenuItem.Text = "Open";
             this.openToolStripMenuItem.Click += new System.EventHandler(this.openToolStripMenuItem_Click);
             // 
@@ -81,20 +81,36 @@
             // 
             this.saveToolStripMenuItem.Enabled = false;
             this.saveToolStripMenuItem.Name = "saveToolStripMenuItem";
-            this.saveToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.saveToolStripMenuItem.Size = new System.Drawing.Size(103, 22);
             this.saveToolStripMenuItem.Text = "Save";
             this.saveToolStripMenuItem.Click += new System.EventHandler(this.saveToolStripMenuItem_Click);
             // 
             // toolStripSeparator1
             // 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(149, 6);
+            this.toolStripSeparator1.Size = new System.Drawing.Size(100, 6);
             // 
             // closeToolStripMenuItem
             // 
             this.closeToolStripMenuItem.Name = "closeToolStripMenuItem";
-            this.closeToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.closeToolStripMenuItem.Size = new System.Drawing.Size(103, 22);
             this.closeToolStripMenuItem.Text = "Close";
+            // 
+            // toolStripMenuItem1
+            // 
+            this.toolStripMenuItem1.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.importModelToolStripMenuItem});
+            this.toolStripMenuItem1.Name = "toolStripMenuItem1";
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(58, 20);
+            this.toolStripMenuItem1.Text = "Models";
+            // 
+            // importModelToolStripMenuItem
+            // 
+            this.importModelToolStripMenuItem.Enabled = false;
+            this.importModelToolStripMenuItem.Name = "importModelToolStripMenuItem";
+            this.importModelToolStripMenuItem.Size = new System.Drawing.Size(147, 22);
+            this.importModelToolStripMenuItem.Text = "Import Model";
+            this.importModelToolStripMenuItem.Click += new System.EventHandler(this.importModelToolStripMenuItem_Click);
             // 
             // helpToolStripMenuItem
             // 
@@ -107,7 +123,7 @@
             // aboutToolStripMenuItem
             // 
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(107, 22);
             this.aboutToolStripMenuItem.Text = "About";
             // 
             // messageLabel
@@ -118,15 +134,6 @@
             this.messageLabel.Size = new System.Drawing.Size(83, 13);
             this.messageLabel.TabIndex = 6;
             this.messageLabel.Text = "INFO: Waiting...";
-            // 
-            // glControl1
-            // 
-            this.glControl1.BackColor = System.Drawing.Color.Black;
-            this.glControl1.Location = new System.Drawing.Point(365, 28);
-            this.glControl1.Name = "glControl1";
-            this.glControl1.Size = new System.Drawing.Size(899, 617);
-            this.glControl1.TabIndex = 7;
-            this.glControl1.VSync = false;
             // 
             // treeView1
             // 
@@ -141,29 +148,20 @@
             this.gameFolderBrowser.Description = "Select game folder";
             this.gameFolderBrowser.ShowNewFolderButton = false;
             // 
-            // toolStripMenuItem1
+            // panel1
             // 
-            this.toolStripMenuItem1.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.importModelToolStripMenuItem});
-            this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(58, 20);
-            this.toolStripMenuItem1.Text = "Models";
-            // 
-            // importModelToolStripMenuItem
-            // 
-            this.importModelToolStripMenuItem.Enabled = false;
-            this.importModelToolStripMenuItem.Name = "importModelToolStripMenuItem";
-            this.importModelToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
-            this.importModelToolStripMenuItem.Text = "Import Model";
-            this.importModelToolStripMenuItem.Click += new System.EventHandler(this.importModelToolStripMenuItem_Click);
+            this.panel1.Location = new System.Drawing.Point(365, 28);
+            this.panel1.Name = "panel1";
+            this.panel1.Size = new System.Drawing.Size(899, 617);
+            this.panel1.TabIndex = 9;
             // 
             // GeoEdMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1264, 681);
+            this.Controls.Add(this.panel1);
             this.Controls.Add(this.treeView1);
-            this.Controls.Add(this.glControl1);
             this.Controls.Add(this.messageLabel);
             this.Controls.Add(this.menuStrip1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
@@ -191,12 +189,12 @@
         private System.Windows.Forms.ToolStripMenuItem aboutToolStripMenuItem;
         private System.Windows.Forms.OpenFileDialog openBundleDialog;
         private System.Windows.Forms.Label messageLabel;
-        private OpenTK.GLControl glControl1;
         private System.Windows.Forms.TreeView treeView1;
         private System.Windows.Forms.FolderBrowserDialog gameFolderBrowser;
         private System.Windows.Forms.ToolStripMenuItem toolStripMenuItem1;
         private System.Windows.Forms.ToolStripMenuItem importModelToolStripMenuItem;
         private System.Windows.Forms.OpenFileDialog openModelDialog;
+        private System.Windows.Forms.Panel panel1;
         // private GeoViewControl geoViewControl1;
     }
 }

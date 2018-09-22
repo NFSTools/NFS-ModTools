@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Common.Geometry.Data
 {
@@ -65,7 +66,7 @@ namespace Common.Geometry.Data
 
         public ushort[] ShiftedArray()
         {
-            return new[] {Shift1, Shift2, Shift3};
+            return new[] { Shift1, Shift2, Shift3 };
         }
     }
 
@@ -74,10 +75,6 @@ namespace Common.Geometry.Data
         public SimpleVector3 MinPoint { get; set; }
 
         public SimpleVector3 MaxPoint { get; set; }
-
-        //public byte[] TextureIndices { get; set; }
-
-        //public byte ShaderIndex { get; set; }
 
         public uint Hash { get; set; }
 
@@ -105,6 +102,11 @@ namespace Common.Geometry.Data
         public byte ShaderIndex { get; set; }
 
         public uint TriOffset { get; set; }
+    }
+
+    public class CarbonMaterial : SolidObjectMaterial
+    {
+        public uint Unknown1 { get; set; }
     }
 
     public class SolidMeshVertex
@@ -137,7 +139,65 @@ namespace Common.Geometry.Data
         public uint NumVerts { get; set; }
     }
 
-    public class SolidObject : ChunkManager.BasicResource
+    public class MostWantedObject : SolidObject
+    {
+        public override SolidMeshVertex GetVertex(VertexBuffer buffer, SolidObjectMaterial material)
+        {
+            return new SolidMeshVertex
+            {
+                X = buffer.Data[buffer.Position],
+                Y = buffer.Data[buffer.Position + 1],
+                Z = buffer.Data[buffer.Position + 2],
+                U = buffer.Data[buffer.Position + 3],
+                V = -buffer.Data[buffer.Position + 4]
+            };
+        }
+    }
+
+    public class CarbonObject : SolidObject
+    {
+        public override SolidMeshVertex GetVertex(VertexBuffer buffer, SolidObjectMaterial material)
+        {
+            return new SolidMeshVertex
+            {
+                X = buffer.Data[buffer.Position],
+                Y = buffer.Data[buffer.Position + 1],
+                Z = buffer.Data[buffer.Position + 2]
+            };
+        }
+    }
+
+    public class ProStreetObject : SolidObject
+    {
+        public override SolidMeshVertex GetVertex(VertexBuffer buffer, SolidObjectMaterial material)
+        {
+            return new SolidMeshVertex
+            {
+                X = buffer.Data[buffer.Position] * 10.0f,
+                Y = buffer.Data[buffer.Position + 1] * 10.0f,
+                Z = buffer.Data[buffer.Position + 2] * 10.0f,
+                U = buffer.Data[buffer.Position + 4],
+                V = -buffer.Data[buffer.Position + 5]
+            };
+        }
+    }
+
+    public class World15Object : SolidObject
+    {
+        public override SolidMeshVertex GetVertex(VertexBuffer buffer, SolidObjectMaterial material)
+        {
+            return new SolidMeshVertex
+            {
+                X = buffer.Data[buffer.Position],
+                Y = buffer.Data[buffer.Position + 1],
+                Z = buffer.Data[buffer.Position + 2],
+                U = buffer.Data[buffer.Position + 5],
+                V = -buffer.Data[buffer.Position + 6]
+            };
+        }
+    }
+
+    public abstract class SolidObject : ChunkManager.BasicResource
     {
         public string Name { get; set; }
 
@@ -168,6 +228,14 @@ namespace Common.Geometry.Data
         public List<VertexBuffer> VertexBuffers { get; } = new List<VertexBuffer>();
 
         public List<SolidMeshFace> Faces { get; } = new List<SolidMeshFace>();
+
+        /// <summary>
+        /// Pull a vertex from the given buffer.
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <param name="material"></param>
+        /// <returns></returns>
+        public abstract SolidMeshVertex GetVertex(VertexBuffer buffer, SolidObjectMaterial material);
 
         /// <summary>
         /// Process the model data.
@@ -211,23 +279,9 @@ namespace Common.Geometry.Data
                 for (var j = 0; j < streamCountMap[streamIdx]; ++j)
                 {
                     if (stream.Position >= stream.Data.Count) break;
-
-                    var x = stream.Data[stream.Position];
-                    var y = stream.Data[stream.Position + 1];
-                    var z = stream.Data[stream.Position + 2];
-                    var u = stream.Data[stream.Position + 5];
-                    var v = stream.Data[stream.Position + 6];
-
+                    var vertex = GetVertex(stream, material);
                     stream.Position += stride;
-
-                    Vertices.Add(new SolidMeshVertex
-                    {
-                        X = x,
-                        Y = y,
-                        Z = z,
-                        U = u,
-                        V = v
-                    });
+                    Vertices.Add(vertex);
 
                     numVerts++;
                 }

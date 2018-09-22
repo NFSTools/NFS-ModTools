@@ -44,7 +44,7 @@ namespace Common.Geometry
             public uint Unknown3;
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            public byte[] MaterialId; // NOTE: first (and second?) byte = ID. Not necessarily in order!
+            public byte[] TextureAssignments;
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
             public byte[] Unknown4;
@@ -215,14 +215,6 @@ namespace Common.Geometry
 
                                     if (blocks.Count == 1)
                                     {
-                                        //_blockReader = new BinaryReader(new MemoryStream(blocks[0]));
-                                        //ReadUncompressedBlock((uint)blocks[0].Length);
-
-                                        using (var outStream = File.OpenWrite($"object_0x{och.ObjectHash:X8}.bin"))
-                                        {
-                                            outStream.Write(blocks[0], 0, blocks[0].Length);
-                                        }
-
                                         using (var ms = new MemoryStream(blocks[0]))
                                         using (var mbr = new BinaryReader(ms))
                                         {
@@ -254,11 +246,6 @@ namespace Common.Geometry
                                             solidObject.PostProcessing();
 
                                             _solidList.Objects.Add(solidObject);
-                                        }
-
-                                        using (var outStream = File.OpenWrite($"object_0x{och.ObjectHash:X8}.bin"))
-                                        {
-                                            outStream.Write(sorted.ToArray(), 0, sorted.Count);
                                         }
 
                                         sorted.Clear();
@@ -480,9 +467,9 @@ namespace Common.Geometry
                         matStruct.Bounding[4] = material.MaxPoint.Y;
                         matStruct.Bounding[5] = material.MaxPoint.Z;
 
-                        matStruct.MaterialId = new byte[4];
-                        matStruct.MaterialId[0] = 0x00;
-                        matStruct.MaterialId[1] = 0xff;
+                        matStruct.TextureAssignments = new byte[4];
+                        matStruct.TextureAssignments[0] = 0x00;
+                        matStruct.TextureAssignments[1] = 0xff;
 
                         matStruct.NumIndices = material.NumIndices;
                         matStruct.NumTris = material.NumTris;
@@ -561,7 +548,7 @@ namespace Common.Geometry
         private SolidObject ReadObject(BinaryReader br, long size, bool unpackFloats, SolidObject solidObject)
         {
             if (solidObject == null)
-                solidObject = new SolidObject();
+                solidObject = new World15Object();
 
             var endPos = br.BaseStream.Position + size;
 
@@ -658,6 +645,12 @@ namespace Common.Geometry
                                 for (var j = 0; j < solidObject.MeshDescriptor.NumMats; j++)
                                 {
                                     var shadingGroup = BinaryUtil.ReadStruct<Material>(br);
+                                    var texIdx = 0;
+
+                                    if (solidObject.TextureHashes.Count > shadingGroup.TextureAssignments[0])
+                                    {
+                                        texIdx = shadingGroup.TextureAssignments[0];
+                                    }
 
                                     var solidObjectMaterial = new SolidObjectMaterial
                                     {
@@ -668,7 +661,7 @@ namespace Common.Geometry
                                         MaxPoint = new SimpleVector3(shadingGroup.Bounding[3], shadingGroup.Bounding[4], shadingGroup.Bounding[5]),
                                         Name = $"Unnamed Material #{j + 1:00}",
                                         NumVerts = shadingGroup.NumVerts,
-                                        TextureHash = shadingGroup.TextureHash
+                                        TextureHash = solidObject.TextureHashes[texIdx]
                                     };
 
                                     int vsIdx;

@@ -82,7 +82,10 @@ namespace StreamEd
 
                 var game = GameDetector.DetectGame(_currentGameDir = gameFolderBrowser.SelectedPath);
 
-                if (game != GameDetector.Game.MostWanted && game != GameDetector.Game.ProStreet && game != GameDetector.Game.World)
+                if (game != GameDetector.Game.MostWanted
+                    && game != GameDetector.Game.ProStreet 
+                    && game != GameDetector.Game.World
+                    && game != GameDetector.Game.Carbon)
                 {
                     MessageUtil.ShowError("Unsupported game directory.");
                     return;
@@ -105,6 +108,11 @@ namespace StreamEd
                     case GameDetector.Game.World:
                     {
                         _bundleManager = new World15Manager();
+                        break;
+                    }
+                    case GameDetector.Game.Carbon:
+                    {
+                        _bundleManager = new CarbonManager();
                         break;
                     }
                     case GameDetector.Game.Unknown:

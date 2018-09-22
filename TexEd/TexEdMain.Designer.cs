@@ -56,6 +56,7 @@
             this.PackTexCount = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.openFileDialog = new System.Windows.Forms.OpenFileDialog();
+            this.label1 = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.textureDataGrid)).BeginInit();
             this.menuStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.tpkDataGrid)).BeginInit();
@@ -294,11 +295,21 @@
             this.pictureBox1.TabIndex = 6;
             this.pictureBox1.TabStop = false;
             // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(1040, 659);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(111, 13);
+            this.label1.TabIndex = 7;
+            this.label1.Text = "Packs: 0 - Textures: 0";
+            // 
             // TexEdMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1264, 681);
+            this.Controls.Add(this.label1);
             this.Controls.Add(this.pictureBox1);
             this.Controls.Add(this.messageLabel);
             this.Controls.Add(this.textureDataGrid);
@@ -349,6 +360,7 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn TexDimensions;
         private System.Windows.Forms.DataGridViewTextBoxColumn TexMipmaps;
         private System.Windows.Forms.DataGridViewTextBoxColumn TexFormat;
+        private System.Windows.Forms.Label label1;
     }
 }
 

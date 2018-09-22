@@ -133,8 +133,10 @@ namespace Common
                                 case GameDetector.Game.ProStreet:
                                     lm = new ProStreetSolids();
                                     break;
-                                case GameDetector.Game.Unknown:
                                 case GameDetector.Game.Carbon:
+                                    lm = new CarbonSolids();
+                                    break;
+                                case GameDetector.Game.Unknown:
                                 default:
                                     break;
                             }

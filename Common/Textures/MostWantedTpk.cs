@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -49,6 +50,17 @@ namespace Common.Textures
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 44)]
             public byte[] RestOfData;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        private struct DataOffsetStruct
+        {
+            public uint Hash;
+            public uint Offset;
+            public uint LengthCompressed;
+            public uint Length;
+            public uint Flags;
+            private uint blank;
         }
 
         private TexturePack _texturePack;
@@ -105,6 +117,24 @@ namespace Common.Textures
 
                                 break;
                             }
+                        case 0x33310003:
+                            {
+                                Debug.Assert(chunkSize % Marshal.SizeOf<DataOffsetStruct>() == 0, "chunkSize % Marshal.SizeOf<DataOffsetStruct>() == 0");
+
+                                while (br.BaseStream.Position < chunkEndPos)
+                                {
+                                    var dos = br.GetStruct<DataOffsetStruct>();
+                                    var curPos = br.BaseStream.Position;
+
+                                    br.BaseStream.Position = dos.Offset;
+
+                                    ReadCompressedData(br, dos);
+
+                                    br.BaseStream.Position = curPos;
+                                }
+
+                                break;
+                            }
                         case TexChunkId:
                             {
                                 var textureStructSize = Marshal.SizeOf<TextureStruct>();
@@ -114,22 +144,7 @@ namespace Common.Textures
 
                                 for (var j = 0; j < numTextures; j++)
                                 {
-                                    var texture = BinaryUtil.ReadStruct<TextureStruct>(br);
-
-                                    _texturePack.Textures.Add(new Texture
-                                    {
-                                        Width = texture.Width,
-                                        Height = texture.Height,
-                                        Name = texture.Name,
-                                        Data = new byte[texture.DataSize],
-                                        DataSize = texture.DataSize,
-                                        DataOffset = texture.DataOffset,
-                                        MipMapCount = texture.D3,
-                                        TexHash = texture.Hash,
-                                        TypeHash = texture.Type,
-                                        CompressionType = TextureCompression.Unknown,
-                                        PitchOrLinearSize = texture.PitchOrLinearSize
-                                    });
+                                    ReadTexture(br);
                                 }
 
                                 break;
@@ -153,7 +168,7 @@ namespace Common.Textures
                                 foreach (var t in _texturePack.Textures)
                                 {
                                     br.BaseStream.Seek(20, SeekOrigin.Current);
-                                    t.CompressionType = (TextureCompression) br.ReadUInt32();
+                                    t.CompressionType = (TextureCompression)br.ReadUInt32();
                                     //Console.WriteLine($"{t.Name} = 0x{((int)t.CompressionType):X8}");
                                     br.BaseStream.Seek(0x08, SeekOrigin.Current);
                                 }
@@ -163,6 +178,69 @@ namespace Common.Textures
                 }
 
                 br.BaseStream.Position = chunkEndPos;
+            }
+        }
+
+        private void ReadTexture(BinaryReader br)
+        {
+            var texture = BinaryUtil.ReadStruct<TextureStruct>(br);
+
+            _texturePack.Textures.Add(new Texture
+            {
+                Width = texture.Width,
+                Height = texture.Height,
+                Name = texture.Name,
+                Data = new byte[texture.DataSize],
+                DataSize = texture.DataSize,
+                DataOffset = texture.DataOffset,
+                MipMapCount = texture.D3,
+                TexHash = texture.Hash,
+                TypeHash = texture.Type,
+                CompressionType = TextureCompression.Unknown,
+                PitchOrLinearSize = texture.PitchOrLinearSize
+            });
+        }
+
+        private void ReadCompressedData(BinaryReader br, DataOffsetStruct dos)
+        {
+            var compHead = br.GetStruct<Compression.SimpleCompressionHeader>();
+            br.BaseStream.Position -= 16;
+
+            var inData = new byte[dos.LengthCompressed];
+            var outData = new byte[compHead.OutLength];
+
+            br.Read(inData, 0, inData.Length);
+
+            Compression.Decompress(inData, outData);
+
+            using (var ms = new MemoryStream(outData))
+            {
+                ms.Position = ms.Length - 156;
+
+                using (var cbr = new BinaryReader(ms))
+                {
+                    ReadTexture(cbr);
+                }
+            }
+
+            _texturePack.Textures[_texturePack.NumTextures - 1].Data = new byte[outData.Length - 156];
+
+            Array.ConstrainedCopy(outData, 0, _texturePack.Textures[_texturePack.NumTextures - 1].Data, 0,
+                outData.Length - 156);
+
+            _texturePack.Textures[_texturePack.NumTextures - 1].CompressionType = (TextureCompression)BitConverter.ToUInt32(outData, outData.Length - 12);
+
+            using (var fs = File.OpenWrite($"{dos.Hash:X8}.dds"))
+            {
+                var ddsHeader = new DDSHeader();
+                var texture = _texturePack.Textures[_texturePack.NumTextures - 1];
+                ddsHeader.Init(texture);
+
+                using (var bw = new BinaryWriter(fs))
+                {
+                    BinaryUtil.WriteStruct(bw, ddsHeader);
+                    bw.Write(texture.Data, 0, texture.Data.Length);
+                }
             }
         }
     }

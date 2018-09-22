@@ -28,9 +28,12 @@ namespace AssetDumper
             var inputFile = args[1];
             var outDirectory = args[2];
 
-            if (game != "world")
+            if (game != "world" 
+                && game != "mw"
+                && game != "carbon")
             {
-                Console.Error.WriteLine($"ERROR: Invalid game [{game}]. Valid options: world");
+                Console.Error.WriteLine($"ERROR: Invalid game [{game}]. Valid options: world, mw, carbon");
+                Console.WriteLine("Press any key to exit...");
                 Console.ReadKey();
                 Environment.Exit(1);
             }
@@ -38,6 +41,7 @@ namespace AssetDumper
             if (!File.Exists(inputFile))
             {
                 Console.Error.WriteLine($"ERROR: Cannot find input file: {inputFile}");
+                Console.WriteLine("Press any key to exit...");
                 Console.ReadKey();
                 Environment.Exit(1);
             }
@@ -57,16 +61,29 @@ namespace AssetDumper
                         realGame = GameDetector.Game.World;
                         break;
                     }
+                case "mw":
+                    {
+                        realGame = GameDetector.Game.MostWanted;
+                        break;
+                    }
+                case "carbon":
+                    {
+                        realGame = GameDetector.Game.Carbon;
+                        break;
+                    }
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+
+            Console.WriteLine("INFO: Reading data... please wait");
 
             var chunkManager = new ChunkManager(realGame);
             chunkManager.Read(inputFile);
 
             var results = ProcessResults(chunkManager.Chunks, Path.GetFullPath(outDirectory));
 
-            Console.WriteLine($"[INFO] Finished dumping! Assets: {results[0]} ({results[1]} sub-assets)");
+            Console.WriteLine();
+            Console.WriteLine($"INFO: Finished dumping! Assets: {results[0]} ({results[1]} sub-assets)");
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
         }
@@ -89,127 +106,147 @@ namespace AssetDumper
                 Directory.CreateDirectory(modelsDir);
             }
 
-            foreach (var chunk in chunks.Where(c => c.Resource != null))
+            Console.WriteLine("INFO: Processing texture packs...");
+
+            var textureHashes = new List<uint>();
+
+            // Process TPKs
+            foreach (var chunk in chunks)
             {
-                switch (chunk.Resource)
+                if (chunk.Resource is TexturePack tpk)
                 {
-                    case TexturePack tpk:
+                    foreach (var texture in tpk.Textures)
+                    {
+                        ExportTexture(texture, Path.Combine(texturesDir, $"0x{texture.TexHash:X8}.dds"));
+                        subAssetCount++;
+
+                        if (!textureHashes.Contains(texture.TexHash))
                         {
-                            foreach (var texture in tpk.Textures)
-                            {
-                                ExportTexture(texture, Path.Combine(texturesDir, $"0x{texture.TexHash:X8}.dds"));
-                                subAssetCount++;
-                            }
-
-                            assetCount++;
-
-                            break;
+                            textureHashes.Add(texture.TexHash);
                         }
-                    case SolidList solidList:
-                        {
-                            foreach (var solidObject in solidList.Objects)
-                            {
-                                var mtlFileName = $"{solidObject.Name}.mtl";
-                                var objName = $"{solidObject.Name}.obj";
-                                var objPath = Path.Combine(modelsDir, objName);
-                                var materialLibPath = Path.Combine(modelsDir, mtlFileName);
+                    }
 
-                                using (var ms = new FileStream(materialLibPath, FileMode.Create))
-                                using (var sw = new StreamWriter(ms))
-                                {
-                                    foreach (var material in solidObject.Materials.ToList())
-                                    {
-                                        var repCount = 0;
-                                        for (var j = 0; j < solidObject.Materials.Count; j++)
-                                        {
-                                            if (!string.Equals(solidObject.Materials[j].Name, material.Name)) continue;
-                                            var mat = solidObject.Materials[j];
-
-                                            if (repCount > 0)
-                                            {
-                                                mat.Name += $"_{repCount + 1}";
-                                            }
-
-                                            solidObject.Materials[j] = mat;
-
-                                            repCount++;
-                                        }
-                                    }
-
-                                    foreach (var material in solidObject.Materials)
-                                    {
-                                        sw.WriteLine($"newmtl {material.Name.Replace(' ', '_')}");
-                                        sw.WriteLine("Ka 255 255 255");
-                                        sw.WriteLine("Kd 255 255 255");
-                                        sw.WriteLine("Ks 255 255 255");
-
-                                        var texPath = Path.Combine(texturesDir, $"0x{material.TextureHash:X8}.dds");
-                                        sw.WriteLine($"map_Ka {texPath}");
-                                        sw.WriteLine($"map_Kd {texPath}");
-                                        sw.WriteLine($"map_Ks {texPath}");
-                                    }
-                                }
-
-                                using (var fs = new FileStream(objPath, FileMode.Create))
-                                using (var sw = new StreamWriter(fs))
-                                {
-                                    sw.WriteLine($"mtllib {mtlFileName}");
-                                    sw.WriteLine($"obj {solidObject.Name}");
-
-                                    foreach (var vertex in solidObject.Vertices)
-                                    {
-                                        sw.WriteLine($"vt {BinaryUtil.FullPrecisionFloat(vertex.U)} {BinaryUtil.FullPrecisionFloat(-vertex.V)}");
-                                    }
-
-                                    foreach (var vertex in solidObject.Vertices)
-                                    {
-                                        sw.WriteLine($"v {BinaryUtil.FullPrecisionFloat(vertex.X)} {BinaryUtil.FullPrecisionFloat(vertex.Y)} {BinaryUtil.FullPrecisionFloat(vertex.Z)}");
-                                    }
-
-                                    var lastMaterial = -1;
-
-                                    foreach (var face in solidObject.Faces)
-                                    {
-                                        var foundPair = new KeyValuePair<int, List<ushort[]>>();
-
-                                        foreach (var pair in solidObject.MaterialFaces.Where(p => p.Value.Any(f => f.SequenceEqual(face.ShiftedArray()))))
-                                        {
-                                            foundPair = pair;
-                                            break;
-                                        }
-
-                                        if (foundPair.Value != null && foundPair.Value.Count > 0)
-                                        {
-                                            if (foundPair.Key != lastMaterial)
-                                            {
-                                                lastMaterial = foundPair.Key;
-                                                sw.WriteLine($"usemtl {solidObject.Materials[foundPair.Key].Name.Replace(" ", "_")}");
-                                            }
-                                        }
-                                        else
-                                        {
-                                            lastMaterial = -1;
-                                            sw.WriteLine("usemtl EMPTY");
-                                        }
-
-                                        if (face.Vtx1 >= solidObject.MeshDescriptor.NumVerts
-                                            || face.Vtx2 >= solidObject.MeshDescriptor.NumVerts
-                                            || face.Vtx3 >= solidObject.MeshDescriptor.NumVerts) break;
-                                        sw.WriteLine($"f {face.Shift1 + 1}/{face.Shift1 + 1} {face.Shift2 + 1}/{face.Shift2 + 1} {face.Shift3 + 1}/{face.Shift3 + 1}");
-                                    }
-                                }
-
-                                subAssetCount++;
-                            }
-
-                            assetCount++;
-
-                            break;
-                        }
+                    assetCount++;
                 }
             }
 
-            return new[] {assetCount, subAssetCount};
+            Console.WriteLine("INFO: Processing object packs...");
+
+            // Process solid lists
+            foreach (var chunk in chunks)
+            {
+                if (chunk.Resource is SolidList solidList)
+                {
+                    foreach (var solidObject in solidList.Objects)
+                    {
+                        foreach (var material in solidObject.Materials)
+                        {
+                            var matNameHash = Hasher.BinHash(material.Name.ToUpper());
+                            if (textureHashes.Contains(matNameHash))
+                            {
+                                //Console.WriteLine($"DEBUG: Migrating material {material.Name} to texture 0x{matNameHash:X8}");
+                                material.TextureHash = matNameHash;
+                            }
+                        }
+
+                        var mtlFileName = $"{solidObject.Name}.mtl";
+                        var objName = $"{solidObject.Name}.obj";
+                        var objPath = Path.Combine(modelsDir, objName);
+                        var materialLibPath = Path.Combine(modelsDir, mtlFileName);
+
+                        using (var ms = new FileStream(materialLibPath, FileMode.Create))
+                        using (var sw = new StreamWriter(ms))
+                        {
+                            foreach (var material in solidObject.Materials.ToList())
+                            {
+                                var repCount = 0;
+                                for (var j = 0; j < solidObject.Materials.Count; j++)
+                                {
+                                    if (!string.Equals(solidObject.Materials[j].Name, material.Name)) continue;
+                                    var mat = solidObject.Materials[j];
+
+                                    if (repCount > 0)
+                                    {
+                                        mat.Name += $"_{repCount + 1}";
+                                    }
+
+                                    solidObject.Materials[j] = mat;
+
+                                    repCount++;
+                                }
+                            }
+
+                            foreach (var material in solidObject.Materials)
+                            {
+                                sw.WriteLine($"newmtl {material.Name.Replace(' ', '_')}");
+                                sw.WriteLine("Ka 255 255 255");
+                                sw.WriteLine("Kd 255 255 255");
+                                sw.WriteLine("Ks 255 255 255");
+
+                                var texPath = Path.Combine(texturesDir, $"0x{material.TextureHash:X8}.dds");
+                                sw.WriteLine($"map_Ka {texPath}");
+                                sw.WriteLine($"map_Kd {texPath}");
+                                sw.WriteLine($"map_Ks {texPath}");
+                            }
+                        }
+
+                        using (var fs = new FileStream(objPath, FileMode.Create))
+                        using (var sw = new StreamWriter(fs))
+                        {
+                            sw.WriteLine($"mtllib {mtlFileName}");
+                            sw.WriteLine($"obj {solidObject.Name}");
+
+                            foreach (var vertex in solidObject.Vertices)
+                            {
+                                sw.WriteLine($"vt {BinaryUtil.FullPrecisionFloat(vertex.U)} {BinaryUtil.FullPrecisionFloat(vertex.V)}");
+                            }
+
+                            foreach (var vertex in solidObject.Vertices)
+                            {
+                                sw.WriteLine($"v {BinaryUtil.FullPrecisionFloat(vertex.X)} {BinaryUtil.FullPrecisionFloat(vertex.Y)} {BinaryUtil.FullPrecisionFloat(vertex.Z)}");
+                            }
+
+                            var lastMaterial = -1;
+
+                            foreach (var face in solidObject.Faces)
+                            {
+                                var foundPair = new KeyValuePair<int, List<ushort[]>>();
+
+                                foreach (var pair in solidObject.MaterialFaces.Where(p => p.Value.Any(f => f.SequenceEqual(face.ShiftedArray()))))
+                                {
+                                    foundPair = pair;
+                                    break;
+                                }
+
+                                if (foundPair.Value != null && foundPair.Value.Count > 0)
+                                {
+                                    if (foundPair.Key != lastMaterial)
+                                    {
+                                        lastMaterial = foundPair.Key;
+                                        sw.WriteLine($"usemtl {solidObject.Materials[foundPair.Key].Name.Replace(" ", "_")}");
+                                    }
+                                }
+                                else
+                                {
+                                    lastMaterial = -1;
+                                    sw.WriteLine("usemtl EMPTY");
+                                }
+
+                                if (face.Vtx1 >= solidObject.MeshDescriptor.NumVerts
+                                    || face.Vtx2 >= solidObject.MeshDescriptor.NumVerts
+                                    || face.Vtx3 >= solidObject.MeshDescriptor.NumVerts) break;
+                                sw.WriteLine($"f {face.Shift1 + 1}/{face.Shift1 + 1} {face.Shift2 + 1}/{face.Shift2 + 1} {face.Shift3 + 1}/{face.Shift3 + 1}");
+                            }
+                        }
+
+                        subAssetCount++;
+                    }
+
+                    assetCount++;
+                }
+            } 
+
+            return new[] { assetCount, subAssetCount };
         }
 
         /// <summary>

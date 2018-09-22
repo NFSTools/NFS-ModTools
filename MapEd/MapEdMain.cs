@@ -81,10 +81,9 @@ namespace MapEd
                         if (texture.CompressionType == TextureCompression.P8
                             || texture.CompressionType == TextureCompression.A8R8G8B8
                             || texture.CompressionType == TextureCompression.Ati1
-                            || texture.CompressionType == TextureCompression.Ati2
                             || texture.CompressionType == TextureCompression.Unknown)
                         {
-                            Console.WriteLine(texture.CompressionType + $" {((int)texture.CompressionType):X8}");
+                            Console.WriteLine(texture.CompressionType + $" {(int)texture.CompressionType:X8}");
                             MessageUtil.ShowError("Preview is unavailable for this format: " + texture.CompressionType);
                         }
                         else
@@ -272,7 +271,6 @@ namespace MapEd
                         bundleMasterStream = File.OpenRead(masterStreamPath);
                     }
 
-                    //var bundleNode = baseTree.Nodes.Add(bundleManagerBundle.Name);
                     var sectionData = new byte[0];
 
                     foreach (var streamSection in bundleManagerBundle.Sections)
@@ -302,7 +300,6 @@ namespace MapEd
                                 ms = new MemoryStream(sectionData);
                                 br = new BinaryReader(ms);
                             }
-                            //filePath = Path.Combine(folderBrowserDialog.SelectedPath, "TRACKS")
                         }
 
                         cm.Reset();
@@ -315,37 +312,6 @@ namespace MapEd
                             _chunks.Add(chunk);
                             _sectionChunksDictionary[streamSection.Number].Add(_chunks.Count - 1);
                         }
-
-                        //var sectionNodeText = $"{streamSection.Name} ({streamSection.Number})";
-                        //var sectionNode = bundleNode.Nodes.Add(sectionNodeText);
-                        //sectionNode.Tag = streamSection.Number;
-
-                        //sectionNode.ToolTipText =
-                        //    $"Position: {streamSection.Position} - Size: {streamSection.Size}";
-
-                        //foreach (var chunkIndex in _sectionChunksDictionary[streamSection.Number])
-                        //{
-                        //    var chunk = _chunks[chunkIndex];
-                        //    switch (chunk.Resource)
-                        //    {
-                        //        case TexturePack tpk:
-                        //            var tpkNode = sectionNode.Nodes.Add(tpk.PipelinePath);
-                        //            tpkNode.Tag = tpk;
-
-                        //            //foreach (var texture in tpk.Textures)
-                        //            //{
-                        //            //    var textureNode = tpkNode.Nodes.Add(texture.Name);
-                        //            //    textureNode.ToolTipText =
-                        //            //        texture.Dimensions + $"- Mipmaps: {texture.MipMapCount}";
-                        //            //}
-
-                        //            break;
-                        //        case SolidList solidList:
-                        //            var solidListNode = sectionNode.Nodes.Add(solidList.PipelinePath);
-                        //            solidListNode.Tag = solidList;
-                        //            break;
-                        //    }
-                        //}
 
                         br?.Dispose();
                         ms?.Dispose();
@@ -380,13 +346,6 @@ namespace MapEd
                                 case TexturePack tpk:
                                     var tpkNode = sectionNode.Nodes.Add(tpk.PipelinePath);
                                     tpkNode.Tag = tpk;
-
-                                    //foreach (var texture in tpk.Textures)
-                                    //{
-                                    //    var textureNode = tpkNode.Nodes.Add(texture.Name);
-                                    //    textureNode.ToolTipText =
-                                    //        texture.Dimensions + $"- Mipmaps: {texture.MipMapCount}";
-                                    //}
 
                                     break;
                                 case SolidList solidList:
@@ -647,7 +606,7 @@ namespace MapEd
 
                         foreach (var vertex in _selectedSolidObject.Vertices)
                         {
-                            sw.WriteLine($"vt {BinaryUtil.FullPrecisionFloat(vertex.U)} {BinaryUtil.FullPrecisionFloat(-vertex.V)}");
+                            sw.WriteLine($"vt {BinaryUtil.FullPrecisionFloat(vertex.U)} {BinaryUtil.FullPrecisionFloat(vertex.V)}");
                         }
 
                         foreach (var vertex in _selectedSolidObject.Vertices)
@@ -659,9 +618,9 @@ namespace MapEd
 
                         foreach (var face in _selectedSolidObject.Faces)
                         {
-                            if (_selectedSolidObject.MaterialFaces.Any(p => p.Value.Any(f => f.SequenceEqual(face.ToArray()))))
+                            if (_selectedSolidObject.MaterialFaces.Any(p => p.Value.Any(f => f.SequenceEqual(face.ShiftedArray()))))
                             {
-                                var matIndex = _selectedSolidObject.MaterialFaces.First(p => p.Value.Any(f => f.SequenceEqual(face.ToArray()))).Key;
+                                var matIndex = _selectedSolidObject.MaterialFaces.First(p => p.Value.Any(f => f.SequenceEqual(face.ShiftedArray()))).Key;
 
                                 if (matIndex != lastMaterial)
                                 {

@@ -114,6 +114,7 @@
     <Compile Include="Compression.cs" />
     <Compile Include="GameDetector.cs" />
     <Compile Include="Geometry\Data\SolidList.cs" />
+    <Compile Include="Geometry\CarbonSolids.cs" />
     <Compile Include="Geometry\MostWantedSolids.cs" />
     <Compile Include="Geometry\ProStreetSolids.cs" />
     <Compile Include="Geometry\SolidListManager.cs" />
@@ -124,6 +125,7 @@
     <Compile Include="Stream\Data\LocationBundle.cs" />
     <Compile Include="Stream\Data\Vector3.cs" />
     <Compile Include="Stream\GameBundleManager.cs" />
+    <Compile Include="Stream\CarbonManager.cs" />
     <Compile Include="Stream\ProStreetManager.cs" />
     <Compile Include="Stream\World15Manager.cs" />
     <Compile Include="Stream\MostWantedManager.cs" />

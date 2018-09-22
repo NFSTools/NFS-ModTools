@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -9,22 +8,18 @@ using System.Windows.Forms;
 using Common;
 using Common.Geometry;
 using Common.Geometry.Data;
-using ObjLoader.Loader.Data.DataStore;
 using ObjLoader.Loader.Loaders;
-using ObjLoader.Loader.TypeParsers;
-using OpenTK;
-using OpenTK.Graphics;
-using OpenTK.Graphics.OpenGL;
-
-using SysTimer = System.Timers.Timer;
+using SharpDX;
+using SharpDX.Direct3D11;
+using SharpDX.DXGI;
+using SharpDX.Windows;
+using SharpHelper;
 
 namespace GeoEd
 {
     public partial class GeoEdMain : Form
     {
         private readonly object _renderLock = new object();
-
-        private readonly SysTimer _timer;
 
         private int _program;
         private ChunkManager _chunkManager;
@@ -43,19 +38,131 @@ namespace GeoEd
             openBundleDialog.Filter = "Bundle Files (*.bin, *.bun)|*.bin;*.bun|All Files (*.*)|*.*";
             openModelDialog.Filter = "Wavefront Obj Files (*.obj)|*.obj";
 
-            glControl1.Resize += glControl1_Resize;
-            glControl1.Paint += glControl1_Paint;
-
-            _timer = new SysTimer(1000.0 / 60.0); // 60FPS target
-            _timer.Elapsed += (_, __) =>
-            {
-                glControl1.Invalidate();
-            };
-
-            _timer.Start();
-
             treeView1.AfterSelect += TreeView1_OnAfterSelect;
             treeView1.AfterCheck += TreeView1_OnAfterCheck;
+
+            Load += OnLoad;
+        }
+
+        private void OnLoad(object sender, EventArgs e)
+        {
+            int[] indices = {
+                            0,1,2,0,2,3,
+                            4,6,5,4,7,6,
+                            8,9,10,8,10,11,
+                            12,14,13,12,15,14,
+                            16,18,17,16,19,18,
+                            20,21,22,20,22,23
+            };
+
+
+            ColoredVertex[] vertices = {
+                ////TOP
+                new ColoredVertex(new Vector3(-5,5,5),new Vector4(0,1,0,0)),
+                new ColoredVertex(new Vector3(5,5,5),new Vector4(0,1,0,0)),
+                new ColoredVertex(new Vector3(5,5,-5),new Vector4(0,1,0,0)),
+                new ColoredVertex(new Vector3(-5,5,-5),new Vector4(0,1,0,0)),
+                //BOTTOM
+                new ColoredVertex(new Vector3(-5,-5,5),new Vector4(1,0,1,1)),
+                new ColoredVertex(new Vector3(5,-5,5),new Vector4(1,0,1,1)),
+                new ColoredVertex(new Vector3(5,-5,-5),new Vector4(1,0,1,1)),
+                new ColoredVertex(new Vector3(-5,-5,-5),new Vector4(1,0,1,1)),
+                //LEFT
+                new ColoredVertex(new Vector3(-5,-5,5),new Vector4(1,0,0,1)),
+                new ColoredVertex(new Vector3(-5,5,5),new Vector4(1,0,0,1)),
+                new ColoredVertex(new Vector3(-5,5,-5),new Vector4(1,0,0,1)),
+                new ColoredVertex(new Vector3(-5,-5,-5),new Vector4(1,0,0,1)),
+                //RIGHT
+                new ColoredVertex(new Vector3(5,-5,5),new Vector4(1,1,0,1)),
+                new ColoredVertex(new Vector3(5,5,5),new Vector4(1,1,0,1)),
+                new ColoredVertex(new Vector3(5,5,-5),new Vector4(1,1,0,1)),
+                new ColoredVertex(new Vector3(5,-5,-5),new Vector4(1,1,0,1)),
+                //FRONT
+                new ColoredVertex(new Vector3(-5,5,5),new Vector4(0,1,1,1)),
+                new ColoredVertex(new Vector3(5,5,5),new Vector4(0,1,1,1)),
+                new ColoredVertex(new Vector3(5,-5,5),new Vector4(0,1,1,1)),
+                new ColoredVertex(new Vector3(-5,-5,5),new Vector4(0,1,1,1)),
+                //BACK
+                new ColoredVertex(new Vector3(-5,5,-5),new Vector4(0,0,1,1)),
+                new ColoredVertex(new Vector3(5,5,-5),new Vector4(0,0,1,1)),
+                new ColoredVertex(new Vector3(5,-5,-5),new Vector4(0,0,1,1)),
+                new ColoredVertex(new Vector3(-5,-5,-5),new Vector4(0,0,1,1))
+            };
+
+            //Help to count Frame Per Seconds
+            var fpsCounter = new SharpFPS();
+
+            var form = new RenderForm();
+
+            using (var device = new SharpDevice(form))
+            {
+                //Init Mesh
+                var mesh = SharpMesh.Create(device, vertices, indices);
+
+                //Create Shader From File and Create Input Layout
+                var shader = new SharpShader(device, "HLSL.txt",
+                    new SharpShaderDescription { VertexShaderFunction = "VS", PixelShaderFunction = "PS" },
+                    new[] {
+                        new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0),
+                        new InputElement("COLOR", 0, Format.R32G32B32A32_Float, 12, 0)
+                    });
+
+                //create constant buffer
+                var buffer = shader.CreateBuffer<Matrix>();
+
+                fpsCounter.Reset();
+
+                //main loop
+                RenderLoop.Run(panel1, () =>
+                {
+                    //Resizing
+                    if (device.MustResize)
+                    {
+                        device.Resize();
+                    }
+
+                    //apply states
+                    device.UpdateAllStates();
+
+                    //clear color
+                    device.Clear(Color.CornflowerBlue);
+
+                    //Set matrices
+                    var ratio = form.ClientRectangle.Width / (float)form.ClientRectangle.Height;
+                    var projection = Matrix.PerspectiveFovLH(3.14F / 3.0F, ratio, 1, 1000);
+                    var view = Matrix.LookAtLH(new Vector3(0, 10, -50), new Vector3(), Vector3.UnitY);
+                    var world = Matrix.RotationY(Environment.TickCount / 1000.0F);
+                    var WVP = world * view * projection;
+
+                    //update constant buffer
+                    device.UpdateData(buffer, WVP);
+
+                    //pass constant buffer to shader
+                    device.DeviceContext.VertexShader.SetConstantBuffer(0, buffer);
+
+                    //apply shader
+                    shader.Apply();
+
+                    //draw mesh
+                    mesh.Draw();
+
+                    //begin drawing text
+                    device.Font.Begin();
+
+                    //draw string
+                    fpsCounter.Update();
+                    device.Font.DrawString("FPS: " + fpsCounter.FPS, 0, 0);
+
+                    //flush text to view
+                    device.Font.End();
+                    //present
+                    device.Present();
+                });
+
+                //release resources
+                mesh.Dispose();
+                buffer.Dispose();
+            }
         }
 
         private void TreeView1_OnAfterCheck(object sender, TreeViewEventArgs e)
@@ -67,53 +174,6 @@ namespace GeoEd
 
             if (!(chunk.Resource is SolidList solidList)) return;
 
-            var solidListObject = solidList.Objects[modelIdx];
-            var vertices = new List<Vertex>();
-            var vertexIndices = new List<ushort>();
-
-            foreach (var face in solidListObject.Faces)
-            {
-                if (!vertexIndices.Contains(face.Vtx1))
-                {
-                    vertices.Add(new Vertex(
-                        new Vector4(solidListObject.Vertices[face.Vtx1].X, solidListObject.Vertices[face.Vtx1].Y, solidListObject.Vertices[face.Vtx1].Z, 1.0f),
-                        Color4.Black
-                    ));
-
-                    vertexIndices.Add(face.Vtx1);
-                }
-
-                if (!vertexIndices.Contains(face.Vtx2))
-                {
-                    vertices.Add(new Vertex(
-                        new Vector4(solidListObject.Vertices[face.Vtx2].X, solidListObject.Vertices[face.Vtx2].Y, solidListObject.Vertices[face.Vtx2].Z, 1.0f),
-                        Color4.Black
-                    ));
-
-                    vertexIndices.Add(face.Vtx2);
-                }
-
-                if (!vertexIndices.Contains(face.Vtx3))
-                {
-                    vertices.Add(new Vertex(
-                        new Vector4(solidListObject.Vertices[face.Vtx3].X, solidListObject.Vertices[face.Vtx3].Y, solidListObject.Vertices[face.Vtx3].Z, 1.0f),
-                        Color4.Black
-                    ));
-
-                    vertexIndices.Add(face.Vtx3);
-                }
-            }
-
-            var renderObj = new RenderObject(vertices.ToArray());
-
-            if (e.Node.Checked)
-            {
-                _objectsToRender.Add(solidListObject.Hash, renderObj);
-            }
-            else
-            {
-                _objectsToRender.Remove(solidListObject.Hash);
-            }
         }
 
         private void TreeView1_OnAfterSelect(object sender, TreeViewEventArgs e)
@@ -128,42 +188,6 @@ namespace GeoEd
             {
                 importModelToolStripMenuItem.Enabled = false;
             }
-        }
-
-        private int CompileShader(ShaderType type, string path)
-        {
-            var shader = GL.CreateShader(type);
-            var src = File.ReadAllText(path);
-            GL.ShaderSource(shader, src);
-            GL.CompileShader(shader);
-            var info = GL.GetShaderInfoLog(shader);
-            if (!string.IsNullOrWhiteSpace(info))
-                Debug.WriteLine($"GL.CompileShader [{type}] had info log: {info}");
-            return shader;
-        }
-
-        private int CreateProgram()
-        {
-            var program = GL.CreateProgram();
-            var shaders = new List<int>
-            {
-                CompileShader(ShaderType.VertexShader, @"Shaders\vertexShader.vs"),
-                CompileShader(ShaderType.FragmentShader, @"Shaders\fragShader.fs")
-            };
-
-            foreach (var shader in shaders)
-                GL.AttachShader(program, shader);
-            GL.LinkProgram(program);
-            var info = GL.GetProgramInfoLog(program);
-            if (!string.IsNullOrWhiteSpace(info))
-                Debug.WriteLine($"GL.LinkProgram had info log: {info}");
-
-            foreach (var shader in shaders)
-            {
-                GL.DetachShader(program, shader);
-                GL.DeleteShader(shader);
-            }
-            return program;
         }
 
         private void openToolStripMenuItem_Click(object sender, EventArgs e)
@@ -195,7 +219,7 @@ namespace GeoEd
 
                 _currentGame = GameDetector.DetectGame(parentDirectory.FullName);
 
-                if (_currentGame != GameDetector.Game.MostWanted 
+                if (_currentGame != GameDetector.Game.MostWanted
                     && _currentGame != GameDetector.Game.World
                     && _currentGame != GameDetector.Game.ProStreet)
                 {
@@ -259,64 +283,9 @@ namespace GeoEd
             }
         }
 
-        protected override void OnLoad(EventArgs e)
-        {
-            base.OnLoad(e);
-
-            lock (_renderLock)
-            {
-                _program = CreateProgram();
-                glControl1_Resize(this, EventArgs.Empty);   // Ensure the Viewport is set up correctly
-                GL.ClearColor(Color.Crimson);
-
-                SetWindowTitle(GameDetector.Game.Unknown);
-            }
-
-            GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
-            GL.PatchParameter(PatchParameterInt.PatchVertices, 3);
-        }
-
-        private void glControl1_Paint(object sender, PaintEventArgs e)
-        {
-            glControl1.MakeCurrent();
-
-            GL.ClearColor(Color.Crimson);
-            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-
-            GL.UseProgram(_program);
-
-            lock (_renderLock)
-            {
-                foreach (var renderObject in _objectsToRender)
-                {
-                    renderObject.Value.Bind();
-                    renderObject.Value.Render();
-                }
-            }
-
-            glControl1.SwapBuffers();
-        }
-
-        private void glControl1_Resize(object sender, EventArgs e)
-        {
-            if (glControl1.ClientSize.Height == 0)
-                glControl1.ClientSize = new Size(glControl1.ClientSize.Width, 1);
-
-            GL.Viewport(0, 0, glControl1.ClientSize.Width, glControl1.ClientSize.Height);
-        }
-
         private void SetWindowTitle(GameDetector.Game game)
         {
             var title = "GeoEd v0.0.1 by heyitsleo";
-
-            try
-            {
-                title += $" - OpenGL: {GL.GetString(StringName.Version)}";
-            }
-            catch (Exception)
-            {
-                // ignored
-            }
 
             if (game != GameDetector.Game.Unknown)
             {
@@ -387,7 +356,7 @@ namespace GeoEd
             {
                 var objLoader = new ObjLoaderFactory().Create();
 
-                var solidObj = new SolidObject
+                var solidObj = new World15Object
                 {
                     Name = Path.GetFileNameWithoutExtension(openModelDialog.FileName),
                     MinPoint = new SimpleVector4(0.0f, 0.0f, 0.0f, 0.0f),

@@ -174,8 +174,10 @@ namespace TexEd
                 GC.Collect();
                 _chunkManager = new ChunkManager(GameDetector.Game.Unknown);
 
+#if !DEBUG
                 try
                 {
+#endif
                     messageLabel.Text = $"Loading: {fileName}";
 
                     _texturePacks.Clear();
@@ -187,6 +189,8 @@ namespace TexEd
                     stopwatch.Start();
                     _chunkManager.Read(fileName);
                     stopwatch.Stop();
+                    label1.Text = "Packs: 0 - Textures: 0";
+
                     messageLabel.Text = $"Loaded {fileName} [{stopwatch.ElapsedMilliseconds}ms]";
 
                     _texturePacks = new BindingList<TexturePack>(
@@ -202,12 +206,16 @@ namespace TexEd
                     {
                         tpkDataGrid.Rows[0].Selected = true;
                     }
-                }
+
+                    label1.Text = $"Packs: {_texturePacks.Count} - Textures: {_texturePacks.Sum(tpk => tpk.NumTextures)}";
+#if !DEBUG
+            }
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex.StackTrace);
                     MessageUtil.ShowError(ex.Message);
                 }
+#endif
             }
         }
     }
