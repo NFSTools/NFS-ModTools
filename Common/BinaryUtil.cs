@@ -1,12 +1,33 @@
 ﻿using System;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Windows.Media.Imaging;
 
 namespace Common
 {
     public static class BinaryUtil
     {
+        public static BitmapImage ToBitmapImage(this Bitmap bitmap)
+        {
+            using (var memory = new MemoryStream())
+            {
+                bitmap.Save(memory, ImageFormat.Png);
+                memory.Position = 0;
+
+                var bitmapImage = new BitmapImage();
+                bitmapImage.BeginInit();
+                bitmapImage.StreamSource = memory;
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapImage.EndInit();
+                bitmapImage.Freeze();
+
+                return bitmapImage;
+            }
+        }
+
         public const string DoubleFixedPoint = "0.###################################################################################################################################################################################################################################################################################################################################################";
 
         /// <summary>
@@ -15,9 +36,20 @@ namespace Common
         /// <param name="buf"></param>
         /// <param name="pos"></param>
         /// <returns></returns>
-        public static unsafe float GetPackedFloat(byte* buf, int pos)
+        public static unsafe float GetPackedFloat(void* buf, int pos)
         {
-            return (float)((long)((short*)buf)[pos]) / (float)0x8000;
+            return (float)((int)((short*)buf)[pos]) / (float)0x8000;
+        }
+
+        /// <summary>
+        /// The opposite of <see cref="GetPackedFloat"/>.
+        /// </summary>
+        /// <param name="buf"></param>
+        /// <param name="pos"></param>
+        /// <returns></returns>
+        public static unsafe float PackFloat(void* buf, int pos)
+        {
+            return (float)((int)((short*)buf)[pos]) * (float)0x8000;
         }
 
         // Note this MODIFIES THE GIVEN ARRAY then returns a reference to the modified array.
@@ -60,7 +92,7 @@ namespace Common
 
         public static byte[] ReadBytes(this BinaryReader binRdr, uint byteCount)
         {
-            var result = binRdr.ReadBytes((int) byteCount);
+            var result = binRdr.ReadBytes((int)byteCount);
 
             return result;
         }
@@ -84,6 +116,13 @@ namespace Common
             }
 
             return alignTo - num % alignTo;
+        }
+
+        public static uint AutoAlign(BinaryReader br, int alignTo)
+        {
+            var align = PaddingAlign(br.BaseStream.Position, alignTo);
+            br.BaseStream.Position += align;
+            return (uint)align;
         }
 
         /// <summary>

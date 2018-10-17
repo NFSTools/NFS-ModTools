@@ -106,7 +106,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DDSImage.cs" />
     <Compile Include="TexEdMain.cs">
       <SubType>Form</SubType>
     </Compile>

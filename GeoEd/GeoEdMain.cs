@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -9,25 +11,15 @@ using Common;
 using Common.Geometry;
 using Common.Geometry.Data;
 using ObjLoader.Loader.Loaders;
-using SharpDX;
-using SharpDX.Direct3D11;
-using SharpDX.DXGI;
-using SharpDX.Windows;
-using SharpHelper;
 
 namespace GeoEd
 {
     public partial class GeoEdMain : Form
     {
-        private readonly object _renderLock = new object();
-
-        private int _program;
         private ChunkManager _chunkManager;
         private string _currentFileName;
         private GameDetector.Game _currentGame;
         private int _selectedSolidList;
-
-        private readonly Dictionary<uint, RenderObject> _objectsToRender = new Dictionary<uint, RenderObject>();
 
         public GeoEdMain()
         {
@@ -40,129 +32,6 @@ namespace GeoEd
 
             treeView1.AfterSelect += TreeView1_OnAfterSelect;
             treeView1.AfterCheck += TreeView1_OnAfterCheck;
-
-            Load += OnLoad;
-        }
-
-        private void OnLoad(object sender, EventArgs e)
-        {
-            int[] indices = {
-                            0,1,2,0,2,3,
-                            4,6,5,4,7,6,
-                            8,9,10,8,10,11,
-                            12,14,13,12,15,14,
-                            16,18,17,16,19,18,
-                            20,21,22,20,22,23
-            };
-
-
-            ColoredVertex[] vertices = {
-                ////TOP
-                new ColoredVertex(new Vector3(-5,5,5),new Vector4(0,1,0,0)),
-                new ColoredVertex(new Vector3(5,5,5),new Vector4(0,1,0,0)),
-                new ColoredVertex(new Vector3(5,5,-5),new Vector4(0,1,0,0)),
-                new ColoredVertex(new Vector3(-5,5,-5),new Vector4(0,1,0,0)),
-                //BOTTOM
-                new ColoredVertex(new Vector3(-5,-5,5),new Vector4(1,0,1,1)),
-                new ColoredVertex(new Vector3(5,-5,5),new Vector4(1,0,1,1)),
-                new ColoredVertex(new Vector3(5,-5,-5),new Vector4(1,0,1,1)),
-                new ColoredVertex(new Vector3(-5,-5,-5),new Vector4(1,0,1,1)),
-                //LEFT
-                new ColoredVertex(new Vector3(-5,-5,5),new Vector4(1,0,0,1)),
-                new ColoredVertex(new Vector3(-5,5,5),new Vector4(1,0,0,1)),
-                new ColoredVertex(new Vector3(-5,5,-5),new Vector4(1,0,0,1)),
-                new ColoredVertex(new Vector3(-5,-5,-5),new Vector4(1,0,0,1)),
-                //RIGHT
-                new ColoredVertex(new Vector3(5,-5,5),new Vector4(1,1,0,1)),
-                new ColoredVertex(new Vector3(5,5,5),new Vector4(1,1,0,1)),
-                new ColoredVertex(new Vector3(5,5,-5),new Vector4(1,1,0,1)),
-                new ColoredVertex(new Vector3(5,-5,-5),new Vector4(1,1,0,1)),
-                //FRONT
-                new ColoredVertex(new Vector3(-5,5,5),new Vector4(0,1,1,1)),
-                new ColoredVertex(new Vector3(5,5,5),new Vector4(0,1,1,1)),
-                new ColoredVertex(new Vector3(5,-5,5),new Vector4(0,1,1,1)),
-                new ColoredVertex(new Vector3(-5,-5,5),new Vector4(0,1,1,1)),
-                //BACK
-                new ColoredVertex(new Vector3(-5,5,-5),new Vector4(0,0,1,1)),
-                new ColoredVertex(new Vector3(5,5,-5),new Vector4(0,0,1,1)),
-                new ColoredVertex(new Vector3(5,-5,-5),new Vector4(0,0,1,1)),
-                new ColoredVertex(new Vector3(-5,-5,-5),new Vector4(0,0,1,1))
-            };
-
-            //Help to count Frame Per Seconds
-            var fpsCounter = new SharpFPS();
-
-            var form = new RenderForm();
-
-            using (var device = new SharpDevice(form))
-            {
-                //Init Mesh
-                var mesh = SharpMesh.Create(device, vertices, indices);
-
-                //Create Shader From File and Create Input Layout
-                var shader = new SharpShader(device, "HLSL.txt",
-                    new SharpShaderDescription { VertexShaderFunction = "VS", PixelShaderFunction = "PS" },
-                    new[] {
-                        new InputElement("POSITION", 0, Format.R32G32B32_Float, 0, 0),
-                        new InputElement("COLOR", 0, Format.R32G32B32A32_Float, 12, 0)
-                    });
-
-                //create constant buffer
-                var buffer = shader.CreateBuffer<Matrix>();
-
-                fpsCounter.Reset();
-
-                //main loop
-                RenderLoop.Run(panel1, () =>
-                {
-                    //Resizing
-                    if (device.MustResize)
-                    {
-                        device.Resize();
-                    }
-
-                    //apply states
-                    device.UpdateAllStates();
-
-                    //clear color
-                    device.Clear(Color.CornflowerBlue);
-
-                    //Set matrices
-                    var ratio = form.ClientRectangle.Width / (float)form.ClientRectangle.Height;
-                    var projection = Matrix.PerspectiveFovLH(3.14F / 3.0F, ratio, 1, 1000);
-                    var view = Matrix.LookAtLH(new Vector3(0, 10, -50), new Vector3(), Vector3.UnitY);
-                    var world = Matrix.RotationY(Environment.TickCount / 1000.0F);
-                    var WVP = world * view * projection;
-
-                    //update constant buffer
-                    device.UpdateData(buffer, WVP);
-
-                    //pass constant buffer to shader
-                    device.DeviceContext.VertexShader.SetConstantBuffer(0, buffer);
-
-                    //apply shader
-                    shader.Apply();
-
-                    //draw mesh
-                    mesh.Draw();
-
-                    //begin drawing text
-                    device.Font.Begin();
-
-                    //draw string
-                    fpsCounter.Update();
-                    device.Font.DrawString("FPS: " + fpsCounter.FPS, 0, 0);
-
-                    //flush text to view
-                    device.Font.End();
-                    //present
-                    device.Present();
-                });
-
-                //release resources
-                mesh.Dispose();
-                buffer.Dispose();
-            }
         }
 
         private void TreeView1_OnAfterCheck(object sender, TreeViewEventArgs e)
@@ -245,11 +114,6 @@ namespace GeoEd
 
                 treeView1.Nodes.Clear();
 
-                lock (_renderLock)
-                {
-                    _objectsToRender.Clear();
-                }
-
                 var chunks = _chunkManager.Chunks;
 
                 for (var index = 0; index < chunks.Count; index++)
@@ -323,26 +187,18 @@ namespace GeoEd
                     default: throw new Exception("nah");
                 }
 
-                var solidListIdx = -1;
-                var numSolidLists = _chunkManager.Chunks.Count(c => c.Resource is SolidList);
-
                 foreach (var chunk in _chunkManager.Chunks)
                 {
                     if (chunk.Resource is SolidList sl)
                     {
                         slm.WriteSolidList(chunkStream, sl);
-
-                        if (++solidListIdx != numSolidLists)
-                        {
-                            chunkStream.PaddingAlignment(0x80);
-                        }
                     }
                     else
                     {
+                        chunkStream.PaddingAlignment((chunk.Id & 0x80000000) == 0x80000000 ? 0x80 : 0x10);
                         chunkStream.BeginChunk(chunk.Id);
                         bw.Write(chunk.Data);
                         chunkStream.EndChunk();
-                        chunkStream.PaddingAlignment(0x10);
                     }
                 }
             }
@@ -389,19 +245,37 @@ namespace GeoEd
                     Encoding.ASCII.GetBytes(File.ReadAllText(openModelDialog.FileName))))
                 {
                     var result = objLoader.Load(ms);
+                    var totalTris = result.Groups.Sum(g => g.Faces.Count);
+                    var curTriIdx = 0;
+                    var curVertIdx = 0;
+
+                    Array.Resize(ref solidObj.Faces, totalTris);
 
                     // group: face list->material
                     foreach (var group in result.Groups)
                     {
+                        var ambientFileName = Path.GetFileNameWithoutExtension(group.Material.AmbientTextureMap);
+
+                        Debug.Assert(ambientFileName != null);
+
+                        var textureHash = ambientFileName.StartsWith("0x")
+                            ? uint.Parse(ambientFileName.Substring(2), NumberStyles.AllowHexSpecifier)
+                            : Hasher.BinHash(ambientFileName);
+
+                        if (!solidObj.TextureHashes.Contains(textureHash))
+                        {
+                            solidObj.TextureHashes.Add(textureHash);
+                        }
+
                         var solidMaterial = new SolidObjectMaterial
                         {
                             Name = group.Material.Name,
                             Flags = 0x00224000,
                             MinPoint = new SimpleVector3(0, 0, 0),
                             MaxPoint = new SimpleVector3(0, 0, 0),
-                            TextureHash =
-                                Hasher.BinHash(Path.GetFileNameWithoutExtension(group.Material.AmbientTextureMap)),
-                            NumTris = (uint)group.Faces.Count
+                            TextureHash = textureHash,
+                            NumTris = (uint)group.Faces.Count,
+                            TextureIndex = (byte) solidObj.TextureHashes.IndexOf(textureHash)
                         };
 
                         solidMaterial.Hash = Hasher.BinHash(solidMaterial.Name);
@@ -470,12 +344,12 @@ namespace GeoEd
 
                         foreach (var face in group.Faces)
                         {
-                            solidObj.Faces.Add(new SolidMeshFace
+                            solidObj.Faces[curTriIdx++] = new SolidMeshFace
                             {
                                 Vtx1 = (ushort)(face[0].VertexIndex - 1),
                                 Vtx2 = (ushort)(face[1].VertexIndex - 1),
                                 Vtx3 = (ushort)(face[2].VertexIndex - 1)
-                            });
+                            };
                         }
 
                         solidObj.Materials.Add(solidMaterial);
@@ -518,14 +392,14 @@ namespace GeoEd
                             solidObj.MaxPoint.Z = vertex.Z;
                         }
 
-                        solidObj.Vertices.Add(new SolidMeshVertex
+                        solidObj.Vertices[curVertIdx++] = new SolidMeshVertex
                         {
                             U = tv.X,
                             V = -tv.Y,
                             X = vertex.X,
                             Y = vertex.Y,
                             Z = vertex.Z
-                        });
+                        };
                     }
                 }
 

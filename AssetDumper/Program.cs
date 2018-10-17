@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -28,11 +29,16 @@ namespace AssetDumper
             var inputFile = args[1];
             var outDirectory = args[2];
 
-            if (game != "world" 
+            if (game != "world"
                 && game != "mw"
-                && game != "carbon")
+                && game != "carbon"
+                && game != "prostreet"
+                && game != "pstest"
+                && game != "ug2"
+                && game != "ug"
+                && game != "undercover")
             {
-                Console.Error.WriteLine($"ERROR: Invalid game [{game}]. Valid options: world, mw, carbon");
+                Console.Error.WriteLine($"ERROR: Invalid game [{game}]. Valid options: world, mw, carbon, prostreet, pstest, undercover, ug2, ug");
                 Console.WriteLine("Press any key to exit...");
                 Console.ReadKey();
                 Environment.Exit(1);
@@ -71,19 +77,68 @@ namespace AssetDumper
                         realGame = GameDetector.Game.Carbon;
                         break;
                     }
+                case "prostreet":
+                    {
+                        realGame = GameDetector.Game.ProStreet;
+                        break;
+                    }
+                case "pstest":
+                    {
+                        realGame = GameDetector.Game.ProStreetTest;
+                        break;
+                    }
+                case "undercover":
+                    {
+                        realGame = GameDetector.Game.Undercover;
+                        break;
+                    }
+                case "ug2":
+                    {
+                        realGame = GameDetector.Game.Underground2;
+                        break;
+                    }
+                case "ug":
+                    {
+                        realGame = GameDetector.Game.Underground;
+                        break;
+                    }
                 default:
                     throw new ArgumentOutOfRangeException();
             }
 
             Console.WriteLine("INFO: Reading data... please wait");
 
+            var stopwatch = new Stopwatch();
             var chunkManager = new ChunkManager(realGame);
-            chunkManager.Read(inputFile);
+            stopwatch.Start();
 
+#if !DEBUG
+            try
+            {
+#endif
+            chunkManager.Read(inputFile);
+#if !DEBUG
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine($"ERROR: {e.Message}");
+                Console.Error.WriteLine(e.StackTrace);
+                Console.WriteLine("Press any key to exit...");
+                Console.ReadKey();
+                return;
+            }
+#endif
+            stopwatch.Stop();
+            Console.WriteLine($"INFO: Read data in {stopwatch.ElapsedMilliseconds}ms");
+
+            stopwatch.Reset();
+            stopwatch.Start();
             var results = ProcessResults(chunkManager.Chunks, Path.GetFullPath(outDirectory));
+            stopwatch.Stop();
 
             Console.WriteLine();
             Console.WriteLine($"INFO: Finished dumping! Assets: {results[0]} ({results[1]} sub-assets)");
+            Console.WriteLine($"INFO: Dumped data in {stopwatch.ElapsedMilliseconds}ms");
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
         }
@@ -117,7 +172,11 @@ namespace AssetDumper
                 {
                     foreach (var texture in tpk.Textures)
                     {
-                        ExportTexture(texture, Path.Combine(texturesDir, $"0x{texture.TexHash:X8}.dds"));
+                        var path = Path.Combine(texturesDir, $"0x{texture.TexHash:X8}.dds");
+                        if (!File.Exists(path))
+                        {
+                            ExportTexture(texture, path);
+                        }
                         subAssetCount++;
 
                         if (!textureHashes.Contains(texture.TexHash))
@@ -150,7 +209,7 @@ namespace AssetDumper
                         }
 
                         var mtlFileName = $"{solidObject.Name}.mtl";
-                        var objName = $"{solidObject.Name}.obj";
+                        var objName = $"{solidList.ClassType}-{solidList.PipelinePath.Replace(".bin", "").Replace('\\', '_')}-{solidObject.Name}.obj";
                         var objPath = Path.Combine(modelsDir, objName);
                         var materialLibPath = Path.Combine(modelsDir, mtlFileName);
 
@@ -206,36 +265,26 @@ namespace AssetDumper
                                 sw.WriteLine($"v {BinaryUtil.FullPrecisionFloat(vertex.X)} {BinaryUtil.FullPrecisionFloat(vertex.Y)} {BinaryUtil.FullPrecisionFloat(vertex.Z)}");
                             }
 
-                            var lastMaterial = -1;
+                            //var lastMaterial = -1;
 
-                            foreach (var face in solidObject.Faces)
+                            for (var i = 0; i < solidObject.Materials.Count; i++)
                             {
-                                var foundPair = new KeyValuePair<int, List<ushort[]>>();
+                                var material = solidObject.Materials[i];
+                                var faces = solidObject.Faces.Where(f => f.MaterialIndex == i).ToList();
 
-                                foreach (var pair in solidObject.MaterialFaces.Where(p => p.Value.Any(f => f.SequenceEqual(face.ShiftedArray()))))
-                                {
-                                    foundPair = pair;
-                                    break;
-                                }
+                                sw.WriteLine($"usemtl {material.Name.Replace(' ', '_')}");
 
-                                if (foundPair.Value != null && foundPair.Value.Count > 0)
+                                foreach (var face in faces)
                                 {
-                                    if (foundPair.Key != lastMaterial)
+                                    if (solidObject.MeshDescriptor.NumVerts > 0)
                                     {
-                                        lastMaterial = foundPair.Key;
-                                        sw.WriteLine($"usemtl {solidObject.Materials[foundPair.Key].Name.Replace(" ", "_")}");
+                                        if (face.Vtx1 >= solidObject.MeshDescriptor.NumVerts
+                                            || face.Vtx2 >= solidObject.MeshDescriptor.NumVerts
+                                            || face.Vtx3 >= solidObject.MeshDescriptor.NumVerts) break;
                                     }
-                                }
-                                else
-                                {
-                                    lastMaterial = -1;
-                                    sw.WriteLine("usemtl EMPTY");
-                                }
 
-                                if (face.Vtx1 >= solidObject.MeshDescriptor.NumVerts
-                                    || face.Vtx2 >= solidObject.MeshDescriptor.NumVerts
-                                    || face.Vtx3 >= solidObject.MeshDescriptor.NumVerts) break;
-                                sw.WriteLine($"f {face.Shift1 + 1}/{face.Shift1 + 1} {face.Shift2 + 1}/{face.Shift2 + 1} {face.Shift3 + 1}/{face.Shift3 + 1}");
+                                    sw.WriteLine($"f {face.Vtx1 + 1}/{face.Vtx1 + 1} {face.Vtx2 + 1}/{face.Vtx2 + 1} {face.Vtx3 + 1}/{face.Vtx3 + 1}");
+                                }
                             }
                         }
 
@@ -244,7 +293,7 @@ namespace AssetDumper
 
                     assetCount++;
                 }
-            } 
+            }
 
             return new[] { assetCount, subAssetCount };
         }
@@ -256,15 +305,7 @@ namespace AssetDumper
         /// <param name="path"></param>
         internal static void ExportTexture(Texture texture, string path)
         {
-            using (var fs = File.OpenWrite(path))
-            using (var bw = new BinaryWriter(fs))
-            {
-                var ddsHeader = new DDSHeader();
-                ddsHeader.Init(texture);
-
-                BinaryUtil.WriteStruct(bw, ddsHeader);
-                bw.Write(texture.Data);
-            }
+            texture.DumpToFile(path);
         }
     }
 }

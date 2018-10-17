@@ -1,6 +1,16 @@
-﻿namespace TexEd
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Media.Imaging;
+
+namespace Common.Textures.Data
 {
     using System;
+    using System.Collections.Generic;
+    using System.Text;
     using System.Drawing.Imaging;
     using System.Runtime.InteropServices;
     using System.IO;
@@ -616,7 +626,6 @@
         #region Decompress Methods
         private byte[] DecompressData(DDSStruct header, byte[] data, PixelFormat pixelFormat)
         {
-            System.Diagnostics.Debug.WriteLine(pixelFormat);
             // allocate bitmap
             byte[] rawData = null;
 

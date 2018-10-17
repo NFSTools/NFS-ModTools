@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Common.Stream.Data
+namespace Common.TrackStream.Data
 {
     public class StreamSection
     {
@@ -41,5 +41,7 @@ namespace Common.Stream.Data
         public string File { get; set; }
 
         public List<StreamSection> Sections { get; set; }
+
+        public List<ChunkManager.Chunk> Chunks { get; set; }
     }
 }

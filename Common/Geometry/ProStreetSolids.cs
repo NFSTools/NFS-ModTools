@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Common.Geometry.Data;
 
@@ -59,33 +61,90 @@ namespace Common.Geometry
             public uint[] Unknown4;
         }
 
-        //[StructLayout(LayoutKind.Sequential, Pack = 1)]
-        //private struct SolidObjectShadingGroup
-        //{
-        //    // begin header
-        //    public uint FirstIndex;
+        /// <remarks>
+        /// for speedyheart
+        /// </remarks>
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        private struct TestTrackShadingGroup
+        {
+            // begin header
+            public uint FirstIndex;
 
-        //    public uint Unknown1;
+            public uint Unknown1;
 
-        //    public uint Blank;
+            public uint Blank;
 
-        //    public uint Unknown2;
+            public uint Unknown2;
 
-        //    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
-        //    public uint[] Unknown3;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
+            public uint[] Unknown3;
 
-        //    // end header
+            // end header
 
-        //    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-        //    public byte[] TextureShaderUsage;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
+            public byte[] TextureShaderUsage;
 
-        //    public uint Unknown4;
+            public uint Unknown4;
 
-        //    public uint UnknownId;
-        //    public uint Flags;
-        //    public uint IndicesUsed;
-        //    public uint Flags2;
-        //}
+            public uint UnknownId;
+            public uint Flags;
+            public ushort IndicesUsed;
+            public ushort Unknown5;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
+            public uint[] Blank2;
+
+            public uint VertexBufferUsage;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+            public readonly byte[] Flags2;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
+            public uint[] Blank3;
+
+            public uint Unknown6;
+            public uint Dummy1;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        private struct SolidObjectShadingGroup
+        {
+            // begin header
+            public uint FirstIndex;
+
+            public uint Unknown1;
+
+            public uint Blank;
+
+            public uint Unknown2;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
+            public uint[] Unknown3;
+
+            // end header
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
+            public byte[] TextureShaderUsage;
+
+            public uint Unknown4;
+
+            public uint UnknownId;
+            public uint Flags;
+            public uint IndicesUsed;
+            public uint Unknown5;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
+            public uint[] Blank2;
+
+            public uint VertexBufferUsage; // / 0x20
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+            public readonly byte[] Flags2;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
+            public uint[] Blank3;
+
+            public uint Unknown6;
+        }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         private struct SolidObjectDescriptor
@@ -115,12 +174,30 @@ namespace Common.Geometry
             public uint Blank4;
         }
 
+        [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 0x18)]
+        private struct SolidObjectOffset
+        {
+            public uint ObjectHash;
+            public uint Offset;
+            public uint CompressedSize;
+            public uint OutSize;
+            public uint Unknown1;
+            public uint Unknown2;
+        }
+
         private const uint SolidListInfoChunk = 0x134002;
         private const uint SolidListObjHeadChunk = 0x134011;
 
         private SolidList _solidList;
 
         private int _namedMaterials;
+
+        private readonly bool _testTrackMode; // for speedyheart
+
+        public ProStreetSolids(bool testTrackMode = false)
+        {
+            _testTrackMode = testTrackMode;
+        }
 
         public override SolidList ReadSolidList(BinaryReader br, uint containerSize)
         {
@@ -142,6 +219,11 @@ namespace Common.Geometry
                 var chunkSize = br.ReadUInt32();
                 var chunkEndPos = br.BaseStream.Position + chunkSize;
 
+                if (chunkId == 0x55441122)
+                {
+                    break;
+                }
+
                 if ((chunkId & 0x80000000) == 0x80000000 && chunkId != 0x80134010)
                 {
                     ReadChunks(br, chunkSize);
@@ -152,15 +234,17 @@ namespace Common.Geometry
                     {
                         var padding = 0u;
 
-                        while (br.ReadByte() == 0x11)
+                        while (br.BaseStream.Position < chunkEndPos && br.ReadUInt32() == 0x11111111)
                         {
-                            padding++;
+                            padding += 4;
+
+                            if (br.BaseStream.Position >= chunkEndPos)
+                            {
+                                break;
+                            }
                         }
 
-                        br.BaseStream.Position--;
-
-                        if (padding % 2 != 0) padding--;
-
+                        br.BaseStream.Position -= 4;
                         chunkSize -= padding;
                     }
 
@@ -176,9 +260,77 @@ namespace Common.Geometry
 
                                 break;
                             }
+                        case 0x134004:
+                            {
+                                while (br.BaseStream.Position < chunkEndPos)
+                                {
+                                    var och = BinaryUtil.ReadStruct<SolidObjectOffset>(br);
+                                    var curPos = br.BaseStream.Position;
+                                    br.BaseStream.Position = och.Offset;
+
+                                    var bytesRead = 0u;
+                                    var blocks = new List<byte[]>();
+
+                                    while (bytesRead < och.CompressedSize)
+                                    {
+                                        var compHeader = BinaryUtil.ReadStruct<Compression.CompressBlockHead>(br);
+                                        var compressedData = br.ReadBytes((int)(compHeader.TotalBlockSize - 24));
+                                        var outData = new byte[compHeader.OutSize];
+
+                                        Compression.Decompress(compressedData, outData);
+
+                                        blocks.Add(outData);
+
+                                        bytesRead += compHeader.TotalBlockSize;
+                                    }
+
+                                    if (blocks.Count == 1)
+                                    {
+                                        using (var ms = new MemoryStream(blocks[0]))
+                                        using (var mbr = new BinaryReader(ms))
+                                        {
+                                            var solidObject = ReadObject(mbr, blocks[0].Length, true, null);
+                                            solidObject.PostProcessing();
+
+                                            _solidList.Objects.Add(solidObject);
+                                        }
+                                    }
+                                    else if (blocks.Count > 1)
+                                    {
+                                        // Sort the blocks into their proper order.
+                                        var sorted = new List<byte>();
+
+                                        sorted.AddRange(blocks[blocks.Count - 1]);
+
+                                        for (var j = 0; j < blocks.Count; j++)
+                                        {
+                                            if (j != blocks.Count - 1)
+                                            {
+                                                sorted.AddRange(blocks[j]);
+                                            }
+                                        }
+
+                                        using (var ms = new MemoryStream(sorted.ToArray()))
+                                        using (var mbr = new BinaryReader(ms))
+                                        {
+                                            var solidObject = ReadObject(mbr, sorted.Count, true, null);
+                                            solidObject.PostProcessing();
+
+                                            _solidList.Objects.Add(solidObject);
+                                        }
+
+                                        sorted.Clear();
+                                    }
+
+                                    blocks.Clear();
+
+                                    br.BaseStream.Position = curPos;
+                                }
+                                break;
+                            }
                         case 0x80134010:
                             {
-                                var solidObject = ReadObject(br, chunkSize, null);
+                                var solidObject = ReadObject(br, chunkSize, false, null);
                                 solidObject.PostProcessing();
                                 _solidList.Objects.Add(solidObject);
                                 break;
@@ -198,10 +350,18 @@ namespace Common.Geometry
             throw new NotImplementedException();
         }
 
-        private SolidObject ReadObject(BinaryReader br, long size, SolidObject solidObject)
+        private SolidObject ReadObject(BinaryReader br, long size, bool compressed, SolidObject solidObject)
         {
             if (solidObject == null)
-                solidObject = new ProStreetObject();
+                solidObject = new ProStreetObject(_testTrackMode);
+
+            solidObject.IsCompressed = compressed;
+            solidObject.EnableTransform = !compressed;
+
+            if (_testTrackMode)
+            {
+                solidObject.RotationAngle = 0.0f;
+            }
 
             var endPos = br.BaseStream.Position + size;
 
@@ -213,21 +373,23 @@ namespace Common.Geometry
 
                 if ((chunkId & 0x80000000) == 0x80000000)
                 {
-                    solidObject = ReadObject(br, chunkSize, solidObject);
+                    solidObject = ReadObject(br, chunkSize, compressed, solidObject);
                 }
                 else
                 {
                     var padding = 0u;
 
-                    while (br.ReadByte() == 0x11)
+                    while (br.BaseStream.Position < chunkEndPos && br.ReadUInt32() == 0x11111111)
                     {
-                        padding++;
+                        padding += 4;
+
+                        if (br.BaseStream.Position >= chunkEndPos)
+                        {
+                            break;
+                        }
                     }
 
-                    br.BaseStream.Position--;
-
-                    if (padding % 2 != 0) padding--;
-
+                    br.BaseStream.Position -= 4;
                     chunkSize -= padding;
 
                     switch (chunkId)
@@ -271,6 +433,23 @@ namespace Common.Geometry
 
                                 break;
                             }
+                        // 12 40 13 00
+                        case 0x00134012:
+                            {
+                                for (var j = 0; j < chunkSize / 8; j++)
+                                {
+                                    var val = br.ReadUInt32();
+
+                                    if (val != 0)
+                                    {
+                                        solidObject.TextureHashes.Add(val);
+                                    }
+
+                                    br.BaseStream.Position += 4;
+                                }
+
+                                break;
+                            }
                         case 0x134900:
                             {
                                 var descriptor = BinaryUtil.ReadStruct<SolidObjectDescriptor>(br);
@@ -288,98 +467,101 @@ namespace Common.Geometry
                             }
                         case 0x00134b02:
                             {
-                                for (var j = 0; j < chunkSize / 128; j++)
+                                if (_testTrackMode)
                                 {
-                                    var pos = br.BaseStream.Position;
+                                    var shadingGroupSize = Marshal.SizeOf<TestTrackShadingGroup>();
+                                    Debug.Assert(chunkSize % shadingGroupSize == 0);
+                                    var numMats = chunkSize / shadingGroupSize;
 
-                                    var firstIndex = br.ReadUInt32();
-                                    var unknown1 = br.ReadUInt32();
-                                    br.ReadUInt32();
-                                    var unknown2 = br.ReadUInt32();
-                                    br.ReadUInt32();
-                                    br.ReadUInt32();
-                                    var textureUsage = br.ReadBytes(8);
-                                    var unknown3 = br.ReadUInt32();
-                                    var unknownId = br.ReadUInt32();
-                                    var flags = br.ReadUInt32();
-                                    var indicesUsed = br.ReadUInt32();
-
-                                    br.ReadUInt32();
-
-                                    br.BaseStream.Position += 24; // skip 6 blanks
-
-                                    var vertBufUsage = br.ReadUInt32();
-                                    var vertsUsed = vertBufUsage >> 5;
-                                    br.ReadUInt32();
-                                    br.BaseStream.Position += 40; // skip 10 blanks
-                                    br.ReadUInt32();
-
-                                    var solidObjectMaterial = new MostWantedMaterial
+                                    for (var j = 0; j < numMats; j++)
                                     {
-                                        Flags = flags,
-                                        NumIndices = indicesUsed,
-                                        NumTris = indicesUsed / 3,
-                                        Name = $"Unnamed Material #{j + 1:00}",
-                                        NumVerts = vertsUsed,
-                                        ShaderIndex = textureUsage[5],
-                                        TextureIndices = new[]
+                                        var shadingGroup = br.GetStruct<TestTrackShadingGroup>();
+
+                                        solidObject.Materials.Add(new ProStreetMaterial
                                         {
-                                            textureUsage[0],
-                                            textureUsage[1],
-                                            textureUsage[2],
-                                            textureUsage[3],
-                                            textureUsage[4]
-                                        },
-                                        VertexStreamIndex = j,
-                                        Hash = unknownId
-                                    };
+                                            Flags = shadingGroup.Flags,
+                                            NumIndices = shadingGroup.IndicesUsed,
+                                            NumTris = (uint) (shadingGroup.IndicesUsed / 3),
+                                            Name = $"Unnamed Material #{j + 1:00}",
+                                            NumVerts = shadingGroup.VertexBufferUsage / shadingGroup.Flags2[2],
+                                            VertexStreamIndex = j,
+                                            Hash = shadingGroup.UnknownId,
+                                            TextureHash = solidObject.TextureHashes[shadingGroup.TextureShaderUsage[4]]
+                                        });
 
-                                    solidObject.Materials.Add(solidObjectMaterial);
+                                        solidObject.MeshDescriptor.NumVerts +=
+                                            shadingGroup.VertexBufferUsage / shadingGroup.Flags2[2];
+                                    }
+                                }
+                                else
+                                {
+                                    var shadingGroupSize = Marshal.SizeOf<SolidObjectShadingGroup>();
+                                    Debug.Assert(chunkSize % shadingGroupSize == 0);
+                                    var numMats = chunkSize / shadingGroupSize;
 
-                                    solidObject.MeshDescriptor.NumVerts += vertsUsed;
+                                    for (var j = 0; j < numMats; j++)
+                                    {
+                                        var shadingGroup = br.GetStruct<SolidObjectShadingGroup>();
 
-                                    br.BaseStream.Position = pos + 128;
+                                        solidObject.Materials.Add(new ProStreetMaterial
+                                        {
+                                            Flags = shadingGroup.Flags,
+                                            NumIndices = shadingGroup.IndicesUsed,
+                                            NumTris = shadingGroup.IndicesUsed / 3,
+                                            Name = $"Unnamed Material #{j + 1:00}",
+                                            NumVerts = shadingGroup.VertexBufferUsage / shadingGroup.Flags2[2],
+                                            VertexStreamIndex = j,
+                                            Hash = shadingGroup.UnknownId,
+                                            TextureHash = solidObject.TextureHashes[shadingGroup.TextureShaderUsage[4]]
+                                        });
+
+                                        solidObject.MeshDescriptor.NumVerts +=
+                                            shadingGroup.VertexBufferUsage / shadingGroup.Flags2[2];
+                                    }
                                 }
 
                                 break;
                             }
                         case 0x134b01:
                             {
-                                var vb = new VertexBuffer();
+                                var vb = new VertexBuffer
+                                {
+                                    Data = new float[chunkSize >> 2]
+                                };
+
+                                var pos = 0;
 
                                 while (br.BaseStream.Position < chunkEndPos)
                                 {
                                     var v = br.ReadSingle();
-                                    var bytes = BitConverter.GetBytes(v);
 
-                                    float nv;
-
-                                    unsafe
-                                    {
-                                        fixed (byte* bp = bytes)
-                                        {
-                                            nv = BinaryUtil.GetPackedFloat(bp, 0);
-                                        }
-                                    }
-
-                                    vb.Data.Add(nv);
-                                    //vb.Data.Add(br.ReadSingle());
+                                    vb.Data[pos++] = v;
                                 }
 
                                 solidObject.VertexBuffers.Add(vb);
-
                                 break;
                             }
                         case 0x134b03:
                             {
-                                for (var j = 0; j < solidObject.NumTris; j++)
+                                Array.Resize(ref solidObject.Faces, (int)solidObject.Materials.Sum(m => m.NumTris));
+
+                                var faceIndex = 0;
+
+                                foreach (var material in solidObject.Materials)
                                 {
-                                    solidObject.Faces.Add(new SolidMeshFace
+                                    for (var j = 0; j < material.NumTris; j++)
                                     {
-                                        Vtx1 = br.ReadUInt16(),
-                                        Vtx2 = br.ReadUInt16(),
-                                        Vtx3 = br.ReadUInt16()
-                                    });
+                                        var f1 = br.ReadUInt16();
+                                        var f2 = br.ReadUInt16();
+                                        var f3 = br.ReadUInt16();
+
+                                        solidObject.Faces[faceIndex++] = new SolidMeshFace
+                                        {
+                                            Vtx1 = f1,
+                                            Vtx2 = f2,
+                                            Vtx3 = f3
+                                        };
+                                    }
                                 }
 
                                 break;

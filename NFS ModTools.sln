@@ -29,6 +29,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FNGExplorer", "FNGExplorer\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpHelper", "SharpHelper\SharpHelper.csproj", "{61BE0642-E4F3-4ECF-A66E-B4A4A9344972}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Viewer", "Viewer\Viewer.csproj", "{F83C7766-12F3-4619-B1C9-74C6241FF1FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarCompiler", "CarCompiler2\CarCompiler.csproj", "{1959C862-34D4-421C-BBAD-26C832ECD730}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -141,6 +145,22 @@ Global
 		{61BE0642-E4F3-4ECF-A66E-B4A4A9344972}.Release|Any CPU.Build.0 = Release|Any CPU
 		{61BE0642-E4F3-4ECF-A66E-B4A4A9344972}.Release|x86.ActiveCfg = Release|Any CPU
 		{61BE0642-E4F3-4ECF-A66E-B4A4A9344972}.Release|x86.Build.0 = Release|Any CPU
+		{F83C7766-12F3-4619-B1C9-74C6241FF1FA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F83C7766-12F3-4619-B1C9-74C6241FF1FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F83C7766-12F3-4619-B1C9-74C6241FF1FA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F83C7766-12F3-4619-B1C9-74C6241FF1FA}.Debug|x86.Build.0 = Debug|Any CPU
+		{F83C7766-12F3-4619-B1C9-74C6241FF1FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F83C7766-12F3-4619-B1C9-74C6241FF1FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F83C7766-12F3-4619-B1C9-74C6241FF1FA}.Release|x86.ActiveCfg = Release|Any CPU
+		{F83C7766-12F3-4619-B1C9-74C6241FF1FA}.Release|x86.Build.0 = Release|Any CPU
+		{1959C862-34D4-421C-BBAD-26C832ECD730}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1959C862-34D4-421C-BBAD-26C832ECD730}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1959C862-34D4-421C-BBAD-26C832ECD730}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1959C862-34D4-421C-BBAD-26C832ECD730}.Debug|x86.Build.0 = Debug|Any CPU
+		{1959C862-34D4-421C-BBAD-26C832ECD730}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1959C862-34D4-421C-BBAD-26C832ECD730}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1959C862-34D4-421C-BBAD-26C832ECD730}.Release|x86.ActiveCfg = Release|Any CPU
+		{1959C862-34D4-421C-BBAD-26C832ECD730}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

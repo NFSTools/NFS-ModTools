@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Common.Geometry.Data;
 
@@ -140,30 +141,30 @@ namespace Common.Geometry
                 var chunkSize = br.ReadUInt32();
                 var chunkEndPos = br.BaseStream.Position + chunkSize;
 
+
                 if ((chunkId & 0x80000000) == 0x80000000 && chunkId != 0x80134010)
                 {
                     ReadChunks(br, chunkSize);
                 }
                 else
                 {
-                    if ((chunkId & 0x80000000) != 0x80000000)
-                    {
-                        var padding = 0u;
+                    //if ((chunkId & 0x80000000) != 0x80000000)
+                    //{
+                    //    var padding = 0u;
 
-                        while (br.ReadByte() == 0x11)
-                        {
-                            padding++;
-                        }
+                    //    while (br.ReadUInt32() == 0x11111111)
+                    //    {
+                    //        padding += 4;
 
-                        br.BaseStream.Position--;
+                    //        if (br.BaseStream.Position >= chunkEndPos)
+                    //        {
+                    //            break;
+                    //        }
+                    //    }
 
-                        if (padding % 2 != 0)
-                        {
-                            padding--;
-                        }
-
-                        chunkSize -= padding;
-                    }
+                    //    br.BaseStream.Position -= 4;
+                    //    chunkSize -= padding;
+                    //}
 
                     switch (chunkId)
                     {
@@ -212,8 +213,6 @@ namespace Common.Geometry
                 var chunkSize = br.ReadUInt32();
                 var chunkEndPos = br.BaseStream.Position + chunkSize;
 
-                if (chunkSize == 0) continue;
-
                 if ((chunkId & 0x80000000) == 0x80000000)
                 {
                     solidObject = ReadObject(br, chunkSize, solidObject);
@@ -222,19 +221,17 @@ namespace Common.Geometry
                 {
                     var padding = 0u;
 
-                    while (br.ReadByte() == 0x11)
+                    while (br.ReadUInt32() == 0x11111111)
                     {
-                        padding++;
+                        padding += 4;
+
+                        if (br.BaseStream.Position >= chunkEndPos)
+                        {
+                            break;
+                        }
                     }
 
-                    br.BaseStream.Position--;
-
-                    if (padding % 2 != 0)
-                    {
-                        padding--;
-                        br.BaseStream.Position--;
-                    }
-
+                    br.BaseStream.Position -= 4;
                     chunkSize -= padding;
 
                     switch (chunkId)
@@ -280,15 +277,15 @@ namespace Common.Geometry
                             }
                         // 12 40 13 00
                         case 0x00134012:
-                        {
-                            for (var j = 0; j < chunkSize / 8; j++)
                             {
-                                solidObject.TextureHashes.Add(br.ReadUInt32());
-                                br.BaseStream.Position += 4;
-                            }
+                                for (var j = 0; j < chunkSize / 8; j++)
+                                {
+                                    solidObject.TextureHashes.Add(br.ReadUInt32());
+                                    br.BaseStream.Position += 4;
+                                }
 
-                            break;
-                        }
+                                break;
+                            }
                         case 0x134900:
                             {
                                 var descriptor = BinaryUtil.ReadStruct<SolidObjectDescriptor>(br);
@@ -334,7 +331,8 @@ namespace Common.Geometry
                                         Name = $"Unnamed Material #{j + 1:00}",
                                         NumVerts = shadingGroup.NumVerts,
                                         TextureIndices = shadingGroup.TextureIndices,
-                                        TextureHash = solidObject.TextureHashes[texIdx]
+                                        TextureHash = solidObject.TextureHashes[texIdx],
+                                        Unknown1 = vst
                                     };
 
                                     uint vsIdx;
@@ -375,19 +373,29 @@ namespace Common.Geometry
                             }
                         case 0x134b01:
                             {
-                                var vb = new VertexBuffer();
+                                var vb = new VertexBuffer
+                                {
+                                    Data = new float[chunkSize >> 2]
+                                };
+
+                                var pos = 0;
 
                                 while (br.BaseStream.Position < chunkEndPos)
                                 {
-                                    vb.Data.Add(br.ReadSingle());
+                                    var v = br.ReadSingle();
+
+                                    vb.Data[pos++] = v;
                                 }
 
                                 solidObject.VertexBuffers.Add(vb);
-
                                 break;
                             }
                         case 0x134b03:
                             {
+                                Array.Resize(ref solidObject.Faces, (int)solidObject.Materials.Sum(m => m.NumTris));
+
+                                var faceIndex = 0;
+
                                 foreach (var material in solidObject.Materials)
                                 {
                                     for (var j = 0; j < material.NumTris; j++)
@@ -396,12 +404,12 @@ namespace Common.Geometry
                                         var f2 = br.ReadUInt16();
                                         var f3 = br.ReadUInt16();
 
-                                        solidObject.Faces.Add(new SolidMeshFace
+                                        solidObject.Faces[faceIndex++] = new SolidMeshFace
                                         {
                                             Vtx1 = f1,
                                             Vtx2 = f2,
                                             Vtx3 = f3
-                                        });
+                                        };
                                     }
                                 }
 

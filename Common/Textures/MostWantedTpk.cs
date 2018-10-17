@@ -66,6 +66,7 @@ namespace Common.Textures
         private TexturePack _texturePack;
 
         private uint _offset, _size;
+        private bool _compressed = false;
 
         public override TexturePack ReadTexturePack(BinaryReader br, uint containerSize)
         {
@@ -86,6 +87,11 @@ namespace Common.Textures
             ReadChunks(br, containerSize);
 
             return _texturePack;
+        }
+
+        public override void WriteTexturePack(ChunkStream cs, TexturePack texturePack)
+        {
+            throw new NotImplementedException();
         }
 
         protected override void ReadChunks(BinaryReader br, uint containerSize)
@@ -119,6 +125,7 @@ namespace Common.Textures
                             }
                         case 0x33310003:
                             {
+                                _compressed = true;
                                 Debug.Assert(chunkSize % Marshal.SizeOf<DataOffsetStruct>() == 0, "chunkSize % Marshal.SizeOf<DataOffsetStruct>() == 0");
 
                                 while (br.BaseStream.Position < chunkEndPos)
@@ -151,14 +158,19 @@ namespace Common.Textures
                             }
                         case TexDataChunkId:
                             {
-                                br.BaseStream.Position += 0x78;
-
-                                var basePos = br.BaseStream.Position;
-
-                                foreach (var t in _texturePack.Textures)
+                                if (!_compressed)
                                 {
-                                    br.BaseStream.Position = basePos + t.DataOffset;
-                                    br.Read(t.Data, 0, t.Data.Length);
+                                    br.BaseStream.Position += 0x78;
+
+                                    var basePos = br.BaseStream.Position;
+
+                                    foreach (var t in _texturePack.Textures)
+                                    {
+                                        br.BaseStream.Position = basePos + t.DataOffset;
+                                        t.Data = new byte[t.DataSize];
+
+                                        br.Read(t.Data, 0, t.Data.Length);
+                                    }
                                 }
 
                                 break;
@@ -190,7 +202,6 @@ namespace Common.Textures
                 Width = texture.Width,
                 Height = texture.Height,
                 Name = texture.Name,
-                Data = new byte[texture.DataSize],
                 DataSize = texture.DataSize,
                 DataOffset = texture.DataOffset,
                 MipMapCount = texture.D3,

@@ -10,8 +10,12 @@ namespace Common
             MostWanted,
             Carbon,
             ProStreet,
+            ProStreetTest, // special value
             World,
-            Unknown
+            Underground2,
+            Underground,
+            Unknown,
+            Undercover
         }
 
         /// <summary>
@@ -37,6 +41,11 @@ namespace Common
                 }
             }
 
+            if (File.Exists(Path.Combine(directory, "speed2.exe")))
+            {
+                return Game.Underground2;
+            }
+
             if (File.Exists(Path.Combine(directory, "nfsc.exe")))
             {
                 return Game.Carbon;
@@ -44,6 +53,18 @@ namespace Common
 
             if (File.Exists(Path.Combine(directory, "nfs.exe")))
             {
+                var tracksPath = Path.Combine(directory, "TRACKS");
+                if (!Directory.Exists(tracksPath))
+                {
+                    throw new ArgumentException("TRACKS folder does not exist! Cannot determine game.");
+                }
+
+                if (File.Exists(Path.Combine(tracksPath, "L8R_MW2.BUN"))
+                    && File.Exists(Path.Combine(tracksPath, "STREAML8R_MW2.BUN")))
+                {
+                    return Game.Undercover;
+                }
+
                 return Game.ProStreet;
             }
 

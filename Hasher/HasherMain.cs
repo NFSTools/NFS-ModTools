@@ -13,6 +13,12 @@ namespace Hasher
             InitializeComponent();
 
             inputText.TextChanged += InputText_OnTextChanged;
+            copyBinFileHashButton.Click += (sender, args) => Clipboard.SetText(binFileHash.Text);
+            copyBinMemHashButton.Click += (sender, args) => Clipboard.SetText(binMemHash.Text);
+            copyVltFileHashButton.Click += (sender, args) => Clipboard.SetText(vltFileHash.Text);
+            copyVltMemHashButton.Click += (sender, args) => Clipboard.SetText(vltMemHash.Text);
+            copyVlt64FileHashButton.Click += (sender, args) => Clipboard.SetText(vlt64FileHash.Text);
+            copyVlt64MemHashButton.Click += (sender, args) => Clipboard.SetText(vlt64MemHash.Text);
         }
 
         private void InputText_OnTextChanged(object sender, EventArgs e)
@@ -26,12 +32,12 @@ namespace Hasher
             var vltBytes = BitConverter.GetBytes(CommonHasher.VltHash(text));
             var vlt64Bytes = BitConverter.GetBytes(CommonHasher.VltHash64(text));
 
-            binFileHash.Text = $"0x{string.Join("", binHashBytes.Reverse().Select(c => c.ToString("X2")))}";
-            binMemHash.Text = $"0x{string.Join("", binHashBytes.Select(c => c.ToString("X2")))}";
-            vltFileHash.Text = $"0x{string.Join("", vltBytes.Reverse().Select(c => c.ToString("X2")))}";
-            vltMemHash.Text = $"0x{string.Join("", vltBytes.Select(c => c.ToString("X2")))}";
-            vlt64FileHash.Text = $"0x{string.Join("", vlt64Bytes.Reverse().Select(c => c.ToString("X2")))}";
-            vlt64MemHash.Text = $"0x{string.Join("", vlt64Bytes.Select(c => c.ToString("X2")))}";
+            binFileHash.Text = $"0x{string.Join("", binHashBytes.Select(c => c.ToString("X2")))}";
+            binMemHash.Text = $"0x{string.Join("", binHashBytes.Reverse().Select(c => c.ToString("X2")))}";
+            vltFileHash.Text = $"0x{string.Join("", vltBytes.Select(c => c.ToString("X2")))}";
+            vltMemHash.Text = $"0x{string.Join("", vltBytes.Reverse().Select(c => c.ToString("X2")))}";
+            vlt64FileHash.Text = $"0x{string.Join("", vlt64Bytes.Select(c => c.ToString("X2")))}";
+            vlt64MemHash.Text = $"0x{string.Join("", vlt64Bytes.Reverse().Select(c => c.ToString("X2")))}";
 
             binHashBytes = null;
             vltBytes = null;

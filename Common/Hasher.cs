@@ -18,7 +18,7 @@ namespace Common
             return hash;
         }
 
-        public static ulong VltHash64(string k, ulong init = 0x11223344ABCDEF00)
+        public static ulong VltHash64(string k, ulong init = 0x11223344ABCDEF00uL)
         {
             int koffs = 0;
             int len = k.Length;

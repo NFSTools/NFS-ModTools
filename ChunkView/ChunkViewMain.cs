@@ -142,7 +142,10 @@ namespace ChunkView
                 stopwatch.Stop();
 
                 compareToolStripMenuItem.Enabled = true;
+
+                SuspendLayout();
                 PopulateChunks(_chunks, treeView1.Nodes.Add(Path.GetFileName(openFileDialog.FileName)));
+                ResumeLayout(true);
 
                 messageLabel.Text = $"Loaded {_chunks.Count} chunks from [{openFileDialog.FileName}] in {stopwatch.ElapsedMilliseconds}ms";
 

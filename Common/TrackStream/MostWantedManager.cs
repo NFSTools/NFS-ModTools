@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using Common.Stream.Data;
+using Common.TrackStream.Data;
 
-namespace Common.Stream
+namespace Common.TrackStream
 {
     public class MostWantedManager : GameBundleManager
     {
@@ -58,7 +58,7 @@ namespace Common.Stream
             }
         }
 
-        protected override LocationBundle ReadLocationBundle(string bundlePath)
+        public override LocationBundle ReadLocationBundle(string bundlePath)
         {
             var fileName = Path.GetFileName(bundlePath);
 
@@ -71,7 +71,8 @@ namespace Common.Stream
             {
                 File = bundlePath,
                 Name = fileName.Substring(0, fileName.IndexOf('.')),
-                Sections = new List<StreamSection>()
+                Sections = new List<StreamSection>(),
+                Chunks = new List<ChunkManager.Chunk>()
             };
 
             using (var fs = File.OpenRead(bundlePath))
@@ -113,6 +114,13 @@ namespace Common.Stream
                         Offset = section.MasterStreamChunkOffset
                     });
                 }
+
+                br.BaseStream.Position = 0;
+
+                var cm = new ChunkManager(GameDetector.Game.MostWanted,
+                    ChunkManager.ChunkManagerOptions.AutoPadding | ChunkManager.ChunkManagerOptions.SkipNull);
+                cm.Read(bundlePath);
+                locationBundle.Chunks = cm.Chunks;
             }
 
             return locationBundle;
@@ -120,10 +128,10 @@ namespace Common.Stream
 
         public override void WriteLocationBundle(string outPath, LocationBundle bundle, string sectionsPath)
         {
-            var originalData = File.ReadAllBytes(bundle.File);
+            //var originalData = File.ReadAllBytes(bundle.File);
 
-            var chunkManager = new ChunkManager(GameDetector.Game.MostWanted);
-            chunkManager.Read(bundle.File);
+            //var chunkManager = new ChunkManager(GameDetector.Game.MostWanted);
+            //chunkManager.Read(bundle.File);
 
             var masterStreamPath = Path.Combine(Path.GetDirectoryName(outPath), $"STREAM{bundle.Name}.BUN");
             var sectionInfoMap = new Dictionary<uint, StreamChunkInfo>();
@@ -140,7 +148,6 @@ namespace Common.Stream
 
                     if (File.Exists(sectionPath))
                     {
-                        Console.WriteLine(sectionPath);
                         sectionDataMap[section.Number] = File.ReadAllBytes(sectionPath);
                     }
                     else
@@ -184,14 +191,16 @@ namespace Common.Stream
 
             using (var fs = new FileStream(outPath, FileMode.Create))
             {
-                var chunkStream = new ChunkStream(fs);
+                var chunkStream = new ChunkStream(new BinaryWriter(fs));
 
-                foreach (var chunk in chunkManager.Chunks.Where(c => c.Id != 0))
+                foreach (var chunk in bundle.Chunks)
                 {
-                    chunkStream.BeginChunk(chunk.Id);
+                    chunkStream.PaddingAlignment(0x10);
 
                     if (chunk.Id == 0x00034110)
                     {
+                        chunkStream.BeginChunk(0x00034110);
+
                         // write sections
                         foreach (var bundleSection in bundle.Sections)
                         {
@@ -207,19 +216,21 @@ namespace Common.Stream
                                 X = bundleSection.Position.X,
                                 Y = bundleSection.Position.Y,
                                 Z = bundleSection.Position.Z,
-                                MasterStreamChunkOffset = (uint) sectionInfoMap[bundleSection.Number].Offset
+                                MasterStreamChunkOffset = (uint)sectionInfoMap[bundleSection.Number].Offset
                             };
 
                             chunkStream.WriteStruct(sectionStruct);
                         }
+
+                        chunkStream.EndChunk();
                     }
                     else
                     {
-                        chunkStream.Write(chunk.Data);
+                        chunkStream.WriteChunk(chunk);
                     }
-
-                    chunkStream.EndChunk();
                 }
+
+                chunkStream.Dispose();
             }
         }
 
@@ -250,15 +261,16 @@ namespace Common.Stream
                 {
                     br.BaseStream.Position = streamSection.Offset;
 
-                    data = br.ReadBytes((int)streamSection.Size);
+                    Array.Resize(ref data, (int) streamSection.Size);
+                    br.Read(data, 0, data.Length);
 
                     using (var os = File.OpenWrite(Path.Combine(outDirectory, $"STREAM{bundle.Name}_{streamSection.Number}.BUN")))
                     {
                         os.Write(data, 0, data.Length);
                     }
-
-                    data = new byte[0];
                 }
+
+                data = null;
             }
 
             GC.Collect();

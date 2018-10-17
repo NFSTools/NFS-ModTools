@@ -71,7 +71,6 @@
   <ItemGroup>
     <Compile Include="Audio\SharpAudioDevice.cs" />
     <Compile Include="Audio\SharpAudioVoice.cs" />
-    <Compile Include="Class1.cs" />
     <Compile Include="ColladaImporter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Sharp2D.cs" />

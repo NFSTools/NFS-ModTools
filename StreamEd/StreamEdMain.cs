@@ -5,8 +5,8 @@ using System.IO;
 using System.Reflection;
 using System.Windows.Forms;
 using Common;
-using Common.Stream;
-using Common.Stream.Data;
+using Common.TrackStream;
+using Common.TrackStream.Data;
 
 namespace StreamEd
 {
@@ -85,7 +85,8 @@ namespace StreamEd
                 if (game != GameDetector.Game.MostWanted
                     && game != GameDetector.Game.ProStreet 
                     && game != GameDetector.Game.World
-                    && game != GameDetector.Game.Carbon)
+                    && game != GameDetector.Game.Carbon
+                    && game != GameDetector.Game.Undercover)
                 {
                     MessageUtil.ShowError("Unsupported game directory.");
                     return;
@@ -115,6 +116,11 @@ namespace StreamEd
                         _bundleManager = new CarbonManager();
                         break;
                     }
+                    case GameDetector.Game.Undercover:
+                    {
+                        _bundleManager = new UndercoverManager();
+                        break;
+                    }
                     case GameDetector.Game.Unknown:
                         goto default;
                     default: throw new Exception("Shouldn't ever get here");
@@ -123,8 +129,10 @@ namespace StreamEd
                 var stopwatch = new Stopwatch();
                 stopwatch.Start();
 
+#if !DEBUG
                 try
                 {
+#endif
                     _bundleManager.ReadFrom(gameFolderBrowser.SelectedPath);
 
                     if (_bundleManager.Bundles.Count == 0)
@@ -146,12 +154,14 @@ namespace StreamEd
                     Text = $"{WindowTitle} - {game}";
                     messageLabel.Text =
                         $"Loaded {_bundleManager.Bundles.Count} bundles from {gameFolderBrowser.SelectedPath}. Time: {stopwatch.ElapsedMilliseconds}ms";
+#if !DEBUG
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex.StackTrace);
                     MessageUtil.ShowError(ex.Message);
                 }
+#endif
                 //gameFolderBrowser.SelectedPath
             }
             else
@@ -207,6 +217,7 @@ namespace StreamEd
                 Path.Combine(_currentGameDir, "TRACKS", $"sections_{currentBundle.Name}"));
             stopwatch.Stop();
             messageLabel.Text = $"Saved in {stopwatch.ElapsedMilliseconds}ms";
+            MessageUtil.ShowInfo($"Saved in {stopwatch.ElapsedMilliseconds}ms");
         }
     }
 }

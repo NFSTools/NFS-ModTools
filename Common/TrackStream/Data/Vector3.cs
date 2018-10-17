@@ -1,4 +1,4 @@
-﻿namespace Common.Stream.Data
+﻿namespace Common.TrackStream.Data
 {
     public class Vector3
     {

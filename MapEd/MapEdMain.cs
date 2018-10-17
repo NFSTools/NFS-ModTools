@@ -13,9 +13,9 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Common;
 using Common.Geometry.Data;
-using Common.Stream;
-using Common.Stream.Data;
 using Common.Textures.Data;
+using Common.TrackStream;
+using Common.TrackStream.Data;
 using Pfim;
 using SysPixelFormat = System.Drawing.Imaging.PixelFormat;
 
@@ -168,7 +168,7 @@ namespace MapEd
                         var solidObjectNode = subTree.Nodes.Add(solidObject.Name);
 
                         solidObjectNode.Tag = solidObject;
-                        solidObjectNode.ToolTipText = $"Materials: {solidObject.Materials.Count} - Faces: {solidObject.Faces.Count}";
+                        solidObjectNode.ToolTipText = $"Materials: {solidObject.Materials.Count} - Faces: {solidObject.Faces.Length}";
 
                         foreach (var material in solidObject.Materials)
                         {
@@ -614,31 +614,49 @@ namespace MapEd
                             sw.WriteLine($"v {BinaryUtil.FullPrecisionFloat(vertex.X)} {BinaryUtil.FullPrecisionFloat(vertex.Y)} {BinaryUtil.FullPrecisionFloat(vertex.Z)}");
                         }
 
-                        var lastMaterial = -1;
-
-                        foreach (var face in _selectedSolidObject.Faces)
+                        for (var i = 0; i < _selectedSolidObject.Materials.Count; i++)
                         {
-                            if (_selectedSolidObject.MaterialFaces.Any(p => p.Value.Any(f => f.SequenceEqual(face.ShiftedArray()))))
-                            {
-                                var matIndex = _selectedSolidObject.MaterialFaces.First(p => p.Value.Any(f => f.SequenceEqual(face.ShiftedArray()))).Key;
+                            var material = _selectedSolidObject.Materials[i];
+                            var faces = _selectedSolidObject.Faces.Where(f => f.MaterialIndex == i).ToList();
 
-                                if (matIndex != lastMaterial)
-                                {
-                                    lastMaterial = matIndex;
-                                    sw.WriteLine($"usemtl {_selectedSolidObject.Materials[matIndex].Name.Replace(" ", "_")}");
-                                }
-                            }
-                            else
-                            {
-                                lastMaterial = -1;
-                                sw.WriteLine("usemtl EMPTY");
-                            }
+                            sw.WriteLine($"usemtl {material.Name.Replace(' ', '_')}");
 
-                            if (face.Vtx1 >= _selectedSolidObject.MeshDescriptor.NumVerts
-                                || face.Vtx2 >= _selectedSolidObject.MeshDescriptor.NumVerts
-                                || face.Vtx3 >= _selectedSolidObject.MeshDescriptor.NumVerts) break;
-                            sw.WriteLine($"f {face.Shift1 + 1}/{face.Shift1 + 1} {face.Shift2 + 1}/{face.Shift2 + 1} {face.Shift3 + 1}/{face.Shift3 + 1}");
+                            foreach (var face in faces)
+                            {
+                                if (face.Vtx1 >= _selectedSolidObject.MeshDescriptor.NumVerts
+                                    || face.Vtx2 >= _selectedSolidObject.MeshDescriptor.NumVerts
+                                    || face.Vtx3 >= _selectedSolidObject.MeshDescriptor.NumVerts) break;
+                                sw.WriteLine($"f {face.Vtx1 + 1}/{face.Vtx1 + 1} {face.Vtx2 + 1}/{face.Vtx2 + 1} {face.Vtx3 + 1}/{face.Vtx3 + 1}");
+                            }
                         }
+
+                        //var lastMaterial = -1;
+
+                        //foreach (var face in _selectedSolidObject.Faces)
+                        //{
+                        //    if (_selectedSolidObject.MaterialFaces.Any(p =>
+                        //        p.Value.Any(f =>
+                        //            _selectedSolidObject.Faces[f].ShiftedArray().SequenceEqual(face.ShiftedArray()))))
+                        //    {
+                        //        var matIndex = _selectedSolidObject.MaterialFaces.First(p => p.Value.Any(f => _selectedSolidObject.Faces[f].ShiftedArray().SequenceEqual(face.ShiftedArray()))).Key;
+
+                        //        if (matIndex != lastMaterial)
+                        //        {
+                        //            lastMaterial = matIndex;
+                        //            sw.WriteLine($"usemtl {_selectedSolidObject.Materials[matIndex].Name.Replace(" ", "_")}");
+                        //        }
+                        //    }
+                        //    else
+                        //    {
+                        //        lastMaterial = -1;
+                        //        sw.WriteLine("usemtl EMPTY");
+                        //    }
+
+                        //    if (face.Vtx1 >= _selectedSolidObject.MeshDescriptor.NumVerts
+                        //        || face.Vtx2 >= _selectedSolidObject.MeshDescriptor.NumVerts
+                        //        || face.Vtx3 >= _selectedSolidObject.MeshDescriptor.NumVerts) break;
+                        //    sw.WriteLine($"f {face.Shift1 + 1}/{face.Shift1 + 1} {face.Shift2 + 1}/{face.Shift2 + 1} {face.Shift3 + 1}/{face.Shift3 + 1}");
+                        //}
                     }
 
                     MessageUtil.ShowInfo("Exported!");

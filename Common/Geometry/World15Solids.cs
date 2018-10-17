@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using Common.Geometry.Data;
@@ -30,6 +31,7 @@ namespace Common.Geometry
             public uint UnknownOffset;
         }
 
+        // 116 bytes
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         internal struct Material
         {
@@ -52,13 +54,19 @@ namespace Common.Geometry
             public uint NumVerts;
             public uint NumIndices;
             public uint NumTris;
+            public uint IndexOffset; // sequential addition
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 36)]
+            public byte[] Unknown5;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         internal struct ObjectHeader
         {
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 12)]
             public byte[] InitialData;
+
+            public uint ObjectFlags;
 
             public uint ObjectHash;
 
@@ -139,7 +147,6 @@ namespace Common.Geometry
         protected override void ReadChunks(BinaryReader br, uint containerSize)
         {
             var endPos = br.BaseStream.Position + containerSize;
-            var stop = false;
 
             while (br.BaseStream.Position < endPos)
             {
@@ -147,27 +154,26 @@ namespace Common.Geometry
                 var chunkSize = br.ReadUInt32();
                 var chunkEndPos = br.BaseStream.Position + chunkSize;
 
+                if (chunkId == 0x55441122)
+                {
+                    break;
+                }
+
                 if ((chunkId & 0x80000000) == 0x80000000 && chunkId != 0x80134010)
                 {
                     ReadChunks(br, chunkSize);
                 }
                 else
                 {
-                    if ((chunkId & 0x80000000) != 0x80000000)
-                    {
-                        var padding = 0u;
+                    //var padding = 0u;
 
-                        while (br.ReadByte() == 0x11)
-                        {
-                            padding++;
-                        }
+                    //while (br.ReadUInt32() == 0x11111111)
+                    //{
+                    //    padding += 4;
+                    //}
 
-                        br.BaseStream.Position--;
-
-                        if (padding % 2 != 0) padding--;
-
-                        chunkSize -= padding;
-                    }
+                    //br.BaseStream.Position -= 4;
+                    //chunkSize -= padding;
 
                     switch (chunkId)
                     {
@@ -181,7 +187,7 @@ namespace Common.Geometry
 
                                 break;
                             }
-                        case 0x134004:
+                        case 0x00134004:
                             {
                                 Debug.Assert(chunkSize % Marshal.SizeOf<ObjectCompressionHeader>() == 0, "chunkSize % Marshal.SizeOf<ObjectCompressionHeader>() != 0");
 
@@ -189,12 +195,6 @@ namespace Common.Geometry
                                 {
                                     var och = BinaryUtil.ReadStruct<ObjectCompressionHeader>(br);
                                     var curPos = br.BaseStream.Position;
-
-                                    Console.WriteLine("OBJ COMPRESSION");
-                                    Console.WriteLine($"\thash   = 0x{och.ObjectHash:X8}");
-                                    Console.WriteLine($"\toffset = {och.AbsoluteOffset}");
-                                    Console.WriteLine($"\tsize   = {och.Size}");
-
                                     br.BaseStream.Position = och.AbsoluteOffset;
 
                                     var bytesRead = 0u;
@@ -255,9 +255,7 @@ namespace Common.Geometry
 
                                     br.BaseStream.Position = curPos;
                                 }
-
-                                stop = true;
-
+;
                                 break;
                             }
                         case 0x80134010:
@@ -275,273 +273,207 @@ namespace Common.Geometry
                 }
 
                 br.BaseStream.Position = chunkEndPos;
-
-                if (stop) break;
             }
         }
 
+        /// <inheritdoc />
+        /// <summary>
+        /// Write a solid list in the NFS:W format.
+        /// </summary>
+        /// <remarks>Very much WIP.</remarks>
+        /// <param name="chunkStream"></param>
+        /// <param name="solidList"></param>
         public override void WriteSolidList(ChunkStream chunkStream, SolidList solidList)
         {
-            // notes:
-            // - model name align by 0x4
-            // - null before 01 40 13 80, align 0x10
+            chunkStream.PaddingAlignment(0x80);
 
-            // Write root capsule
+            // 00 40 13 80 - root container
             chunkStream.BeginChunk(0x80134000);
-            chunkStream.PaddingAlignment(0x10);
 
             {
-                // Write info capsule
+                chunkStream.PaddingAlignment(0x10);
+
+                // 01 40 13 80 - data container
                 chunkStream.BeginChunk(0x80134001);
 
                 {
-                    // Write info chunk
+                    // 02 40 13 00 - list info
                     chunkStream.BeginChunk(0x00134002);
 
-                    var slInfo = new SolidListInfo
+                    var info = new SolidListInfo
                     {
-                        PipelinePath = solidList.PipelinePath,
-                        ClassType = solidList.ClassType,
                         Marker = 0x1D,
                         NumObjects = solidList.Objects.Count,
-                        UnknownOffset = 0x80
+                        ClassType = solidList.ClassType,
+                        PipelinePath = solidList.PipelinePath,
+                        UnknownOffset = 0x80 // ???
                     };
 
-                    chunkStream.WriteStruct(slInfo);
-                    chunkStream.Write(new byte[144 - Marshal.SizeOf<SolidListInfo>()]);
+                    chunkStream.WriteStruct(info);
+                    chunkStream.Write(new byte[0x1C]);
 
-                    // End info chunk
                     chunkStream.EndChunk();
 
-                    // Write hashes
+                    // 03 40 13 00 - hash list
                     chunkStream.BeginChunk(0x00134003);
 
-                    var hashes = new List<uint>();
-
-                    foreach (var solidObject in solidList.Objects)
+                    foreach (var solidObject in solidList.Objects.OrderBy(o => o.Hash))
                     {
-                        solidObject.Hash = Hasher.BinHash(solidObject.Name);
-                        hashes.Add(solidObject.Hash);
-                    }
-
-                    hashes.Sort();
-
-                    foreach (var hash in hashes)
-                    {
-                        chunkStream.Write(hash);
+                        chunkStream.Write(solidObject.Hash);
                         chunkStream.Write(0x00000000);
                     }
 
-                    // End hashes
-                    chunkStream.EndChunk();
-
-                    // Write empty container
-                    chunkStream.BeginChunk(0x80134008);
                     chunkStream.EndChunk();
                 }
 
-                // End info capsule
+                // 08 40 13 80 - empty
+                chunkStream.BeginChunk(0x80134008);
                 chunkStream.EndChunk();
-            }
-
-            // Write parts
-
-            foreach (var solidObject in solidList.Objects)
-            {
-                chunkStream.BeginChunk(0x80134010);
-
-                // Write info chunk
-                chunkStream.BeginChunk(0x00134011);
-                chunkStream.NextAlignment(0x10, true);
-
-                var objectHeader = new ObjectHeader
-                {
-                    BoundsMin = new[]
-                    {
-                        solidObject.MinPoint.X,
-                        solidObject.MinPoint.Y,
-                        solidObject.MinPoint.Z,
-                        solidObject.MinPoint.D
-                    },
-                    BoundsMax = new[]
-                    {
-                        solidObject.MaxPoint.X,
-                        solidObject.MaxPoint.Y,
-                        solidObject.MaxPoint.Z,
-                        solidObject.MaxPoint.D
-                    },
-                    Transform = new[]
-                    {
-                        solidObject.Transform.Data[0, 0],
-                        solidObject.Transform.Data[0, 1],
-                        solidObject.Transform.Data[0, 2],
-                        solidObject.Transform.Data[0, 3],
-
-                        solidObject.Transform.Data[1, 0],
-                        solidObject.Transform.Data[1, 1],
-                        solidObject.Transform.Data[1, 2],
-                        solidObject.Transform.Data[1, 3],
-
-                        solidObject.Transform.Data[2, 0],
-                        solidObject.Transform.Data[2, 1],
-                        solidObject.Transform.Data[2, 2],
-                        solidObject.Transform.Data[2, 3],
-
-                        solidObject.Transform.Data[3, 0],
-                        solidObject.Transform.Data[3, 1],
-                        solidObject.Transform.Data[3, 2],
-                        solidObject.Transform.Data[3, 3]
-                    },
-                    ObjectHash = solidObject.Hash,
-                    NumTris = (uint)solidObject.Faces.Count,
-                    InitialData = new byte[16],
-                    UnknownFloats = new []
-                    {
-                        1.0f, // ??? not sure what these do
-                        1.0f  // ??? ^
-                    }
-                };
-
-                objectHeader.InitialData[12] = 0x16;
-
-                chunkStream.WriteStruct(objectHeader);
-                chunkStream.Write(new FixedLenString(solidObject.Name));
 
                 chunkStream.EndChunk();
 
-                // Write texture list
-                chunkStream.BeginChunk(0x00134012);
-
-                foreach (var textureHash in solidObject.TextureHashes)
+                foreach (var solidObject in solidList.Objects)
                 {
-                    chunkStream.Write(textureHash);
-                    chunkStream.Write(0x00000000);
-                }
-
-                // End texture list
-                chunkStream.EndChunk();
-
-                // Begin object data
-                //chunkStream.BeginChunk(00 41 13 80)
-                chunkStream.BeginChunk(0x80134100);
-
-                {
-                    // Begin mesh descriptor
-                    chunkStream.BeginChunk(0x00134900);
-
-                    Console.WriteLine("MeshDescriptor");
-                    chunkStream.NextAlignment(0x10, true);
-
-                    var meshDescriptor = new MeshDescriptor
                     {
-                        Flags = solidObject.MeshDescriptor.Flags,
-                        MaterialShaderNum = (uint)solidObject.Materials.Count,
-                        NumTriangles = (uint)solidObject.Faces.Count,
-                        NumTriIndex = (uint)(solidObject.Faces.Count * 3),
-                        NumVertexStreams = 1,
-                        Unknown2 = 0x12
-                    };
-
-                    chunkStream.WriteStruct(meshDescriptor);
-
-                    // End mesh descriptor
-                    chunkStream.EndChunk();
-
-                    // Begin materials
-                    chunkStream.BeginChunk(0x00134b02);
-                    chunkStream.NextAlignment(0x10, true);
-
-                    byte matIdx = 0;
-                    foreach (var material in solidObject.Materials)
-                    {
-                        var matStruct = new Material
+                        // 10 40 13 80 - object container
+                        chunkStream.BeginChunk(0x80134010);
                         {
-                            Flags = material.Flags,
-                            Bounding = new float[6]
-                        };
+                            // 11 40 13 00 - object info
+                            chunkStream.BeginChunk(0x00134011);
+                            chunkStream.NextAlignment(0x10, true);
 
-                        matStruct.Bounding[0] = material.MinPoint.X;
-                        matStruct.Bounding[1] = material.MinPoint.Y;
-                        matStruct.Bounding[2] = material.MinPoint.Z;
-                        matStruct.Bounding[3] = material.MaxPoint.X;
-                        matStruct.Bounding[4] = material.MaxPoint.Y;
-                        matStruct.Bounding[5] = material.MaxPoint.Z;
+                            var objHeader = new ObjectHeader
+                            {
+                                Transform = new float[16],
+                                InitialData = new byte[16],
+                                BoundsMin = new float[4],
+                                BoundsMax = new float[4]
+                            };
 
-                        matStruct.TextureAssignments = new byte[4];
-                        matStruct.TextureAssignments[0] = 0x00;
-                        matStruct.TextureAssignments[1] = 0xff;
+                            for (var i = 0; i < 4; i++)
+                            {
+                                for (var j = 0; j < 4; j++)
+                                {
+                                    objHeader.Transform[i * 4 + j] = solidObject.Transform[i, j];
+                                }
+                            }
 
-                        matStruct.NumIndices = material.NumIndices;
-                        matStruct.NumTris = material.NumTris;
-                        matStruct.NumVerts = material.NumVerts;
-                        matStruct.TextureHash = material.TextureHash;
-                        matStruct.Unknown1 = 0;
-                        matStruct.Unknown2 = 0;
-                        matStruct.Unknown3 = 0;
-                        matStruct.Unknown4 = new byte[16];
+                            objHeader.BoundsMin = solidObject.MinPoint.ToArray();
+                            objHeader.BoundsMax = solidObject.MaxPoint.ToArray();
+                            objHeader.NumTris = solidObject.NumTris;
+                            objHeader.ObjectHash = solidObject.Hash;
+                            objHeader.InitialData[12] = 0x16;
 
-                        chunkStream.WriteStruct(matStruct);
-                        chunkStream.Write(new byte[0x74 - Marshal.SizeOf<Material>()]);
+                            chunkStream.WriteStruct(objHeader);
 
-                        matIdx++;
-                    }
+                            var fls = new FixedLenString(solidObject.Name);
+                            chunkStream.Write(fls);
 
-                    // End materials
-                    chunkStream.EndChunk();
-                    
-                    // Begin faces
-                    chunkStream.BeginChunk(0x00134b03);
-                    chunkStream.NextAlignment(0x10, true);
+                            chunkStream.EndChunk();
 
-                    foreach (var face in solidObject.Faces)
-                    {
-                        chunkStream.Write(face.Vtx1);
-                        chunkStream.Write(face.Vtx2);
-                        chunkStream.Write(face.Vtx3);
-                    }
+                            // 12 40 13 00 - texture list
+                            chunkStream.BeginChunk(0x00134012);
 
-                    chunkStream.NextAlignment(0x4);
+                            foreach (var textureHash in solidObject.TextureHashes)
+                            {
+                                chunkStream.Write(textureHash);
+                                chunkStream.Write(0x00000000);
+                            }
 
-                    // End faces
-                    chunkStream.EndChunk();
+                            chunkStream.EndChunk();
 
-                    // Begin vertices
-                    chunkStream.BeginChunk(0x00134b01);
-                    chunkStream.NextAlignment(0x10, true);
+                            // 00 41 13 80 - mesh data
+                            chunkStream.BeginChunk(0x80134100);
+                            {
+                                // 00 49 13 00 - mesh descriptor
+                                chunkStream.BeginChunk(0x00134900);
+                                chunkStream.NextAlignment(0x10, true);
 
-                    // write 36-byte entries
-                    foreach (var vertex in solidObject.Vertices)
-                    {
-                        chunkStream.Write(vertex.X);
-                        chunkStream.Write(vertex.Y);
-                        chunkStream.Write(vertex.Z);
-                        chunkStream.Write(0.001f);
-                        chunkStream.Write(0.001f);
-                        chunkStream.Write(vertex.U);
-                        chunkStream.Write(vertex.V);
-                        chunkStream.Write(0.001f);
-                        chunkStream.Write(0.001f);
-                    }
+                                var md = new MeshDescriptor
+                                {
+                                    Flags = solidObject.MeshDescriptor.Flags,
+                                    MaterialShaderNum = solidObject.MeshDescriptor.NumMats,
+                                    NumTriIndex = solidObject.MeshDescriptor.NumIndices,
+                                    NumTriangles = solidObject.MeshDescriptor.NumTris,
+                                    NumVertexStreams = solidObject.MeshDescriptor.NumVertexStreams,
+                                    Unknown1 = 0x12
+                                };
 
-                    chunkStream.EndChunk();
-                    chunkStream.PaddingAlignment(0x10);
+                                chunkStream.WriteStruct(md);
+                                chunkStream.EndChunk();
 
-                    // Write material names
-                    foreach (var material in solidObject.Materials)
-                    {
-                        chunkStream.BeginChunk(0x00134c02);
-                        chunkStream.Write(new FixedLenString(material.Name));
+                                // 02 4B 13 00 - materials
+                                chunkStream.BeginChunk(0x00134B02);
+                                chunkStream.NextAlignment(0x10, true);
+
+                                var indexOffset = 0u;
+
+                                foreach (var solidObjectMaterial in solidObject.Materials)
+                                {
+                                    var material = (World15Material)solidObjectMaterial;
+                                    var matStruct = new Material
+                                    {
+                                        Flags = material.Flags,
+                                        Unknown1 = material.Unknown1,
+                                        Bounding = new float[6],
+                                        TextureAssignments = new byte[4]
+                                    };
+
+                                    Array.ConstrainedCopy(material.MinPoint.ToArray(), 0, matStruct.Bounding, 0, 3);
+                                    Array.ConstrainedCopy(material.MaxPoint.ToArray(), 0, matStruct.Bounding, 3, 3);
+
+                                    matStruct.IndexOffset = indexOffset;
+                                    matStruct.NumIndices = material.NumIndices;
+                                    matStruct.NumTris = material.NumTris;
+                                    matStruct.NumVerts = material.NumVerts;
+                                    matStruct.TextureAssignments[0] = material.TextureIndex;
+                                    matStruct.TextureAssignments[1] = 0xff;
+                                    matStruct.TextureHash = material.TextureHash;
+
+                                    chunkStream.WriteStruct(matStruct);
+
+                                    indexOffset += material.NumIndices;
+
+                                    chunkStream.GetStream().Seek(116 - Marshal.SizeOf<Material>(), SeekOrigin.Current);
+                                }
+
+                                chunkStream.EndChunk();
+
+                                // Write faces
+                                chunkStream.BeginChunk(0x00134B03);
+                                chunkStream.NextAlignment(0x10, true);
+
+                                foreach (var face in solidObject.Faces)
+                                {
+                                    chunkStream.Write(face.ToArray());
+                                }
+
+                                chunkStream.EndChunk();
+
+                                // Write vertex buffers
+                                foreach (var vertexBuffer in solidObject.VertexBuffers)
+                                {
+                                    chunkStream.BeginChunk(0x00134B01);
+                                    chunkStream.NextAlignment(0x10, true);
+                                    chunkStream.Write(vertexBuffer.Data.ToArray());
+                                    chunkStream.EndChunk();
+                                }
+
+                                // Write material names
+                                foreach (var material in solidObject.Materials)
+                                {
+                                    chunkStream.BeginChunk(0x00134C02);
+                                    chunkStream.Write(new FixedLenString(material.Name));
+                                    chunkStream.EndChunk();
+                                }
+                            }
+                            chunkStream.EndChunk();
+                        }
                         chunkStream.EndChunk();
                     }
                 }
-                // End object data
-                chunkStream.EndChunk();
-
-                // End object
-                chunkStream.EndChunk();
             }
 
-            // End root capsule
             chunkStream.EndChunk();
         }
 
@@ -549,6 +481,9 @@ namespace Common.Geometry
         {
             if (solidObject == null)
                 solidObject = new World15Object();
+
+            solidObject.EnableTransform = !unpackFloats;
+            solidObject.IsCompressed = unpackFloats;
 
             var endPos = br.BaseStream.Position + size;
 
@@ -568,15 +503,12 @@ namespace Common.Geometry
                 {
                     var padding = 0u;
 
-                    while (br.ReadByte() == 0x11)
+                    while (br.ReadUInt32() == 0x11111111)
                     {
-                        padding++;
+                        padding += 4;
                     }
 
-                    br.BaseStream.Position--;
-
-                    if (padding % 2 != 0) padding--;
-
+                    br.BaseStream.Position -= 4;
                     chunkSize -= padding;
 
                     switch (chunkId)
@@ -630,7 +562,8 @@ namespace Common.Geometry
                                     HasNormals = true,
                                     NumIndices = descriptor.NumTriIndex,
                                     NumMats = descriptor.MaterialShaderNum,
-                                    NumVertexStreams = descriptor.NumVertexStreams
+                                    NumVertexStreams = descriptor.NumVertexStreams,
+                                    NumTris = descriptor.NumTriangles
                                 };
 
                                 break;
@@ -645,14 +578,14 @@ namespace Common.Geometry
                                 for (var j = 0; j < solidObject.MeshDescriptor.NumMats; j++)
                                 {
                                     var shadingGroup = BinaryUtil.ReadStruct<Material>(br);
-                                    var texIdx = 0;
+                                    byte texIdx = 0;
 
                                     if (solidObject.TextureHashes.Count > shadingGroup.TextureAssignments[0])
                                     {
                                         texIdx = shadingGroup.TextureAssignments[0];
                                     }
 
-                                    var solidObjectMaterial = new SolidObjectMaterial
+                                    var solidObjectMaterial = new World15Material
                                     {
                                         Flags = shadingGroup.Flags,
                                         NumIndices = shadingGroup.NumIndices == 0 ? shadingGroup.NumTris * 3 : shadingGroup.NumIndices,
@@ -661,7 +594,9 @@ namespace Common.Geometry
                                         MaxPoint = new SimpleVector3(shadingGroup.Bounding[3], shadingGroup.Bounding[4], shadingGroup.Bounding[5]),
                                         Name = $"Unnamed Material #{j + 1:00}",
                                         NumVerts = shadingGroup.NumVerts,
-                                        TextureHash = solidObject.TextureHashes[texIdx]
+                                        TextureHash = solidObject.TextureHashes[texIdx],
+                                        TextureIndex = texIdx,
+                                        Unknown1 = shadingGroup.Unknown1
                                     };
 
                                     int vsIdx;
@@ -691,8 +626,6 @@ namespace Common.Geometry
 
                                     lastUnknown1 = shadingGroup.Unknown1;
                                     lastStreamIdx = vsIdx;
-
-                                    br.BaseStream.Position += 116 - Marshal.SizeOf<Material>();
                                 }
 
                                 break;
@@ -708,27 +641,18 @@ namespace Common.Geometry
                             }
                         case 0x134b01:
                             {
-                                var vb = new VertexBuffer();
+                                var vb = new VertexBuffer
+                                {
+                                    Data = new float[chunkSize >> 2]
+                                };
+
+                                var pos = 0;
 
                                 while (br.BaseStream.Position < chunkEndPos)
                                 {
                                     var v = br.ReadSingle();
 
-                                    if (unpackFloats)
-                                    {
-                                        var bytes = BitConverter.GetBytes(v);
-
-                                        unsafe
-                                        {
-                                            fixed (byte* p = bytes)
-                                            {
-                                                v = BinaryUtil.GetPackedFloat(p, 0);
-                                            }
-                                        }
-                                    }
-
-                                    vb.Data.Add(v);
-                                    //vb.Data.Add(br.ReadSingle());
+                                    vb.Data[pos++] = v;
                                 }
 
                                 solidObject.VertexBuffers.Add(vb);
@@ -737,6 +661,10 @@ namespace Common.Geometry
                             }
                         case 0x134b03:
                             {
+                                Array.Resize(ref solidObject.Faces, (int) solidObject.Materials.Sum(m => m.NumTris));
+
+                                var faceIndex = 0;
+
                                 foreach (var material in solidObject.Materials)
                                 {
                                     for (var j = 0; j < material.NumTris; j++)
@@ -745,12 +673,18 @@ namespace Common.Geometry
                                         var f2 = br.ReadUInt16();
                                         var f3 = br.ReadUInt16();
 
-                                        solidObject.Faces.Add(new SolidMeshFace
+                                        solidObject.Faces[faceIndex++] = new SolidMeshFace
                                         {
                                             Vtx1 = f1,
                                             Vtx2 = f2,
                                             Vtx3 = f3
-                                        });
+                                        };
+                                        //solidObject.Faces.Add(new SolidMeshFace
+                                        //{
+                                        //    Vtx1 = f1,
+                                        //    Vtx2 = f2,
+                                        //    Vtx3 = f3
+                                        //});
                                     }
                                 }
 

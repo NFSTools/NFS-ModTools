@@ -5,8 +5,12 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Windows.Forms;
 using Common;
+using Common.Geometry;
+using Common.Geometry.Data;
+using Common.Textures;
 using Common.Textures.Data;
 using Pfim;
 using SysPixelFormat = System.Drawing.Imaging.PixelFormat;
@@ -24,6 +28,10 @@ namespace TexEd
         private readonly BindingSource _textureSource;
 
         private ChunkManager _chunkManager;
+        private string _fileName;
+        private GameDetector.Game _currentGame = GameDetector.Game.Unknown;
+
+        private Texture _previousTexture;
 
         public TexEdMain()
         {
@@ -70,54 +78,9 @@ namespace TexEd
 
                     GC.Collect();
 
-                    if (texture.CompressionType == TextureCompression.P8
-                        || texture.CompressionType == TextureCompression.A8R8G8B8)
-                    {
-                        pictureBox1.Image = new Bitmap(Assembly.GetEntryAssembly().
-                                                           GetManifestResourceStream("TexEd.Resources.texed-nopreview.png") 
-                                                       ?? throw new InvalidOperationException());
-                    }
-                    else
-                    {
-                        using (var ms = new MemoryStream())
-                        {
-                            var ddsHeader = new DDSHeader();
-                            ddsHeader.Init(texture);
+                    pictureBox1.Image = new DDSImage(texture.GenerateImage()).BitmapImage;
 
-                            using (var bw = new BinaryWriter(ms))
-                            {
-                                BinaryUtil.WriteStruct(bw, ddsHeader);
-                                bw.Write(texture.Data, 0, texture.Data.Length);
-                            }
-
-                            var dds = Dds.Create(ms.ToArray(), new PfimConfig());
-
-                            SysPixelFormat format;
-
-                            switch (dds.Format)
-                            {
-                                case ImageFormat.Rgb24:
-                                    format = SysPixelFormat.Format24bppRgb;
-                                    break;
-
-                                case ImageFormat.Rgba32:
-                                    format = SysPixelFormat.Format32bppArgb;
-                                    break;
-
-                                default:
-                                    throw new Exception("Format not recognized");
-                            }
-
-                            unsafe
-                            {
-                                fixed (byte* p = dds.Data)
-                                {
-                                    var bitmap = new Bitmap((int)texture.Width, (int)texture.Height, dds.Stride, format, (IntPtr)p);
-                                    pictureBox1.Image = bitmap;
-                                }
-                            }
-                        }
-                    }
+                    _previousTexture = texture;
                 }
                 else
                 {
@@ -172,42 +135,78 @@ namespace TexEd
 
                 _chunkManager = null;
                 GC.Collect();
-                _chunkManager = new ChunkManager(GameDetector.Game.Unknown);
 
 #if !DEBUG
                 try
                 {
 #endif
-                    messageLabel.Text = $"Loading: {fileName}";
+                _fileName = fileName;
 
-                    _texturePacks.Clear();
-                    _textures.Clear();
+                var fullDirectory = Path.GetDirectoryName(_fileName);
 
-                    GC.Collect();
+                if (fullDirectory == null)
+                {
+                    throw new NullReferenceException("fullDirectory == null");
+                }
 
-                    var stopwatch = new Stopwatch();
-                    stopwatch.Start();
-                    _chunkManager.Read(fileName);
-                    stopwatch.Stop();
-                    label1.Text = "Packs: 0 - Textures: 0";
+                var parentDirectory = Directory.GetParent(fullDirectory);
 
-                    messageLabel.Text = $"Loaded {fileName} [{stopwatch.ElapsedMilliseconds}ms]";
+                if (string.Equals("CARS", parentDirectory.Name, StringComparison.CurrentCultureIgnoreCase))
+                {
+                    parentDirectory = Directory.GetParent(parentDirectory.FullName);
+                }
+                else if (string.Equals("FRONTEND", parentDirectory.Name, StringComparison.CurrentCultureIgnoreCase))
+                {
+                    parentDirectory = Directory.GetParent(parentDirectory.FullName);
+                }
 
-                    _texturePacks = new BindingList<TexturePack>(
-                        _chunkManager.Chunks
-                            .Select(c => c.Resource)
-                            .Where(r => r is TexturePack)
-                            .Cast<TexturePack>()
-                            .ToList());
-                    _tpkSource.DataSource = null;
-                    _tpkSource.DataSource = _texturePacks;
+                _currentGame = GameDetector.DetectGame(parentDirectory.FullName);
 
-                    if (_texturePacks.Count > 0)
-                    {
-                        tpkDataGrid.Rows[0].Selected = true;
-                    }
+                if (_currentGame != GameDetector.Game.MostWanted
+                    && _currentGame != GameDetector.Game.World
+                    && _currentGame != GameDetector.Game.Carbon
+                    && _currentGame != GameDetector.Game.Undercover
+                    && _currentGame != GameDetector.Game.ProStreet)
+                {
+                    MessageUtil.ShowError("Unsupported game.");
 
-                    label1.Text = $"Packs: {_texturePacks.Count} - Textures: {_texturePacks.Sum(tpk => tpk.NumTextures)}";
+                    return;
+                }
+
+                _chunkManager = new ChunkManager(_currentGame, ChunkManager.ChunkManagerOptions.IgnoreUnknownChunks | ChunkManager.ChunkManagerOptions.SkipNull);
+
+                messageLabel.Text = $"Loading: {_fileName}";
+
+                saveToolStripMenuItem.Enabled = false;
+                _texturePacks.Clear();
+                _textures.Clear();
+
+                GC.Collect();
+
+                var stopwatch = new Stopwatch();
+                stopwatch.Start();
+                _chunkManager.Read(_fileName);
+                stopwatch.Stop();
+                saveToolStripMenuItem.Enabled = true;
+                label1.Text = "Packs: 0 - Textures: 0";
+
+                messageLabel.Text = $"Loaded {_fileName} [{stopwatch.ElapsedMilliseconds}ms]";
+
+                _texturePacks = new BindingList<TexturePack>(
+                    _chunkManager.Chunks
+                        .Select(c => c.Resource)
+                        .Where(r => r is TexturePack)
+                        .Cast<TexturePack>()
+                        .ToList());
+                _tpkSource.DataSource = null;
+                _tpkSource.DataSource = _texturePacks;
+
+                if (_texturePacks.Count > 0)
+                {
+                    tpkDataGrid.Rows[0].Selected = true;
+                }
+
+                label1.Text = $"Packs: {_texturePacks.Count} - Textures: {_texturePacks.Sum(tpk => tpk.NumTextures)}";
 #if !DEBUG
             }
                 catch (Exception ex)
@@ -217,6 +216,47 @@ namespace TexEd
                 }
 #endif
             }
+        }
+
+        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (!File.Exists(_fileName + ".bak"))
+            {
+                File.Copy(_fileName, _fileName + ".bak");
+            }
+
+            SolidListManager slm;
+
+            switch (_currentGame)
+            {
+                case GameDetector.Game.World:
+                    slm = new World15Solids();
+                    break;
+                default: throw new Exception("nah");
+            }
+
+            using (var outputFile = new FileStream(_fileName, FileMode.Create))
+            {
+                var chunkStream = new ChunkStream(outputFile);
+
+                foreach (var chunk in _chunkManager.Chunks)
+                {
+                    if (chunk.Resource is TexturePack tpk)
+                    {
+                        chunkStream.PaddingAlignment(0x80);
+                        new DelegateTpk().WriteTexturePack(chunkStream, tpk);
+                    }
+                    else
+                    {
+                        chunkStream.BeginChunk(chunk.Id);
+                        chunkStream.Write(chunk.Data);
+                        chunkStream.EndChunk();
+                        chunkStream.PaddingAlignment(0x10);
+                    }
+                }
+            }
+
+            MessageUtil.ShowInfo("Done!");
         }
     }
 }

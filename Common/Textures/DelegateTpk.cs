@@ -16,7 +16,7 @@ namespace Common.Textures
 
             br.BaseStream.Position = curPos;
 
-            if (_detectedVersion == 5) // MW
+            if (_detectedVersion == 5 || _detectedVersion == 4) // MW
             {
                 return new MostWantedTpk().ReadTexturePack(br, containerSize);
             }
@@ -26,7 +26,7 @@ namespace Common.Textures
                 return new CarbonTpk().ReadTexturePack(br, containerSize);
             }
 
-            if (_detectedVersion == 9) // World
+            if (_detectedVersion == 9) // World, but UC too (different format, ugh)
             {
                 return new WorldTpk().ReadTexturePack(br, containerSize);
             }
@@ -40,6 +40,23 @@ namespace Common.Textures
                 TpkSize = 0,
                 Version = 0
             };
+        }
+
+        public override void WriteTexturePack(ChunkStream cs, TexturePack texturePack)
+        {
+            if (texturePack.Version != 9)
+            {
+                throw new NotImplementedException();
+            }
+
+            switch (texturePack.Version)
+            {
+                case 9:
+                    new WorldTpk().WriteTexturePack(cs, texturePack);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
 
         protected override void ReadChunks(BinaryReader br, uint containerSize)

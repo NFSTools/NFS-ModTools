@@ -113,6 +113,7 @@
             // 
             // messageLabel
             // 
+            this.messageLabel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.messageLabel.AutoSize = true;
             this.messageLabel.Location = new System.Drawing.Point(12, 659);
             this.messageLabel.Name = "messageLabel";
@@ -144,6 +145,7 @@
             this.saveToolStripMenuItem.Name = "saveToolStripMenuItem";
             this.saveToolStripMenuItem.Size = new System.Drawing.Size(103, 22);
             this.saveToolStripMenuItem.Text = "Save";
+            this.saveToolStripMenuItem.Click += new System.EventHandler(this.saveToolStripMenuItem_Click);
             // 
             // toolStripSeparator1
             // 
@@ -297,6 +299,7 @@
             // 
             // label1
             // 
+            this.label1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.label1.AutoSize = true;
             this.label1.Location = new System.Drawing.Point(1040, 659);
             this.label1.Name = "label1";
@@ -315,9 +318,6 @@
             this.Controls.Add(this.textureDataGrid);
             this.Controls.Add(this.tpkDataGrid);
             this.Controls.Add(this.menuStrip1);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
-            this.MaximizeBox = false;
-            this.MaximumSize = new System.Drawing.Size(1280, 720);
             this.MinimumSize = new System.Drawing.Size(1280, 720);
             this.Name = "TexEdMain";
             this.Text = "TexEd v0.0.1 by heyitsleo";

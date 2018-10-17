@@ -15,7 +15,7 @@ namespace Common
 
         public FixedLenString(string data)
         {
-            _length = data.Length + 4 - (data.Length % 4);
+            _length = data.Length + 4 - data.Length % 4;
             _string = data;
         }
 
@@ -38,6 +38,8 @@ namespace Common
             _string = "";
             Read(br);
         }
+
+        public byte Length => (byte) _length;
 
         public void Read(BinaryReader br, int length)
         {
@@ -134,6 +136,7 @@ namespace Common
         private readonly SysStream _stream;
         private readonly Stack<RealChunk> _chunkStack;
         private readonly BinaryWriter _binaryWriter;
+        private bool _canWrite;
 
         public ChunkStream(SysStream stream)
         {
@@ -142,28 +145,27 @@ namespace Common
             _binaryWriter = new BinaryWriter(_stream);
         }
 
+        public ChunkStream(BinaryReader binaryReader)
+        {
+            _stream = binaryReader.BaseStream;
+            _chunkStack = new Stack<RealChunk>();
+        }
+
         public ChunkStream(BinaryWriter binaryWriter)
         {
             _stream = binaryWriter.BaseStream;
             _chunkStack = new Stack<RealChunk>();
             _binaryWriter = binaryWriter;
+            _canWrite = true;
         }
 
         public void NextAlignment(int alignment, bool byteVal = false)
         {
             if (_stream.Position % alignment != 0)
             {
-                Console.WriteLine($"NextAlignment ({alignment}) [{_stream.Position}]");
-
                 var nb = alignment - _stream.Position % alignment;
 
-                Console.WriteLine(nb);
-
-                for (var i = 0; i < nb; i++)
-                {
-                    _binaryWriter.Write((byte)(byteVal ? 0x11 : 0x00));
-                }
-                //_stream.Position += alignment - _stream.Position % alignment;
+                _stream.Position += nb;
             }
         }
 
@@ -207,59 +209,173 @@ namespace Common
 
         public void WriteStruct<T>(T instance)
         {
+            if (!_canWrite)
+                throw new InvalidOperationException("Cannot write to this stream");
             _binaryWriter.PutStruct(instance);
         }
 
         public void Write(FixedLenString str)
         {
+            if (!_canWrite)
+                throw new InvalidOperationException("Cannot write to this stream");
             str.Write(_binaryWriter);
         }
 
         public void Write(byte[] data)
         {
+            if (!_canWrite)
+                throw new InvalidOperationException("Cannot write to this stream");
             _binaryWriter.Write(data);
+        }
+
+        public void Write(ushort[] data)
+        {
+            if (!_canWrite)
+                throw new InvalidOperationException("Cannot write to this stream");
+            foreach (var value in data)
+            {
+                _binaryWriter.Write(value);
+            }
+        }
+
+        public void Write(short[] data)
+        {
+            if (!_canWrite)
+                throw new InvalidOperationException("Cannot write to this stream");
+            foreach (var value in data)
+            {
+                _binaryWriter.Write(value);
+            }
+        }
+
+        public void Write(uint[] data)
+        {
+            if (!_canWrite)
+                throw new InvalidOperationException("Cannot write to this stream");
+            foreach (var value in data)
+            {
+                _binaryWriter.Write(value);
+            }
+        }
+
+        public void Write(int[] data)
+        {
+            if (!_canWrite)
+                throw new InvalidOperationException("Cannot write to this stream");
+            foreach (var value in data)
+            {
+                _binaryWriter.Write(value);
+            }
+        }
+
+        public void Write(float[] data)
+        {
+            if (!_canWrite)
+                throw new InvalidOperationException("Cannot write to this stream");
+            foreach (var value in data)
+            {
+                _binaryWriter.Write(value);
+            }
         }
 
         public void Write(sbyte data)
         {
+            if (!_canWrite)
+                throw new InvalidOperationException("Cannot write to this stream");
             _binaryWriter.Write(data);
         }
 
         public void Write(byte data)
         {
+            if (!_canWrite)
+                throw new InvalidOperationException("Cannot write to this stream");
             _binaryWriter.Write(data);
         }
 
         public void Write(short data)
         {
+            if (!_canWrite)
+                throw new InvalidOperationException("Cannot write to this stream");
             _binaryWriter.Write(data);
         }
 
         public void Write(ushort data)
         {
+            if (!_canWrite)
+                throw new InvalidOperationException("Cannot write to this stream");
             _binaryWriter.Write(data);
         }
 
         public void Write(int data)
         {
+            if (!_canWrite)
+                throw new InvalidOperationException("Cannot write to this stream");
             _binaryWriter.Write(data);
         }
 
         public void Write(uint data)
         {
+            if (!_canWrite)
+                throw new InvalidOperationException("Cannot write to this stream");
             _binaryWriter.Write(data);
         }
 
         public void Write(float data)
         {
+            if (!_canWrite)
+                throw new InvalidOperationException("Cannot write to this stream");
             _binaryWriter.Write(data);
+        }
+
+        public void WriteChunk(ChunkManager.Chunk chunk)
+        {
+            BeginChunk(chunk.Id);
+
+            if ((chunk.Id & 0x80000000) == 0x80000000)
+            {
+                WriteChunkChildren(chunk.SubChunks);
+            }
+            else
+            {
+                Write(chunk.Data);
+            }
+
+            EndChunk();
+        }
+
+        private void WriteChunkChildren(List<ChunkManager.Chunk> chunks)
+        {
+            foreach (var chunk in chunks)
+            {
+                BeginChunk(chunk.Id);
+
+                if ((chunk.Id & 0x80000000) == 0x80000000)
+                {
+                    WriteChunkChildren(chunk.SubChunks);
+                }
+                else
+                {
+                    Write(chunk.Data);
+                }
+
+                EndChunk();
+            }
+        }
+
+        public SysStream GetStream()
+        {
+            return _stream;
         }
 
         /// <inheritdoc />
         public void Dispose()
         {
             _stream?.Dispose();
+
+            if (!_canWrite) return;
+
             _binaryWriter?.Dispose();
+            _canWrite = false;
         }
     }
 }

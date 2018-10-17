@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Common.Geometry.Data;
 
@@ -68,7 +70,7 @@ namespace Common.Geometry
             public readonly float Unknown6;
         }
 
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 144)]
         private struct SolidObjectShadingGroup
         {
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
@@ -127,6 +129,17 @@ namespace Common.Geometry
             public readonly uint NumTris; // 0 if NumIndices
         }
 
+        [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 0x18)]
+        private struct SolidObjectOffset
+        {
+            public uint ObjectHash;
+            public uint Offset;
+            public uint CompressedSize;
+            public uint OutSize;
+            public uint Unknown1;
+            public uint Unknown2;
+        }
+
         private const uint SolidListInfoChunk = 0x134002;
         private const uint SolidListObjHeadChunk = 0x134011;
 
@@ -154,30 +167,35 @@ namespace Common.Geometry
                 var chunkSize = br.ReadUInt32();
                 var chunkEndPos = br.BaseStream.Position + chunkSize;
 
+                if (chunkId == 0x55441122)
+                {
+                    break;
+                }
+
                 if ((chunkId & 0x80000000) == 0x80000000 && chunkId != 0x80134010)
                 {
                     ReadChunks(br, chunkSize);
                 }
                 else
                 {
-                    if ((chunkId & 0x80000000) != 0x80000000)
-                    {
-                        var padding = 0u;
+                    //if ((chunkId & 0x80000000) != 0x80000000)
+                    //{
+                    //    var padding = 0u;
 
-                        while (br.ReadByte() == 0x11)
-                        {
-                            padding++;
-                        }
+                    //    while (br.ReadByte() == 0x11)
+                    //    {
+                    //        padding++;
+                    //    }
 
-                        br.BaseStream.Position--;
+                    //    br.BaseStream.Position--;
 
-                        if (padding % 2 != 0)
-                        {
-                            padding--;
-                        }
+                    //    if (padding % 2 != 0)
+                    //    {
+                    //        padding--;
+                    //    }
 
-                        chunkSize -= padding;
-                    }
+                    //    chunkSize -= padding;
+                    //}
 
                     switch (chunkId)
                     {
@@ -189,6 +207,74 @@ namespace Common.Geometry
                                 _solidList.PipelinePath = info.PipelinePath;
                                 _solidList.ObjectCount = info.NumObjects;
 
+                                break;
+                            }
+                        case 0x134004:
+                            {
+                                while (br.BaseStream.Position < chunkEndPos)
+                                {
+                                    var och = BinaryUtil.ReadStruct<SolidObjectOffset>(br);
+                                    var curPos = br.BaseStream.Position;
+                                    br.BaseStream.Position = och.Offset;
+
+                                    var bytesRead = 0u;
+                                    var blocks = new List<byte[]>();
+
+                                    while (bytesRead < och.CompressedSize)
+                                    {
+                                        var compHeader = BinaryUtil.ReadStruct<Compression.CompressBlockHead>(br);
+                                        var compressedData = br.ReadBytes((int)(compHeader.TotalBlockSize - 24));
+                                        var outData = new byte[compHeader.OutSize];
+
+                                        Compression.Decompress(compressedData, outData);
+
+                                        blocks.Add(outData);
+
+                                        bytesRead += compHeader.TotalBlockSize;
+                                    }
+
+                                    if (blocks.Count == 1)
+                                    {
+                                        using (var ms = new MemoryStream(blocks[0]))
+                                        using (var mbr = new BinaryReader(ms))
+                                        {
+                                            var solidObject = ReadObject(mbr, blocks[0].Length, null);
+                                            solidObject.PostProcessing();
+
+                                            _solidList.Objects.Add(solidObject);
+                                        }
+                                    }
+                                    else if (blocks.Count > 1)
+                                    {
+                                        // Sort the blocks into their proper order.
+                                        var sorted = new List<byte>();
+
+                                        sorted.AddRange(blocks[blocks.Count - 1]);
+
+                                        for (var j = 0; j < blocks.Count; j++)
+                                        {
+                                            if (j != blocks.Count - 1)
+                                            {
+                                                sorted.AddRange(blocks[j]);
+                                            }
+                                        }
+
+                                        using (var ms = new MemoryStream(sorted.ToArray()))
+                                        using (var mbr = new BinaryReader(ms))
+                                        {
+                                            var solidObject = ReadObject(mbr, sorted.Count, null);
+                                            solidObject.PostProcessing();
+
+                                            _solidList.Objects.Add(solidObject);
+                                        }
+
+                                        sorted.Clear();
+                                    }
+
+                                    blocks.Clear();
+
+                                    br.BaseStream.Position = curPos;
+                                }
                                 break;
                             }
                         case 0x80134010:
@@ -255,9 +341,6 @@ namespace Common.Geometry
                     {
                         case SolidListObjHeadChunk:
                             {
-                                var solidHeaderSize = Marshal.SizeOf<SolidObjectHeader>();
-                                Debug.Assert(solidHeaderSize <= chunkSize);
-
                                 _namedMaterials = 0;
 
                                 var header = BinaryUtil.ReadStruct<SolidObjectHeader>(br);
@@ -297,15 +380,15 @@ namespace Common.Geometry
                             }
                         // 12 40 13 00
                         case 0x00134012:
-                        {
-                            for (var j = 0; j < chunkSize / 8; j++)
                             {
-                                solidObject.TextureHashes.Add(br.ReadUInt32());
-                                br.BaseStream.Position += 4;
-                            }
+                                for (var j = 0; j < chunkSize / 8; j++)
+                                {
+                                    solidObject.TextureHashes.Add(br.ReadUInt32());
+                                    br.BaseStream.Position += 4;
+                                }
 
-                            break;
-                        }
+                                break;
+                            }
                         case 0x134900:
                             {
                                 var descriptor = BinaryUtil.ReadStruct<SolidObjectDescriptor>(br);
@@ -323,9 +406,8 @@ namespace Common.Geometry
                             }
                         case 0x00134b02:
                             {
-                                var shadingGroupSize = Marshal.SizeOf<SolidObjectShadingGroup>();
-                                Debug.Assert(chunkSize % shadingGroupSize == 0);
-                                var numMats = chunkSize / shadingGroupSize;
+                                Debug.Assert(chunkSize % 144 == 0);
+                                var numMats = chunkSize / 144;
 
                                 var lastUnknown1 = -1;
                                 var lastStreamIdx = -1;
@@ -350,7 +432,7 @@ namespace Common.Geometry
                                         Name = $"Unnamed Material #{j + 1:00}",
                                         NumVerts = shadingGroup.NumVerts,
                                         TextureHash = solidObject.TextureHashes[texIdx],
-                                        Unknown1 = shadingGroup.Unknown1
+                                        Unknown1 = (int)shadingGroup.Unknown1
                                     };
 
                                     uint vsIdx;
@@ -391,11 +473,18 @@ namespace Common.Geometry
                             }
                         case 0x134b01:
                             {
-                                var vb = new VertexBuffer();
+                                var vb = new VertexBuffer
+                                {
+                                    Data = new float[chunkSize >> 2]
+                                };
+
+                                var pos = 0;
 
                                 while (br.BaseStream.Position < chunkEndPos)
                                 {
-                                    vb.Data.Add(br.ReadSingle());
+                                    var v = br.ReadSingle();
+
+                                    vb.Data[pos++] = v;
                                 }
 
                                 solidObject.VertexBuffers.Add(vb);
@@ -404,6 +493,10 @@ namespace Common.Geometry
                             }
                         case 0x134b03:
                             {
+                                Array.Resize(ref solidObject.Faces, (int)solidObject.Materials.Sum(m => m.NumTris));
+
+                                var faceIndex = 0;
+
                                 foreach (var material in solidObject.Materials)
                                 {
                                     for (var j = 0; j < material.NumTris; j++)
@@ -412,12 +505,12 @@ namespace Common.Geometry
                                         var f2 = br.ReadUInt16();
                                         var f3 = br.ReadUInt16();
 
-                                        solidObject.Faces.Add(new SolidMeshFace
+                                        solidObject.Faces[faceIndex++] = new SolidMeshFace
                                         {
                                             Vtx1 = f1,
                                             Vtx2 = f2,
                                             Vtx3 = f3
-                                        });
+                                        };
                                     }
                                 }
 

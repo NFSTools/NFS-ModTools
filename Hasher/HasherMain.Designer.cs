@@ -82,6 +82,7 @@
             // 
             // binFileHash
             // 
+            this.binFileHash.Enabled = false;
             this.binFileHash.Location = new System.Drawing.Point(146, 72);
             this.binFileHash.Multiline = true;
             this.binFileHash.Name = "binFileHash";
@@ -101,6 +102,7 @@
             // 
             // binMemHash
             // 
+            this.binMemHash.Enabled = false;
             this.binMemHash.Location = new System.Drawing.Point(146, 119);
             this.binMemHash.Multiline = true;
             this.binMemHash.Name = "binMemHash";
@@ -110,6 +112,7 @@
             // 
             // vltMemHash
             // 
+            this.vltMemHash.Enabled = false;
             this.vltMemHash.Location = new System.Drawing.Point(146, 215);
             this.vltMemHash.Multiline = true;
             this.vltMemHash.Name = "vltMemHash";
@@ -139,6 +142,7 @@
             // 
             // vltFileHash
             // 
+            this.vltFileHash.Enabled = false;
             this.vltFileHash.Location = new System.Drawing.Point(146, 168);
             this.vltFileHash.Multiline = true;
             this.vltFileHash.Name = "vltFileHash";
@@ -148,6 +152,7 @@
             // 
             // vlt64MemHash
             // 
+            this.vlt64MemHash.Enabled = false;
             this.vlt64MemHash.Location = new System.Drawing.Point(146, 313);
             this.vlt64MemHash.Multiline = true;
             this.vlt64MemHash.Name = "vlt64MemHash";
@@ -177,6 +182,7 @@
             // 
             // vlt64FileHash
             // 
+            this.vlt64FileHash.Enabled = false;
             this.vlt64FileHash.Location = new System.Drawing.Point(146, 266);
             this.vlt64FileHash.Multiline = true;
             this.vlt64FileHash.Name = "vlt64FileHash";
@@ -186,6 +192,7 @@
             // 
             // copyInputButton
             // 
+            this.copyInputButton.Enabled = false;
             this.copyInputButton.Location = new System.Drawing.Point(444, 29);
             this.copyInputButton.Name = "copyInputButton";
             this.copyInputButton.Size = new System.Drawing.Size(75, 23);

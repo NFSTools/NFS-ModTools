@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using Common;
-using Common.Stream;
-using Common.Stream.Data;
+using Common.TrackStream;
+using Common.TrackStream.Data;
 using Newtonsoft.Json;
 
 namespace StreamGen

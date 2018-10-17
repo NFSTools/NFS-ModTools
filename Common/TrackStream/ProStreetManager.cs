@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
-using Common.Stream.Data;
+using Common.TrackStream.Data;
 
-namespace Common.Stream
+namespace Common.TrackStream
 {
     public class ProStreetManager : GameBundleManager
     {
@@ -49,7 +49,7 @@ namespace Common.Stream
             }
         }
 
-        protected override LocationBundle ReadLocationBundle(string bundlePath)
+        public override LocationBundle ReadLocationBundle(string bundlePath)
         {
             var fileName = Path.GetFileName(bundlePath);
 

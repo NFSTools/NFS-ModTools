@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
-using Common.Stream.Data;
+using Common.TrackStream.Data;
 
-namespace Common.Stream
+namespace Common.TrackStream
 {
     public abstract class GameBundleManager
     {
@@ -15,6 +15,6 @@ namespace Common.Stream
 
         public abstract void CombineSections(List<StreamSection> sections, string outFile);
 
-        protected abstract LocationBundle ReadLocationBundle(string bundlePath);
+        public abstract LocationBundle ReadLocationBundle(string bundlePath);
     }
 }
