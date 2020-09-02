@@ -28,7 +28,15 @@ namespace Common.Textures
 
             if (_detectedVersion == 9) // World, but UC too (different format, ugh)
             {
-                return new WorldTpk().ReadTexturePack(br, containerSize);
+                try
+                {
+                    return new WorldTpk().ReadTexturePack(br, containerSize);
+                }
+                catch (Exception)
+                {
+                    br.BaseStream.Position = curPos;
+                    return new UndercoverTpk().ReadTexturePack(br, containerSize);
+                }
             }
 
             return new TexturePack

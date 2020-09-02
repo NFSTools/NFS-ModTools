@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
@@ -15,13 +14,10 @@ namespace ChunkView
 {
     public partial class ChunkViewMain : Form
     {
-        private const string WindowTitle = "ChunkView v0.0.1 by heyitsleo";
+        private const string WindowTitle = "ChunkView v0.0.2 by heyitsleo";
 
         private readonly Dictionary<uint, string> _chunkIdDictionary = new Dictionary<uint, string>();
         private List<Chunk> _chunks = new List<Chunk>();
-
-        private bool _updatingSelection = false;
-        private bool _comparing = false;
 
         public ChunkViewMain()
         {
@@ -55,12 +51,6 @@ namespace ChunkView
         {
             if (treeView1.SelectedNode?.Tag is Chunk chunk)
             {
-                if (_comparing)
-                {
-                    MessageUtil.ShowInfo("Running comparison...");
-                    _comparing = false;
-                }
-
                 if (treeView1.SelectedNode?.Parent?.Tag is Chunk parentChunk)
                 {
                     hexBox1.ByteProvider = new DynamicByteProvider(parentChunk.Data);
@@ -78,13 +68,10 @@ namespace ChunkView
                 {
                     hexBox1.ByteProvider = new DynamicByteProvider(chunk.Data);
                 }
-
-                compareToolStripMenuItem.Enabled = true;
             }
             else
             {
                 hexBox1.ByteProvider = new DynamicByteProvider(new byte[0]);
-                compareToolStripMenuItem.Enabled = false;
             }
         }
 
@@ -94,8 +81,8 @@ namespace ChunkView
             {
                 messageLabel.Text = $"Loading: {openFileDialog.FileName}...";
                 var stopwatch = new Stopwatch();
+                exportToolStripMenuItem.Enabled = false;
 
-                compareToolStripMenuItem.Enabled = false;
                 hexBox1.ByteProvider = new DynamicByteProvider(new byte[0]);
                 treeView1.Nodes.Clear();
                 _chunks.Clear();
@@ -141,7 +128,6 @@ namespace ChunkView
 
                 stopwatch.Stop();
 
-                compareToolStripMenuItem.Enabled = true;
 
                 SuspendLayout();
                 PopulateChunks(_chunks, treeView1.Nodes.Add(Path.GetFileName(openFileDialog.FileName)));
@@ -150,6 +136,8 @@ namespace ChunkView
                 messageLabel.Text = $"Loaded {_chunks.Count} chunks from [{openFileDialog.FileName}] in {stopwatch.ElapsedMilliseconds}ms";
 
                 Text = $"{WindowTitle} - {openFileDialog.FileName}";
+
+                exportToolStripMenuItem.Enabled = true;
             }
         }
 
@@ -218,7 +206,8 @@ namespace ChunkView
                         br.BaseStream.Position += 0x8;
 
                         outSize = br.ReadUInt32();
-                    } else if (flag == 0x46465548) // HUFF
+                    }
+                    else if (flag == 0x46465548) // HUFF
                     {
                         br.BaseStream.Position += 4;
 
@@ -228,7 +217,7 @@ namespace ChunkView
                     }
 
                     br.BaseStream.Position = chunkOffset + 4;
-                    var compData = br.ReadBytes((int) (chunkSize - 4));
+                    var compData = br.ReadBytes((int)(chunkSize - 4));
                     var outData = new byte[outSize];
 
                     Compression.Decompress(compData, outData);
@@ -310,9 +299,59 @@ namespace ChunkView
             public List<Chunk> SubChunks = new List<Chunk>();
         }
 
-        private void compareToolStripMenuItem_Click(object sender, EventArgs e)
+        private void exportToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            _comparing = true;
+            var rootNode = treeView1.Nodes[0];
+            var chunks = new List<Chunk>();
+            foreach (TreeNode node in rootNode.Nodes)
+            {
+                if (node.Tag is Chunk chunk)
+                {
+                    chunks.Add(chunk);
+                }
+            }
+
+            var ofd = new FolderBrowserDialog();
+            ofd.Description = "Select output folder";
+            ofd.RootFolder = Environment.SpecialFolder.Desktop;
+
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                ExportChunks("root", ofd.SelectedPath, null, chunks);
+            }
+        }
+
+        private void ExportChunks(string parentName, string directory, Chunk parentChunk, List<Chunk> chunks)
+        {
+            var chunkCounter = 0;
+            if (parentChunk == null)
+            {
+                foreach (var chunk in chunks)
+                {
+                    if (chunk.IsParent)
+                    {
+                        ExportChunks(Path.Combine(directory, $"{parentName}-{chunk.Id:X8}"), directory, chunk, chunk.SubChunks);
+                    }
+                    else
+                    {
+                        File.WriteAllBytes(Path.Combine(directory, $"{parentName}-{chunk.Id:X8}-{chunk.Offset:X8}-{++chunkCounter}.bin"), chunk.Data);
+                    }
+                }
+            }
+            else
+            {
+                foreach (var chunk in chunks)
+                {
+                    if (chunk.IsParent)
+                    {
+                        ExportChunks(Path.Combine(directory, $"{parentName}-{chunk.Id:X8}"), directory, chunk, chunk.SubChunks);
+                    }
+                    else
+                    {
+                        File.WriteAllBytes(Path.Combine(directory, $"{parentName}-{chunk.Id:X8}-{chunk.Offset:X8}-{++chunkCounter}.bin"), chunk.Data);
+                    }
+                }
+            }
         }
     }
 }

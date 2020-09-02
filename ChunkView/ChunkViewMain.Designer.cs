@@ -33,7 +33,7 @@
             this.openToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.saveToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.chunksToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.compareToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.exportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openFileDialog = new System.Windows.Forms.OpenFileDialog();
             this.messageLabel = new System.Windows.Forms.Label();
             this.treeView1 = new System.Windows.Forms.TreeView();
@@ -78,18 +78,18 @@
             // chunksToolStripMenuItem
             // 
             this.chunksToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.compareToolStripMenuItem});
+            this.exportToolStripMenuItem});
             this.chunksToolStripMenuItem.Name = "chunksToolStripMenuItem";
             this.chunksToolStripMenuItem.Size = new System.Drawing.Size(59, 20);
             this.chunksToolStripMenuItem.Text = "Chunks";
             // 
-            // compareToolStripMenuItem
+            // exportToolStripMenuItem
             // 
-            this.compareToolStripMenuItem.Enabled = false;
-            this.compareToolStripMenuItem.Name = "compareToolStripMenuItem";
-            this.compareToolStripMenuItem.Size = new System.Drawing.Size(123, 22);
-            this.compareToolStripMenuItem.Text = "Compare";
-            this.compareToolStripMenuItem.Click += new System.EventHandler(this.compareToolStripMenuItem_Click);
+            this.exportToolStripMenuItem.Enabled = false;
+            this.exportToolStripMenuItem.Name = "exportToolStripMenuItem";
+            this.exportToolStripMenuItem.Size = new System.Drawing.Size(107, 22);
+            this.exportToolStripMenuItem.Text = "Export";
+            this.exportToolStripMenuItem.Click += new System.EventHandler(this.exportToolStripMenuItem_Click);
             // 
             // openFileDialog
             // 
@@ -136,7 +136,7 @@
             this.MaximumSize = new System.Drawing.Size(1280, 720);
             this.MinimumSize = new System.Drawing.Size(1280, 720);
             this.Name = "ChunkViewMain";
-            this.Text = "ChunkView v0.0.1 by heyitsleo";
+            this.Text = "ChunkView v0.0.2 by heyitsleo";
             this.menuStrip1.ResumeLayout(false);
             this.menuStrip1.PerformLayout();
             this.ResumeLayout(false);
@@ -155,7 +155,7 @@
         private System.Windows.Forms.TreeView treeView1;
         private Be.Windows.Forms.HexBox hexBox1;
         private System.Windows.Forms.ToolStripMenuItem chunksToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem compareToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem exportToolStripMenuItem;
     }
 }
 

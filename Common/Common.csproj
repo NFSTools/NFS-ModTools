@@ -117,6 +117,7 @@
     <Compile Include="ChunkStream.cs" />
     <Compile Include="Compression.cs" />
     <Compile Include="Entity\Collision\CollisionManager.cs" />
+    <Compile Include="Entity\Collision\MostWantedCollision.cs" />
     <Compile Include="Entity\Collision\World15Collision.cs" />
     <Compile Include="Entity\Data\CollisionPack.cs" />
     <Compile Include="GameDetector.cs" />

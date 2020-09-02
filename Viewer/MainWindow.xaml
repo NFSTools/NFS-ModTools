@@ -6,8 +6,10 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:helix="http://helix-toolkit.org/wpf"
         xmlns:local="clr-namespace:Viewer"
+        xmlns:dxc="clr-namespace:SharpDX.WPF;assembly=SharpDX.WPF"
         xmlns:commonTextures="clr-namespace:Common.Textures.Data;assembly=Common"
         xmlns:commonGeometry="clr-namespace:Common.Geometry.Data;assembly=Common"
+        xmlns:sharpGl="clr-namespace:SharpGL.WPF;assembly=SharpGL.WPF"
         mc:Ignorable="d"
         Height="720" Width="1280" MinHeight="720" MinWidth="1280">
     <Grid DataContext="{Binding ElementName=MyMainWindow}">
@@ -221,6 +223,11 @@
                 </HierarchicalDataTemplate>
             </TreeView.Resources>
         </TreeView>
+        <!--<sharpGl:OpenGLControl Grid.Row="1" 
+                               Grid.Column="1"
+                               DrawFPS="True"
+                               OpenGLInitialized="OpenGLControl_OnOpenGLInitialized"
+                               OpenGLDraw="OpenGLControl_OpenGLDraw"></sharpGl:OpenGLControl>-->
         <helix:HelixViewport3D x:Name="Viewport" 
                                ZoomExtentsWhenLoaded="true" 
                                Grid.Row="1" 

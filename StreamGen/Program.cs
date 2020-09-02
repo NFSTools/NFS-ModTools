@@ -106,7 +106,7 @@ namespace StreamGen
             }
 
             var bundleManager = new World15Manager();
-            bundleManager.WriteLocationBundle(finalPath, bundle, sectionsDir);
+            bundleManager.WriteLocationBundle(finalPath, bundle, bundle.Sections);
 
             Console.WriteLine($"[INFO] Saved file to: {finalPath}");
 

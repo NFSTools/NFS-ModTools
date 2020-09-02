@@ -11,6 +11,8 @@ namespace Common.Geometry
 {
     public class World15Solids : SolidListManager
     {
+        public const float PackedFloatInv = 1 / (float)0x8000;
+
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         private struct SolidListInfo
         {
@@ -122,8 +124,9 @@ namespace Common.Geometry
             public readonly uint ObjectHash;
             public readonly uint AbsoluteOffset;
             public readonly uint Size;
+            public readonly uint OutSize;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
             private readonly uint[] unknown;
         }
 
@@ -197,65 +200,81 @@ namespace Common.Geometry
                                     var curPos = br.BaseStream.Position;
                                     br.BaseStream.Position = och.AbsoluteOffset;
 
-                                    var bytesRead = 0u;
-                                    var blocks = new List<byte[]>();
-
-                                    while (bytesRead < och.Size)
+                                    if (och.Size == och.OutSize)
                                     {
-                                        var compHeader = BinaryUtil.ReadStruct<Compression.CompressBlockHead>(br);
-                                        var compressedData = br.ReadBytes((int)(compHeader.TotalBlockSize - 24));
-                                        var outData = new byte[compHeader.OutSize];
+                                        var data = br.ReadBytes(och.OutSize);
 
-                                        Compression.Decompress(compressedData, outData);
-
-                                        blocks.Add(outData);
-
-                                        bytesRead += compHeader.TotalBlockSize;
-                                    }
-
-                                    if (blocks.Count == 1)
-                                    {
-                                        using (var ms = new MemoryStream(blocks[0]))
+                                        using (var ms = new MemoryStream(data))
                                         using (var mbr = new BinaryReader(ms))
                                         {
-                                            var solidObject = ReadObject(mbr, blocks[0].Length, true, null);
+                                            var solidObject = ReadObject(mbr, och.OutSize, true, null);
                                             solidObject.PostProcessing();
 
                                             _solidList.Objects.Add(solidObject);
                                         }
                                     }
-                                    else if (blocks.Count > 1)
+                                    else
                                     {
-                                        // Sort the blocks into their proper order.
-                                        var sorted = new List<byte>();
+                                        var bytesRead = 0u;
+                                        var blocks = new List<byte[]>();
 
-                                        sorted.AddRange(blocks[blocks.Count - 1]);
-
-                                        for (var j = 0; j < blocks.Count; j++)
+                                        while (bytesRead < och.Size)
                                         {
-                                            if (j != blocks.Count - 1)
+                                            var compHeader = BinaryUtil.ReadStruct<Compression.CompressBlockHead>(br);
+                                            var compressedData = br.ReadBytes((int)(compHeader.TotalBlockSize - 24));
+                                            var outData = new byte[compHeader.OutSize];
+
+                                            Compression.Decompress(compressedData, outData);
+
+                                            blocks.Add(outData);
+
+                                            bytesRead += compHeader.TotalBlockSize;
+                                        }
+
+                                        if (blocks.Count == 1)
+                                        {
+                                            using (var ms = new MemoryStream(blocks[0]))
+                                            using (var mbr = new BinaryReader(ms))
                                             {
-                                                sorted.AddRange(blocks[j]);
+                                                var solidObject = ReadObject(mbr, blocks[0].Length, true, null);
+                                                solidObject.PostProcessing();
+
+                                                _solidList.Objects.Add(solidObject);
                                             }
                                         }
-
-                                        using (var ms = new MemoryStream(sorted.ToArray()))
-                                        using (var mbr = new BinaryReader(ms))
+                                        else if (blocks.Count > 1)
                                         {
-                                            var solidObject = ReadObject(mbr, sorted.Count, true, null);
-                                            solidObject.PostProcessing();
+                                            // Sort the blocks into their proper order.
+                                            var sorted = new List<byte>();
 
-                                            _solidList.Objects.Add(solidObject);
+                                            sorted.AddRange(blocks[blocks.Count - 1]);
+
+                                            for (var j = 0; j < blocks.Count; j++)
+                                            {
+                                                if (j != blocks.Count - 1)
+                                                {
+                                                    sorted.AddRange(blocks[j]);
+                                                }
+                                            }
+
+                                            using (var ms = new MemoryStream(sorted.ToArray()))
+                                            using (var mbr = new BinaryReader(ms))
+                                            {
+                                                var solidObject = ReadObject(mbr, sorted.Count, true, null);
+                                                solidObject.PostProcessing();
+
+                                                _solidList.Objects.Add(solidObject);
+                                            }
+
+                                            sorted.Clear();
                                         }
 
-                                        sorted.Clear();
+                                        blocks.Clear();
                                     }
-
-                                    blocks.Clear();
 
                                     br.BaseStream.Position = curPos;
                                 }
-;
+
                                 break;
                             }
                         case 0x80134010:
@@ -550,6 +569,12 @@ namespace Common.Geometry
                                     }
                                 };
 
+                                if (name.StartsWith("TRAF"))
+                                {
+                                    unpackFloats = true;
+                                    solidObject.IsCompressed = true;
+                                }
+
                                 break;
                             }
                         case 0x134900:
@@ -661,7 +686,7 @@ namespace Common.Geometry
                             }
                         case 0x134b03:
                             {
-                                Array.Resize(ref solidObject.Faces, (int) solidObject.Materials.Sum(m => m.NumTris));
+                                Array.Resize(ref solidObject.Faces, (int)solidObject.Materials.Sum(m => m.NumTris));
 
                                 var faceIndex = 0;
 

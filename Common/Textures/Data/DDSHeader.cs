@@ -54,69 +54,28 @@ namespace Common.Textures.Data
         {
             Magic = 0x20534444; // "DDS "
             Size = 0x7C;
-            Flags = 0x1 | 0x2 | 0x4;
+            Width = (int) texture.Width;
+            Height = (int) texture.Height;
+            MipMapCount = 0;
+            PixelFormat.Size = 32;
+            PitchOrLinearSize = texture.Data.Length;
 
-            if (texture.CompressionType == TextureCompression.P8 ||
-                texture.CompressionType == TextureCompression.A8R8G8B8)
-            {
-                Flags |= 0x8;
-                Flags |= 0x00001000;
-                Flags |= 0x00020000;
-            }
-            else
-            {
-                Flags |= 0x00001000;
-                Flags |= 0x00020000;
-                Flags |= 0x00080000;
-            }
-
-            Width = (int)texture.Width;
-            Height = (int)texture.Height;
-            Depth = 1;
-            MipMapCount = (int)texture.MipMapCount;
-
-            PixelFormat.Size = 0x20;
-            PixelFormat.RGBBitCount = 0x20;
-
-            if (texture.CompressionType == TextureCompression.Dxt1
-                || texture.CompressionType == TextureCompression.Dxt3
-                || texture.CompressionType == TextureCompression.Dxt5
-                || texture.CompressionType == TextureCompression.Ati1
-                || texture.CompressionType == TextureCompression.Ati2)
-            {
-                PixelFormat.Flags = 0x4;
-                PixelFormat.FourCC = (int)texture.CompressionType;
-                PitchOrLinearSize = texture.Data.Length;
-            }
-            else
+            if ((int) texture.CompressionType == 0x15 || (int)texture.CompressionType == 0x29)
             {
                 PixelFormat.Flags = 0x41;
-
-                if (texture.CompressionType == TextureCompression.P8)
-                {
-                    PixelFormat.RBitMask = 0x000000ff;
-                    PixelFormat.GBitMask = 0x0000ff00;
-                    PixelFormat.BBitMask = 0x00ff0000;
-                    PixelFormat.AlphaBitMask = unchecked((int)0xff000000);
-                }
-                else if (texture.CompressionType == TextureCompression.A8R8G8B8)
-                {
-                    PixelFormat.RBitMask = 0x00ff0000;
-                    PixelFormat.GBitMask = 0x0000ff00;
-                    PixelFormat.BBitMask = 0x000000ff;
-                    PixelFormat.AlphaBitMask = unchecked((int)0xff000000);
-                }
-                else
-                {
-                    throw new Exception("What happened?");
-                }
-
-                PitchOrLinearSize = (int)Math.Floor((double)((Width * 0x20) / 8));
+                PixelFormat.RGBBitCount = 0x20;
+                PixelFormat.RBitMask = 0xFF0000;
+                PixelFormat.GBitMask = 0xFF00;
+                PixelFormat.BBitMask = 0xFF;
+                PixelFormat.AlphaBitMask = unchecked((int) 0xFF000000);
+                DDSCaps.Caps1 = 0x40100a;
             }
-
-            DDSCaps.Caps1 = 0x00001000;
-
-            //texture.PitchOrLinearSize
+            else
+            {
+                PixelFormat.Flags = 0x4;
+                PixelFormat.FourCC = (int) texture.CompressionType;
+                DDSCaps.Caps1 = 0x401008;
+            }
         }
     }
 }

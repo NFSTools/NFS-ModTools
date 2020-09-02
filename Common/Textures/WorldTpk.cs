@@ -118,7 +118,6 @@ namespace Common.Textures
 
                 {
                     var dataOffset = 0u;
-                    var infoBytes = 0u;
 
                     foreach (var texture in texturePack.Textures)
                     {
@@ -130,7 +129,9 @@ namespace Common.Textures
                             Height = texture.Height,
                             Width = texture.Width,
                             MipMapCount = texture.MipMapCount,
-                            DataSize = (uint)texture.Data.Length
+                            DataSize = (uint)texture.Data.Length,
+                            Unknown2 = texture.Data.Length,
+                            Unknown6 = (int) texture.PitchOrLinearSize,
                         };
 
                         var padding = 128 - texture.Data.Length % 128;
@@ -142,14 +143,12 @@ namespace Common.Textures
 
                         dataOffset += (uint)texture.Data.Length;
                         dataOffset += (uint)padding;
-                        infoBytes += 144;
-                        infoBytes += (uint)(1 + texture.Name.Length);
 
-                        var namePad = 4 - infoBytes % 4;
-
-                        texStruct.NameLength = (byte)(texture.Name.Length + namePad);
+                        var namePad = 4 - texture.Name.Length % 4;
+                        texStruct.NameLength = (byte)(texture.Name.Length + namePad + 1);
                         cs.WriteStruct(texStruct);
                         cs.Write(Encoding.ASCII.GetBytes(texture.Name));
+                        cs.Write((byte) 0);
                         cs.Write(new byte[namePad]);
                     }
                 }

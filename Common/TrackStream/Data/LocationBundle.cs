@@ -16,7 +16,11 @@ namespace Common.TrackStream.Data
 
         public uint Size { get; set; }
 
-        public uint OtherSize { get; set; }
+        public uint PermSize { get; set; }
+
+        public uint UnknownValue { get; set; }
+        public uint UnknownSectionNumber { get; set; }
+        public byte[] Data { get; set; }
     }
 
     public class WorldStreamSection : StreamSection

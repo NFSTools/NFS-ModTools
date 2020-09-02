@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
 using Common;
@@ -38,6 +39,7 @@ namespace StreamEd
 
             sectionsDataGrid.AutoGenerateColumns = false;
             sectionsDataGrid.DataSource = _sectionsSource;
+            sectionsDataGrid.AllowUserToDeleteRows = true;
 
             bundleSelectionBox.DataSource = _bundlesSource;
             bundleSelectionBox.SelectedIndexChanged += BundleSelectionBox_OnSelectedIndexChanged;
@@ -205,7 +207,7 @@ namespace StreamEd
 
             var masterStreamPath = Path.Combine(Path.GetDirectoryName(currentBundle.File), $"STREAM{currentBundle.Name}.BUN");
 
-            if (!File.Exists(masterStreamPath + ".bak"))
+            if (File.Exists(masterStreamPath) && !File.Exists(masterStreamPath + ".bak"))
             {
                 File.Copy(masterStreamPath, masterStreamPath + ".bak");
             }
@@ -213,8 +215,7 @@ namespace StreamEd
             stopwatch.Start();
             _bundleManager.WriteLocationBundle(
                 currentBundle.File, 
-                currentBundle, 
-                Path.Combine(_currentGameDir, "TRACKS", $"sections_{currentBundle.Name}"));
+                currentBundle, _sections.ToList());
             stopwatch.Stop();
             messageLabel.Text = $"Saved in {stopwatch.ElapsedMilliseconds}ms";
             MessageUtil.ShowInfo($"Saved in {stopwatch.ElapsedMilliseconds}ms");

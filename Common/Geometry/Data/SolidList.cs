@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 
@@ -136,7 +137,7 @@ namespace Common.Geometry.Data
     {
     }
 
-    public struct SolidMeshVertex
+    public class SolidMeshVertex
     {
         public float X { get; set; }
         public float Y { get; set; }
@@ -185,7 +186,7 @@ namespace Common.Geometry.Data
 
         public override int ComputeStride()
         {
-            return (int) (this.VertexBuffers[0].Data.Length / this.MeshDescriptor.NumVerts);
+            return (int)(this.VertexBuffers[0].Data.Length / this.MeshDescriptor.NumVerts);
         }
     }
 
@@ -238,13 +239,15 @@ namespace Common.Geometry.Data
     {
         public override SolidMeshVertex GetVertex(VertexBuffer buffer, SolidObjectMaterial material, int stride)
         {
+            var uvBase = stride == 6 ? 4 : 7;
+
             return new SolidMeshVertex
             {
                 X = buffer.Data[buffer.Position],
                 Y = buffer.Data[buffer.Position + 1],
                 Z = buffer.Data[buffer.Position + 2],
-                U = buffer.Data[buffer.Position + 7],
-                V = -buffer.Data[buffer.Position + 8]
+                U = buffer.Data[buffer.Position + uvBase],
+                V = -buffer.Data[buffer.Position + uvBase + 1]
             };
         }
 
@@ -344,42 +347,53 @@ namespace Common.Geometry.Data
         /// <returns></returns>
         public override SolidMeshVertex GetVertex(VertexBuffer buffer, SolidObjectMaterial material, int stride)
         {
-            float x, y, z, u, v;
+            var vertex = new SolidMeshVertex();
 
-            // Vertices for compressed models are read in a different way.
-            if (this.IsCompressed)
+            if (IsCompressed)
             {
-                x = 0.0f;
-                y = 0.0f;
-                z = 0.0f;
-                u = 0.0f;
-                v = 0.0f;
+                unsafe
+                {
+                    fixed (float* data = buffer.Data)
+                    {
+                        vertex.X = BinaryUtil.GetPackedFloat(&data[buffer.Position], 0) * 10.0f;
+                        vertex.Y = BinaryUtil.GetPackedFloat(&data[buffer.Position], 2) * 10.0f;
+                        vertex.Z = BinaryUtil.GetPackedFloat(&data[buffer.Position], 1) * 10.0f;
+                        vertex.U = BinaryUtil.GetPackedFloat(&data[buffer.Position + 2], 0) * 32.0f;
+                        vertex.V = BinaryUtil.GetPackedFloat(&data[buffer.Position + 2], 1) * 32.0f;
+                    }
+                }
             }
             else
             {
-                // According to BlackBox logic, X-Z-Y is how the 3D coordinate system works.
-                x = buffer.Data[buffer.Position];
-                y = buffer.Data[buffer.Position + 2];
-                z = buffer.Data[buffer.Position + 1];
-
                 unsafe
                 {
-                    fixed (float* dataArray = buffer.Data)
+                    fixed (float* data = buffer.Data)
                     {
-                        u = BinaryUtil.GetPackedFloat(&dataArray[buffer.Position + 4], 0);
-                        v = BinaryUtil.GetPackedFloat(&dataArray[buffer.Position + 4], 1);
+                        vertex.X = data[buffer.Position];
+                        vertex.Y = data[buffer.Position + 2];
+                        vertex.Z = data[buffer.Position + 1];
+
+                        float* tp = data + buffer.Position + 4;
+                        ushort* usp = (ushort*)tp;
+
+                        ushort u = *usp;
+                        ushort v = *(usp + 1);
+
+                        float uf = u / 32768f;
+                        float vf = 1 - (v / 32768f);
+
+                        vertex.U = uf;
+                        vertex.V = vf;
+
+                        //Debug.WriteLine("{0} {1} {2} {3} {4}", vertex.X, vertex.Y, vertex.Z, vertex.U, vertex.V);
+
+                        //vertex.U = BinaryUtil.GetPackedFloat(&data[buffer.Position + 2], 0);
+                        //vertex.V = BinaryUtil.GetPackedFloat(&data[buffer.Position + 2], 1);
                     }
                 }
             }
 
-            return new SolidMeshVertex
-            {
-                X = x,
-                Y = y,
-                Z = z,
-                U = u,
-                V = v
-            };
+            return vertex;
         }
 
         public override int ComputeStride()
@@ -397,31 +411,67 @@ namespace Common.Geometry.Data
 
         public override SolidMeshVertex GetVertex(VertexBuffer buffer, SolidObjectMaterial material, int stride)
         {
-            // IsCompressed ---> packed floats
-            float x;
-            float y;
-            float z;
-            float u;
-            float v;
-
-            const int uvBase = 5;
-
+            float x = 0.0f, y = 0.0f, z = 0.0f, u = 0.0f, v = 0.0f;
             if (IsCompressed)
             {
                 unsafe
                 {
-                    fixed (float* dataArray = buffer.Data)
+                    fixed (float* fp = buffer.Data)
                     {
-                        x = BinaryUtil.GetPackedFloat(&dataArray[buffer.Position], 0);
-                        y = BinaryUtil.GetPackedFloat(&dataArray[buffer.Position], 2);
-                        z = BinaryUtil.GetPackedFloat(&dataArray[buffer.Position], 1);
-                        u = BinaryUtil.GetPackedFloat(&dataArray[buffer.Position + 6], 0);
-                        v = -BinaryUtil.GetPackedFloat(&dataArray[buffer.Position + 6], 1);
+
+                        //short xMult = (short)(x * 0x1000);
+
+                        //Debug.WriteLine("packed x: {0:X} unpacked x: {1} re-packed x: {2:X}", *sp, x, xMult);
+                        //Debugger.Break();
+
+                        switch (stride)
+                        {
+                            case 8:
+                                {
+                                    byte* bp = (byte*)fp + (buffer.Position * 4);
+                                    short* sp = (short*)bp;
+
+                                    x = (float)*sp * 0.00024414062f;
+                                    y = (float)sp[2] * 0.00024414062f;
+                                    z = -(float)sp[1] * 0.00024414062f;
+                                    u = (float)(sp[4] * 0.000030517578f) * 8.0f;
+                                    v = (float)(sp[5] * 0.000030517578f) * 8.0f;
+                                    v = 1.0f - v;
+                                    break;
+                                }
+
+                            case 9:
+                                x = fp[buffer.Position];
+                                y = fp[buffer.Position+2];
+                                z = fp[buffer.Position+1];
+                                u = fp[5];
+                                v = fp[6] * -1.0f;
+                                break;
+                            default:
+                                throw new Exception($"invalid stride: {stride}");
+                        }
                     }
+
+                    //fixed (float* fp = buffer.Data)
+                    //{
+                    //    //Debug.WriteLine("{0} {1} {2}",
+                    //    //x = BinaryUtil.GetPackedFloat(fp, buffer.Position, 0);
+                    //    //y = BinaryUtil.GetPackedFloat(fp, buffer.Position, 2);
+                    //    //z = BinaryUtil.GetPackedFloat(fp, buffer.Position, 1);
+                    //    x = BinaryUtil.GetPackedFloat(&fp[buffer.Position], 0, 0x1000);
+                    //    y = BinaryUtil.GetPackedFloat(&fp[buffer.Position], 2, 0x1000);
+                    //    z = BinaryUtil.GetPackedFloat(&fp[buffer.Position], 1, 0x1000);
+
+                    //    u = BinaryUtil.GetPackedFloat(&fp[buffer.Position + 2], 0);
+                    //    v = -BinaryUtil.GetPackedFloat(&fp[buffer.Position + 2], 1);
+
+                    //    //Debug.WriteLine("{0} {1}", BinaryUtil.GetPackedFloat(&fp[buffer.Position + 2], 0), BinaryUtil.GetPackedFloat(&fp[buffer.Position + 2], 1));
+                    //}
                 }
             }
             else
             {
+                const int uvBase = 5;
                 x = buffer.Data[buffer.Position];
                 y = buffer.Data[buffer.Position + 2];
                 z = buffer.Data[buffer.Position + 1];
@@ -523,9 +573,9 @@ namespace Common.Geometry.Data
                 streamCountMap[material.VertexStreamIndex] += material.NumVerts;
             }
 
-            var vertArraySize = (int) streamCountMap.Sum(p => p.Value);
+            var vertArraySize = (int)streamCountMap.Sum(p => p.Value);
 
-            if (vertArraySize == 0)
+            if (vertArraySize == 0 && VertexBuffers.Count > 0)
             {
                 if (VertexBuffers[0].Data.Length == 0)
                 {
@@ -548,7 +598,7 @@ namespace Common.Geometry.Data
 
                 if (stride == 0)
                 {
-                    stride = (int) (stream.Data.Length / streamCountMap[streamIdx]);
+                    stride = (int)(stream.Data.Length / streamCountMap[streamIdx]);
                 }
                 else
                 {
@@ -560,7 +610,7 @@ namespace Common.Geometry.Data
 
                 var shift = numVerts - stream.Position / stride;
                 var vertCount = streamCountMap[streamIdx] == 0
-                    ? (uint) (stream.Data.Length / stride)
+                    ? (uint)(stream.Data.Length / stride)
                     : streamCountMap[streamIdx];
 
                 for (var j = 0; j < vertCount; ++j)
@@ -601,7 +651,7 @@ namespace Common.Geometry.Data
                         Faces[faceIdx].Vtx3 = (ushort)(shift + origFace[1]);
                     }
 
-                    Faces[faceIdx].MaterialIndex = (byte) i;
+                    Faces[faceIdx].MaterialIndex = (byte)i;
                 }
 
                 curFaceIdx += (int)triCount;

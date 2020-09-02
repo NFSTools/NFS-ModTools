@@ -1,6 +1,7 @@
 ﻿using System;
+using CarCompiler;
 
-namespace CarCompiler.Compilers
+namespace CarCompiler2.Compilers
 {
     public class MostWantedCompiler : CompilerBase
     {

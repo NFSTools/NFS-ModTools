@@ -33,6 +33,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Viewer", "Viewer\Viewer.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarCompiler", "CarCompiler2\CarCompiler.csproj", "{1959C862-34D4-421C-BBAD-26C832ECD730}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpDX.WPF", "SharpDX.WPF\SharpDX.WPF.csproj", "{587D723B-36B2-49E2-9018-E3ABD4B8BBA6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -161,6 +163,14 @@ Global
 		{1959C862-34D4-421C-BBAD-26C832ECD730}.Release|Any CPU.Build.0 = Release|Any CPU
 		{1959C862-34D4-421C-BBAD-26C832ECD730}.Release|x86.ActiveCfg = Release|Any CPU
 		{1959C862-34D4-421C-BBAD-26C832ECD730}.Release|x86.Build.0 = Release|Any CPU
+		{587D723B-36B2-49E2-9018-E3ABD4B8BBA6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{587D723B-36B2-49E2-9018-E3ABD4B8BBA6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{587D723B-36B2-49E2-9018-E3ABD4B8BBA6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{587D723B-36B2-49E2-9018-E3ABD4B8BBA6}.Debug|x86.Build.0 = Debug|Any CPU
+		{587D723B-36B2-49E2-9018-E3ABD4B8BBA6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{587D723B-36B2-49E2-9018-E3ABD4B8BBA6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{587D723B-36B2-49E2-9018-E3ABD4B8BBA6}.Release|x86.ActiveCfg = Release|Any CPU
+		{587D723B-36B2-49E2-9018-E3ABD4B8BBA6}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

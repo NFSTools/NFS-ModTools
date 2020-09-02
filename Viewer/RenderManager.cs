@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -87,9 +88,17 @@ namespace Viewer
         {
             if (!_renderTextureDictionary.ContainsKey(texture.TexHash))
             {
-                _renderTextureDictionary[texture.TexHash] = new DDSImage(texture.GenerateImage())
-                    .BitmapImage
-                    .ToBitmapImage();
+                //using (var ms = new MemoryStream(bytes))
+                //{
+                //    return DevIL.DevIL.LoadBitmap(ms).BitmapToBitmapImage();
+                //}
+                using (var ms = new MemoryStream(texture.GenerateImage()))
+                {
+                    _renderTextureDictionary[texture.TexHash] = DevIL.DevIL.LoadBitmap(ms).ToBitmapImage();
+                }
+                //_renderTextureDictionary[texture.TexHash] = new DDSImage(texture.GenerateImage())
+                //    .BitmapImage
+                //    .ToBitmapImage();
                 _textureUpdateTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             }
         }
@@ -109,7 +118,7 @@ namespace Viewer
                 if (_textureUpdateTime != DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())
                 {
                     _renderCache[solidObject.Value.Hash] = GenerateModel(solidObject.Value);
-                } 
+                }
 
                 _modelVisualManager.Children.Add(_renderCache[solidObject.Value.Hash]);
                 //_modelVisualManager.Children.Add();

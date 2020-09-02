@@ -78,7 +78,14 @@ namespace TexEd
 
                     GC.Collect();
 
-                    pictureBox1.Image = new DDSImage(texture.GenerateImage()).BitmapImage;
+                    try
+                    {
+                        pictureBox1.Image = new DDSImage(texture.GenerateImage()).BitmapImage;
+                    }
+                    catch (Exception)
+                    {
+                        MessageUtil.ShowError("Could not display image preview.");
+                    }
 
                     _previousTexture = texture;
                 }

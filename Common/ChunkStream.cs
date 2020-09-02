@@ -143,6 +143,7 @@ namespace Common
             _stream = stream;
             _chunkStack = new Stack<RealChunk>();
             _binaryWriter = new BinaryWriter(_stream);
+            _canWrite = true;
         }
 
         public ChunkStream(BinaryReader binaryReader)
@@ -159,13 +160,45 @@ namespace Common
             _canWrite = true;
         }
 
+        public void NextAlignmentAuto(bool byteVal = false)
+        {
+            var alignment = 0x10;
+
+            if (_stream.Position % alignment != 0)
+            {
+                var nb = alignment - _stream.Position % alignment;
+
+                if (byteVal)
+                {
+                    for (var i = 0; i < nb; i++)
+                    {
+                        _stream.WriteByte(0x11);
+                    }
+                }
+                else
+                {
+                    _stream.Position += nb;
+                }
+            }
+        }
+
         public void NextAlignment(int alignment, bool byteVal = false)
         {
             if (_stream.Position % alignment != 0)
             {
                 var nb = alignment - _stream.Position % alignment;
 
-                _stream.Position += nb;
+                if (byteVal)
+                {
+                    for (var i = 0; i < nb; i++)
+                    {
+                        _stream.WriteByte(0x11);
+                    }
+                }
+                else
+                {
+                    _stream.Position += nb;
+                }
             }
         }
 
@@ -182,6 +215,25 @@ namespace Common
                 offset = (int)(padding - _stream.Position % padding);
                 _stream.Seek(offset, SeekOrigin.Current);
             }
+
+            EndChunk();
+
+            return offset + 8;
+        }
+
+        public int PaddingAlignment2(int padding)
+        {
+            BeginChunk(0x00000000);
+
+            var result = Math.Max(0, Math.Min(padding - _stream.Position % padding - 8, 0x8000));
+
+            if (result < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(padding));
+            }
+
+            var offset = (int) result;
+            _stream.Seek(offset, SeekOrigin.Current);
 
             EndChunk();
 
@@ -331,6 +383,11 @@ namespace Common
         {
             BeginChunk(chunk.Id);
 
+            if (chunk.HasPadding)
+            {
+                NextAlignmentAuto(true);
+            }
+
             if ((chunk.Id & 0x80000000) == 0x80000000)
             {
                 WriteChunkChildren(chunk.SubChunks);
@@ -347,18 +404,7 @@ namespace Common
         {
             foreach (var chunk in chunks)
             {
-                BeginChunk(chunk.Id);
-
-                if ((chunk.Id & 0x80000000) == 0x80000000)
-                {
-                    WriteChunkChildren(chunk.SubChunks);
-                }
-                else
-                {
-                    Write(chunk.Data);
-                }
-
-                EndChunk();
+                WriteChunk(chunk);
             }
         }
 

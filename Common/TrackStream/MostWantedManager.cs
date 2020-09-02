@@ -9,42 +9,44 @@ namespace Common.TrackStream
 {
     public class MostWantedManager : GameBundleManager
     {
-        internal struct StreamChunkInfo
+        internal class StreamChunkInfo
         {
             public long Offset;
 
             public uint Size;
+
+            public byte[] Data;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 92)]
         private struct MostWantedSection
         {
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 8)]
-            public string ModelGroupName;
+            public string ModelGroupName; // 8
 
-            public uint StreamChunkNumber;
+            public uint StreamChunkNumber; // 12
 
-            public uint Unknown1;
+            public uint Unknown1; // 16
 
-            public uint MasterStreamChunkNumber;
+            public uint MasterStreamChunkNumber; // 20
 
-            public uint MasterStreamChunkOffset;
+            public uint MasterStreamChunkOffset; // 24
 
-            public uint Size1;
+            public uint Size1; // 28
 
-            public uint Size2;
+            public uint Size2; // 32
 
-            public uint Size3;
+            public uint Size3; // 36
 
-            public uint Unknown2;
+            public uint Unknown2; // 40
 
-            public float X;
+            public float X; // 44
 
-            public float Y;
+            public float Y; // 48
 
-            public float Z;
+            public float Z; // 52
 
-            public uint Hash;
+            public uint Hash; // 56
         }
 
         public override void ReadFrom(string gameDirectory)
@@ -53,7 +55,6 @@ namespace Common.TrackStream
 
             foreach (var bundleFile in Directory.EnumerateFiles(tracksDirectory, "L2R*.BUN"))
             {
-                Console.WriteLine(bundleFile);
                 Bundles.Add(ReadLocationBundle(bundleFile));
             }
         }
@@ -74,6 +75,11 @@ namespace Common.TrackStream
                 Sections = new List<StreamSection>(),
                 Chunks = new List<ChunkManager.Chunk>()
             };
+
+            var streamPath = Path.Combine(
+                Path.GetDirectoryName(bundlePath),
+                $"STREAM{locationBundle.Name}.BUN");
+            var masterStream = new FileStream(streamPath, FileMode.Open, FileAccess.Read);
 
             using (var fs = File.OpenRead(bundlePath))
             using (var br = new BinaryReader(fs))
@@ -103,134 +109,118 @@ namespace Common.TrackStream
                 {
                     var section = BinaryUtil.ReadStruct<MostWantedSection>(br);
 
-                    locationBundle.Sections.Add(new StreamSection
+                    var streamSection = new StreamSection
                     {
                         Name = section.ModelGroupName,
                         Hash = section.Hash,
                         Position = new Vector3(section.X, section.Y, section.Z),
                         Size = section.Size1,
-                        OtherSize = section.Size3,
+                        PermSize = section.Size3,
                         Number = section.StreamChunkNumber,
-                        Offset = section.MasterStreamChunkOffset
-                    });
+                        UnknownValue = section.Unknown1,
+                        UnknownSectionNumber = section.Unknown2,
+                        Offset = section.MasterStreamChunkOffset,
+                        Data = new byte[section.Size1]
+                    };
+
+                    masterStream.Position = section.MasterStreamChunkOffset;
+                    masterStream.Read(streamSection.Data, 0, streamSection.Data.Length);
+
+                    locationBundle.Sections.Add(streamSection);
                 }
 
                 br.BaseStream.Position = 0;
-
-                var cm = new ChunkManager(GameDetector.Game.MostWanted,
-                    ChunkManager.ChunkManagerOptions.AutoPadding | ChunkManager.ChunkManagerOptions.SkipNull);
-                cm.Read(bundlePath);
-                locationBundle.Chunks = cm.Chunks;
             }
+
+            masterStream.Dispose();
+
+            var cm = new ChunkManager(GameDetector.Game.MostWanted, ChunkManager.ChunkManagerOptions.SkipNull);
+            cm.Read(bundlePath);
+            locationBundle.Chunks = cm.Chunks;
 
             return locationBundle;
         }
 
-        public override void WriteLocationBundle(string outPath, LocationBundle bundle, string sectionsPath)
+        public override void WriteLocationBundle(string outPath, LocationBundle bundle, List<StreamSection> sections)
         {
-            //var originalData = File.ReadAllBytes(bundle.File);
+            // Write master stream
+            var streamPath = Path.Combine(
+                Path.GetDirectoryName(outPath),
+                $"STREAM{bundle.Name}.BUN");
 
-            //var chunkManager = new ChunkManager(GameDetector.Game.MostWanted);
-            //chunkManager.Read(bundle.File);
+            //File.Delete(streamPath);
 
-            var masterStreamPath = Path.Combine(Path.GetDirectoryName(outPath), $"STREAM{bundle.Name}.BUN");
-            var sectionInfoMap = new Dictionary<uint, StreamChunkInfo>();
-            var sectionDataMap = new Dictionary<uint, byte[]>();
+            var offsetTable = new List<long>();
 
-            using (var fs = new FileStream(masterStreamPath, FileMode.Open))
-            using (var br = new BinaryReader(fs))
+            using (var mfs = File.Open(streamPath, FileMode.Create, FileAccess.Write, FileShare.Read))
             {
-                foreach (var section in bundle.Sections)
+                for (var index = 0; index < sections.Count; index++)
                 {
-                    sectionDataMap[section.Number] = new byte[0];
+                    var bundleSection = sections[index];
+                    offsetTable.Add(mfs.Position);
+                    mfs.Write(bundleSection.Data, 0, bundleSection.Data.Length);
 
-                    var sectionPath = Path.Combine(sectionsPath, $"STREAM{bundle.Name}_{section.Number}.BUN");
-
-                    if (File.Exists(sectionPath))
+                    if (mfs.Position % 0x800 != 0 && index != sections.Count - 1)
                     {
-                        sectionDataMap[section.Number] = File.ReadAllBytes(sectionPath);
-                    }
-                    else
-                    {
-                        br.BaseStream.Position = section.Offset;
+                        var align = 0x800 - mfs.Position % 0x800;
 
-                        sectionDataMap[section.Number] = new byte[section.Size];
-                        br.Read(sectionDataMap[section.Number], 0, (int)section.Size);
+                        align -= 8;
+
+                        mfs.Write(new byte[] {0x00, 0x00, 0x00, 0x00}, 0, 4);
+                        mfs.Write(BitConverter.GetBytes(align), 0, 4);
+                        mfs.Write(new byte[align], 0, (int) align);
                     }
                 }
             }
 
-            using (var fs = new FileStream(masterStreamPath, FileMode.Create))
-            using (var bw = new BinaryWriter(fs))
+            //File.Delete(outPath);
+
+            // Write location bundle
+            using (var bw = new BinaryWriter(File.Open(outPath, FileMode.Create, FileAccess.Write, FileShare.Read)))
+            using (var cs = new ChunkStream(bw))
             {
-                for (var index = 0; index < bundle.Sections.Count; index++)
+                // We have to skip null chunks in order to avoid weirdness.
+                foreach (var chunk in bundle.Chunks.Where(c => c.Id != 0))
                 {
-                    var section = bundle.Sections[index];
-
-                    sectionInfoMap[section.Number] = new StreamChunkInfo
+                    if (chunk.PrePadding > 8) // 0x10 - 8 = 8; greater than 8 = align 0x80
                     {
-                        Offset = bw.BaseStream.Position,
-                        Size = (uint)sectionDataMap[section.Number].Length
-                    };
-
-                    bw.Write(sectionDataMap[section.Number]);
-
-                    if (index != bundle.Sections.Count - 1)
+                        cs.PaddingAlignment2(0x80);
+                    } else if (chunk.PrePadding > 0)
                     {
-                        // calculate and write alignment chunk, align by 0x800 bytes
-                        var alignSize = sectionDataMap[section.Number].Length + 8 -
-                                        (sectionDataMap[section.Number].Length + 8) % 0x800 + 0x1000;
-                        alignSize -= sectionDataMap[section.Number].Length + 8;
-
-                        bw.Write(0x00000000);
-                        bw.Write(alignSize);
-                        bw.BaseStream.Position += alignSize;
+                        cs.PaddingAlignment2(0x10);
                     }
-                }
-            }
-
-            using (var fs = new FileStream(outPath, FileMode.Create))
-            {
-                var chunkStream = new ChunkStream(new BinaryWriter(fs));
-
-                foreach (var chunk in bundle.Chunks)
-                {
-                    chunkStream.PaddingAlignment(0x10);
 
                     if (chunk.Id == 0x00034110)
                     {
-                        chunkStream.BeginChunk(0x00034110);
+                        // Write sections list
+                        cs.BeginChunk(0x00034110);
 
-                        // write sections
-                        foreach (var bundleSection in bundle.Sections)
+                        for (var index = 0; index < sections.Count; index++)
                         {
-                            var sectionStruct = new MostWantedSection
-                            {
-                                Hash = bundleSection.Hash,
-                                ModelGroupName = bundleSection.Name,
-                                MasterStreamChunkNumber = 0,
-                                StreamChunkNumber = bundleSection.Number,
-                                Size1 = sectionInfoMap[bundleSection.Number].Size,
-                                Size2 = sectionInfoMap[bundleSection.Number].Size,
-                                Size3 = sectionInfoMap[bundleSection.Number].Size,
-                                X = bundleSection.Position.X,
-                                Y = bundleSection.Position.Y,
-                                Z = bundleSection.Position.Z,
-                                MasterStreamChunkOffset = (uint)sectionInfoMap[bundleSection.Number].Offset
-                            };
+                            var bundleSection = sections[index];
+                            var sectionStruct = new MostWantedSection();
 
-                            chunkStream.WriteStruct(sectionStruct);
+                            sectionStruct.ModelGroupName = bundleSection.Name;
+                            sectionStruct.Hash = bundleSection.Hash;
+                            sectionStruct.MasterStreamChunkOffset = (uint) offsetTable[index];
+                            sectionStruct.MasterStreamChunkNumber = 1;
+                            sectionStruct.StreamChunkNumber = bundleSection.Number;
+                            sectionStruct.Size1 = sectionStruct.Size2 = bundleSection.Size;
+                            //sectionStruct.Unknown2 = bundleSection.UnknownSectionNumber;
+                            sectionStruct.Unknown2 = 0;
+                            sectionStruct.X = bundleSection.Position.X;
+                            sectionStruct.Y = bundleSection.Position.Y;
+                            sectionStruct.Z = bundleSection.Position.Z;
+                            cs.WriteStruct(sectionStruct);
                         }
 
-                        chunkStream.EndChunk();
+                        cs.EndChunk();
                     }
                     else
                     {
-                        chunkStream.WriteChunk(chunk);
+                        cs.WriteChunk(chunk);
                     }
                 }
-
-                chunkStream.Dispose();
             }
         }
 
@@ -261,7 +251,7 @@ namespace Common.TrackStream
                 {
                     br.BaseStream.Position = streamSection.Offset;
 
-                    Array.Resize(ref data, (int) streamSection.Size);
+                    Array.Resize(ref data, (int)streamSection.Size);
                     br.Read(data, 0, data.Length);
 
                     using (var os = File.OpenWrite(Path.Combine(outDirectory, $"STREAM{bundle.Name}_{streamSection.Number}.BUN")))

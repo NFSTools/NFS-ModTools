@@ -9,7 +9,7 @@ namespace Common.TrackStream
 
         public abstract void ReadFrom(string gameDirectory);
 
-        public abstract void WriteLocationBundle(string outPath, LocationBundle bundle, string sectionsPath);
+        public abstract void WriteLocationBundle(string outPath, LocationBundle bundle, List<StreamSection> sections);
 
         public abstract void ExtractBundleSections(LocationBundle bundle, string outDirectory);
 

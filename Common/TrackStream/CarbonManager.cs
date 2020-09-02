@@ -107,7 +107,7 @@ namespace Common.TrackStream
                         Hash = section.Hash,
                         Position = new Vector3(section.X, section.Y, section.Z),
                         Size = section.Size1,
-                        OtherSize = section.Size3,
+                        PermSize = section.Size3,
                         Number = section.StreamChunkNumber,
                         Offset = section.MasterStreamChunkOffset
                     });
@@ -117,7 +117,7 @@ namespace Common.TrackStream
             return locationBundle;
         }
 
-        public override void WriteLocationBundle(string outPath, LocationBundle bundle, string sectionsPath)
+        public override void WriteLocationBundle(string outPath, LocationBundle bundle, List<StreamSection> sections)
         {
             throw new NotImplementedException();
         }

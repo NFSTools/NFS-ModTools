@@ -36,9 +36,21 @@ namespace Common
         /// <param name="buf"></param>
         /// <param name="pos"></param>
         /// <returns></returns>
-        public static unsafe float GetPackedFloat(void* buf, int pos)
+        public static unsafe float GetPackedFloat(void* buf, int pos, int divisor = 0x8000)
         {
-            return (float)((int)((short*)buf)[pos]) / (float)0x8000;
+            //v50 = (signed __int16 *)sub_DB1250((_DWORD*)a1, 16);
+            //*(float*)v6 = (float)*v50 * 0.00024414062;
+            //*(float*)(v6 + 4) = (float)v50[1] * 0.00024414062;
+            //*(float*)(v6 + 8) = (float)v50[2] * 0.00024414062;
+            //*(float*)(v6 + 44) = (float)((float)v50[4] * 0.000030517578) * 8.0;
+            //v51 = (float)((float)v50[5] * 0.000030517578) * 8.0;
+            //goto LABEL_225;
+
+            //short* sb = (short*)buf + pos + index;
+
+            //return (float) *sb * 0.00024414062f;
+
+            return (float)((int)((short*)buf)[pos]) / (float)divisor;
         }
 
         /// <summary>
@@ -123,6 +135,20 @@ namespace Common
             var align = PaddingAlign(br.BaseStream.Position, alignTo);
             br.BaseStream.Position += align;
             return (uint)align;
+        }
+
+        public static uint SkipPadding(BinaryReader br)
+        {
+            var padding = 0u;
+
+            while (br.ReadUInt32() == 0x11111111)
+            {
+                padding += 4;
+            }
+
+            br.BaseStream.Position -= 4;
+
+            return padding;
         }
 
         /// <summary>
@@ -318,6 +344,18 @@ namespace Common
             }
 
             return result.ToString();
+        }
+
+        public static float LittleToBig(this float f)
+        {
+            var bytes = BitConverter.GetBytes(f);
+
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(bytes);
+            }
+
+            return BitConverter.ToSingle(bytes, 0);
         }
     }
 }

@@ -14,6 +14,9 @@ using Common.Textures.Data;
 using Common.TrackStream;
 using Common.TrackStream.Data;
 using Microsoft.WindowsAPICodePack.Dialogs;
+using SharpDX;
+using SharpGL;
+using SharpGL.SceneGraph;
 
 namespace Viewer
 {
@@ -398,7 +401,7 @@ namespace Viewer
                     }
 
                     Containers.Clear();
-                    MainVisual.Children.Clear();
+                    //MainVisual.Children.Clear();
                     RenderManager.Instance.Reset();
                     AssetRegistry.Instance.Reset();
 
@@ -748,6 +751,47 @@ namespace Viewer
         private void ResetCameraItem_OnClick(object sender, RoutedEventArgs e)
         {
         }
+
+        private void OpenGLControl_OpenGLDraw(object sender, OpenGLEventArgs args)
+        {
+        }
+
+        private void OpenGLControl_OnOpenGLInitialized(object sender, OpenGLEventArgs args)
+        {
+            return;
+            args.OpenGL.Enable(OpenGL.GL_DEPTH_TEST);
+
+            args.OpenGL.GenVertexArrays(1, _vertexArrays);
+            args.OpenGL.BindVertexArray(_vertexArrays[0]);
+
+            args.OpenGL.GenBuffers(1, _vertexBuffers);
+
+            args.OpenGL.BindBuffer(OpenGL.GL_ARRAY_BUFFER, _vertexBuffers[0]);
+            args.OpenGL.BufferData(OpenGL.GL_ARRAY_BUFFER, new float[]
+            {
+                -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, // Top-left
+                0.5f,  0.5f, 0.0f, 1.0f, 0.0f, // Top-right
+                0.5f, -0.5f, 0.0f, 0.0f, 1.0f, // Bottom-right
+                -0.5f, -0.5f, 1.0f, 1.0f, 1.0f  // Bottom-left
+            }, OpenGL.GL_STATIC_DRAW);
+
+            args.OpenGL.GenBuffers(1, _elementArrays);
+
+            ushort[] elements =
+            {
+                0, 1, 2,
+                2, 3, 0
+            };
+
+            args.OpenGL.BindBuffer(OpenGL.GL_ELEMENT_ARRAY_BUFFER, _elementArrays[0]);
+            args.OpenGL.BufferData(OpenGL.GL_ELEMENT_ARRAY_BUFFER, elements, OpenGL.GL_STATIC_DRAW);
+
+
+        }
+
+        private readonly uint[] _vertexArrays = new uint[1];
+        private readonly uint[] _vertexBuffers = new uint[1];
+        private readonly uint[] _elementArrays = new uint[1];
     }
 
     public class CommandHandler<T> : ICommand

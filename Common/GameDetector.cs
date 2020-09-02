@@ -39,6 +39,11 @@ namespace Common
                 {
                     return Game.MostWanted;
                 }
+
+                if (File.Exists(Path.Combine(tracksPath, "STREAML1RA.BUN")))
+                {
+                    return Game.Underground;
+                }
             }
 
             if (File.Exists(Path.Combine(directory, "speed2.exe")))

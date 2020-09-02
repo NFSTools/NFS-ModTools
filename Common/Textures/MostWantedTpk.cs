@@ -240,19 +240,6 @@ namespace Common.Textures
                 outData.Length - 156);
 
             _texturePack.Textures[_texturePack.NumTextures - 1].CompressionType = (TextureCompression)BitConverter.ToUInt32(outData, outData.Length - 12);
-
-            using (var fs = File.OpenWrite($"{dos.Hash:X8}.dds"))
-            {
-                var ddsHeader = new DDSHeader();
-                var texture = _texturePack.Textures[_texturePack.NumTextures - 1];
-                ddsHeader.Init(texture);
-
-                using (var bw = new BinaryWriter(fs))
-                {
-                    BinaryUtil.WriteStruct(bw, ddsHeader);
-                    bw.Write(texture.Data, 0, texture.Data.Length);
-                }
-            }
         }
     }
 }

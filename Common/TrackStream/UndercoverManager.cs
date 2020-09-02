@@ -108,7 +108,7 @@ namespace Common.TrackStream
                         Hash = section.Hash,
                         Position = new Vector3(section.X, section.Y, section.Z),
                         Size = section.Size1,
-                        OtherSize = section.Size3,
+                        PermSize = section.Size3,
                         Number = section.StreamChunkNumber,
                         Offset = section.MasterStreamChunkOffset
                     });
@@ -118,7 +118,7 @@ namespace Common.TrackStream
             return locationBundle;
         }
 
-        public override void WriteLocationBundle(string outPath, LocationBundle bundle, string sectionsPath)
+        public override void WriteLocationBundle(string outPath, LocationBundle bundle, List<StreamSection> sections)
         {
             var chunkManager = new ChunkManager(GameDetector.Game.Undercover);
             chunkManager.Read(bundle.File);
@@ -134,19 +134,19 @@ namespace Common.TrackStream
                 {
                     sectionDataMap[section.Number] = new byte[0];
 
-                    var sectionPath = Path.Combine(sectionsPath, $"STREAM{bundle.Name}_{section.Number}.BUN");
+                    //var sectionPath = Path.Combine(sectionsPath, $"STREAM{bundle.Name}_{section.Number}.BUN");
 
-                    if (File.Exists(sectionPath))
-                    {
-                        sectionDataMap[section.Number] = File.ReadAllBytes(sectionPath);
-                    }
-                    else
-                    {
-                        br.BaseStream.Position = section.Offset;
+                    //if (File.Exists(sectionPath))
+                    //{
+                    //    sectionDataMap[section.Number] = File.ReadAllBytes(sectionPath);
+                    //}
+                    //else
+                    //{
+                    //    br.BaseStream.Position = section.Offset;
 
-                        sectionDataMap[section.Number] = new byte[section.Size];
-                        br.Read(sectionDataMap[section.Number], 0, (int)section.Size);
-                    }
+                    //    sectionDataMap[section.Number] = new byte[section.Size];
+                    //    br.Read(sectionDataMap[section.Number], 0, (int)section.Size);
+                    //}
                 }
             }
 

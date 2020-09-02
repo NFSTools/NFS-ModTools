@@ -259,12 +259,25 @@ namespace Common.Textures
                             }
                         case DDSChunkId:
                             {
-                                foreach (var t in _texturePack.Textures)
+                                if (chunkSize / _texturePack.NumTextures == 0x18)
                                 {
-                                    br.BaseStream.Seek(0x0C, SeekOrigin.Current);
-                                    t.CompressionType = (TextureCompression)br.ReadUInt32();
-                                    br.BaseStream.Seek(0x08, SeekOrigin.Current);
+                                    foreach (var t in _texturePack.Textures)
+                                    {
+                                        br.BaseStream.Seek(0x0C, SeekOrigin.Current);
+                                        t.CompressionType = (TextureCompression)br.ReadUInt32();
+                                        br.BaseStream.Seek(0x08, SeekOrigin.Current);
+                                    }
                                 }
+                                else
+                                {
+                                    foreach (var t in _texturePack.Textures)
+                                    {
+                                        var data = br.ReadBytesRequired(0x2C);
+
+                                        Console.WriteLine(BinaryUtil.HexDump(data));
+                                    }
+                                }
+
                                 break;
                             }
                     }
