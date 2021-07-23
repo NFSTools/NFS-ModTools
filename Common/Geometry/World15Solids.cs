@@ -39,18 +39,18 @@ namespace Common.Geometry
         {
             public uint Flags;
             public uint TextureHash;
-            public int Unknown1;
+            public int EffectId;
             public int Unknown2;
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
             public float[] Bounding; // Seems to be (MinX, MinY, MinZ), (MaxX, MaxY, MaxZ)?
 
-            public uint Unknown3;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
             public byte[] TextureAssignments;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
+            public byte LightMaterialNumber;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 18)]
             public byte[] Unknown4;
 
             public uint NumVerts;
@@ -433,7 +433,7 @@ namespace Common.Geometry
                                     var matStruct = new Material
                                     {
                                         Flags = material.Flags,
-                                        Unknown1 = material.Unknown1,
+                                        EffectId = material.Unknown1,
                                         Bounding = new float[6],
                                         TextureAssignments = new byte[4]
                                     };
@@ -501,7 +501,7 @@ namespace Common.Geometry
             if (solidObject == null)
                 solidObject = new World15Object();
 
-            solidObject.EnableTransform = !unpackFloats;
+            solidObject.EnableTransform = false;
             solidObject.IsCompressed = unpackFloats;
 
             var endPos = br.BaseStream.Position + size;
@@ -621,7 +621,7 @@ namespace Common.Geometry
                                         NumVerts = shadingGroup.NumVerts,
                                         TextureHash = solidObject.TextureHashes[texIdx],
                                         TextureIndex = texIdx,
-                                        Unknown1 = shadingGroup.Unknown1
+                                        Unknown1 = shadingGroup.EffectId
                                     };
 
                                     int vsIdx;
@@ -634,7 +634,7 @@ namespace Common.Geometry
                                     {
                                         vsIdx = 0;
                                     }
-                                    else if (shadingGroup.Unknown1 == lastUnknown1)
+                                    else if (shadingGroup.EffectId == lastUnknown1)
                                     {
                                         vsIdx = lastStreamIdx;
                                     }
@@ -649,7 +649,7 @@ namespace Common.Geometry
 
                                     solidObject.MeshDescriptor.NumVerts += shadingGroup.NumVerts;
 
-                                    lastUnknown1 = shadingGroup.Unknown1;
+                                    lastUnknown1 = shadingGroup.EffectId;
                                     lastStreamIdx = vsIdx;
                                 }
 
