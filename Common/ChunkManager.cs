@@ -215,6 +215,9 @@ namespace Common
                             case GameDetector.Game.MostWanted:
                                 cd.Resource = new MostWantedScenery().ReadScenery(_br, (uint) chunk.Length);
                                 break;
+                            case GameDetector.Game.Carbon:
+                                cd.Resource = new CarbonScenery().ReadScenery(_br, (uint) chunk.Length);
+                                break;
                         }
 
                         break;
