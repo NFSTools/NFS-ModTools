@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using Common.Geometry.Data;
 
@@ -34,7 +35,8 @@ namespace Common.Geometry
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 12)]
             public byte[] Blank;
 
-            public uint Unknown1;
+            public byte Version, EndianSwapped;
+            public ushort Flags;
 
             public uint Hash;
 
@@ -45,14 +47,13 @@ namespace Common.Geometry
 
             public uint Blank2;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            public float[] BoundsMin;
+            public readonly Vector3 BoundsMin;
+            public readonly int Blank5;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            public float[] BoundsMax;
+            public readonly Vector3 BoundsMax;
+            public readonly int Blank6;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
-            public float[] Transform;
+            public readonly Matrix4x4 Transform;
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
             public uint[] Unknown3;
@@ -403,33 +404,19 @@ namespace Common.Geometry
 
                                 solidObject.Name = name;
                                 solidObject.Hash = header.Hash;
-                                solidObject.MinPoint = new SimpleVector4(
-                                    header.BoundsMin[0],
-                                    header.BoundsMin[1],
-                                    header.BoundsMin[2],
-                                    header.BoundsMin[3]
-                                );
-
-                                solidObject.MaxPoint = new SimpleVector4(
-                                    header.BoundsMax[0],
-                                    header.BoundsMax[1],
-                                    header.BoundsMax[2],
-                                    header.BoundsMax[3]
-                                );
+                                solidObject.MinPoint = header.BoundsMin;
+                                solidObject.MaxPoint = header.BoundsMax;
 
                                 solidObject.NumTris = header.NumTris;
                                 solidObject.NumShaders = 0;
                                 solidObject.NumTextures = 0;
-                                solidObject.Transform = new SimpleMatrix
-                                {
-                                    Data = new[,]
-                                    {
-                                        { header.Transform[0], header.Transform[1], header.Transform[2], header.Transform[3]},
-                                        { header.Transform[4], header.Transform[5], header.Transform[6], header.Transform[7]},
-                                        { header.Transform[8], header.Transform[9], header.Transform[10], header.Transform[11]},
-                                        { header.Transform[12], header.Transform[13], header.Transform[14], header.Transform[15]}
-                                    }
-                                };
+                                solidObject.Transform = header.Transform;
+
+                                //Debug.Assert(header.Transform == Matrix4x4.Identity);
+                                //if (header.Transform != Matrix4x4.Identity)
+                                //{
+                                //    Debug.WriteLine("Name={0} Transform={1} Flags=0x{2:X4}", name, header.Transform, header.Flags);
+                                //}
 
                                 break;
                             }

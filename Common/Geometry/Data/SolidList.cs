@@ -2,61 +2,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace Common.Geometry.Data
 {
-    public class SimpleMatrix
-    {
-        public float[,] Data;
-
-        public float this[int i, int j]
-        {
-            get => Data[i, j];
-            set => Data[i, j] = value;
-        }
-    }
-
-    public class SimpleVector3
-    {
-        public float X;
-        public float Y;
-        public float Z;
-
-        public SimpleVector3(float x, float y, float z)
-        {
-            this.X = x;
-            this.Y = y;
-            this.Z = z;
-        }
-
-        public float[] ToArray()
-        {
-            return new[] { this.X, this.Y, this.Z };
-        }
-    }
-
-    public class SimpleVector4
-    {
-        public float X;
-        public float Y;
-        public float Z;
-        public float D;
-
-        public SimpleVector4(float x, float y, float z, float d)
-        {
-            this.X = x;
-            this.Y = y;
-            this.Z = z;
-            this.D = d;
-        }
-
-        public float[] ToArray()
-        {
-            return new[] { this.X, this.Y, this.Z, this.D };
-        }
-    }
-
     public struct VertexBuffer
     {
         public float[] Data;
@@ -80,9 +30,9 @@ namespace Common.Geometry.Data
 
     public class SolidObjectMaterial
     {
-        public SimpleVector3 MinPoint { get; set; }
+        public Vector3 MinPoint { get; set; }
 
-        public SimpleVector3 MaxPoint { get; set; }
+        public Vector3 MaxPoint { get; set; }
 
         public uint Hash { get; set; }
 
@@ -505,11 +455,11 @@ namespace Common.Geometry.Data
 
         public bool EnableTransform { get; set; } = true;
 
-        public SimpleMatrix Transform { get; set; }
+        public Matrix4x4 Transform { get; set; }
 
-        public SimpleVector4 MinPoint { get; set; }
+        public Vector3 MinPoint { get; set; }
 
-        public SimpleVector4 MaxPoint { get; set; }
+        public Vector3 MaxPoint { get; set; }
 
         public float RotationAngle { get; set; } = 0.0f;
 

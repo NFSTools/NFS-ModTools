@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using Common.Geometry.Data;
@@ -42,8 +43,9 @@ namespace Common.Geometry
             public int EffectId;
             public int Unknown2;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
-            public float[] Bounding; // Seems to be (MinX, MinY, MinZ), (MaxX, MaxY, MaxZ)?
+            public Vector3 BoundsMin;
+
+            public Vector3 BoundsMax;
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
             public byte[] TextureAssignments;
@@ -77,14 +79,13 @@ namespace Common.Geometry
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
             public readonly byte[] pad2;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            public float[] BoundsMin;
+            public Vector3 BoundsMin;
+            public readonly int Blank5;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            public float[] BoundsMax;
+            public Vector3 BoundsMax;
+            public readonly int Blank6;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
-            public float[] Transform;
+            public Matrix4x4 Transform;
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
             public readonly uint[] Unknown;
@@ -363,25 +364,12 @@ namespace Common.Geometry
 
                             var objHeader = new ObjectHeader
                             {
-                                Transform = new float[16],
-                                InitialData = new byte[16],
-                                BoundsMin = new float[4],
-                                BoundsMax = new float[4]
+                                BoundsMin = solidObject.MinPoint,
+                                BoundsMax = solidObject.MaxPoint,
+                                NumTris = solidObject.NumTris,
+                                ObjectHash = solidObject.Hash,
+                                InitialData = {[12] = 0x16}
                             };
-
-                            for (var i = 0; i < 4; i++)
-                            {
-                                for (var j = 0; j < 4; j++)
-                                {
-                                    objHeader.Transform[i * 4 + j] = solidObject.Transform[i, j];
-                                }
-                            }
-
-                            objHeader.BoundsMin = solidObject.MinPoint.ToArray();
-                            objHeader.BoundsMax = solidObject.MaxPoint.ToArray();
-                            objHeader.NumTris = solidObject.NumTris;
-                            objHeader.ObjectHash = solidObject.Hash;
-                            objHeader.InitialData[12] = 0x16;
 
                             chunkStream.WriteStruct(objHeader);
 
@@ -434,12 +422,10 @@ namespace Common.Geometry
                                     {
                                         Flags = material.Flags,
                                         EffectId = material.Unknown1,
-                                        Bounding = new float[6],
-                                        TextureAssignments = new byte[4]
+                                        TextureAssignments = new byte[4],
+                                        BoundsMin = material.MinPoint,
+                                        BoundsMax = material.MaxPoint
                                     };
-
-                                    Array.ConstrainedCopy(material.MinPoint.ToArray(), 0, matStruct.Bounding, 0, 3);
-                                    Array.ConstrainedCopy(material.MaxPoint.ToArray(), 0, matStruct.Bounding, 3, 3);
 
                                     matStruct.IndexOffset = indexOffset;
                                     matStruct.NumIndices = material.NumIndices;
@@ -541,33 +527,13 @@ namespace Common.Geometry
 
                                 solidObject.Name = name;
                                 solidObject.Hash = header.ObjectHash;
-                                solidObject.MinPoint = new SimpleVector4(
-                                    header.BoundsMin[0],
-                                    header.BoundsMin[1],
-                                    header.BoundsMin[2],
-                                    header.BoundsMin[3]
-                                );
-
-                                solidObject.MaxPoint = new SimpleVector4(
-                                    header.BoundsMax[0],
-                                    header.BoundsMax[1],
-                                    header.BoundsMax[2],
-                                    header.BoundsMax[3]
-                                );
+                                solidObject.MinPoint = header.BoundsMin;
+                                solidObject.MaxPoint = header.BoundsMax;
 
                                 solidObject.NumTris = header.NumTris;
                                 solidObject.NumShaders = 0;
                                 solidObject.NumTextures = 0;
-                                solidObject.Transform = new SimpleMatrix
-                                {
-                                    Data = new[,]
-                                    {
-                                        { header.Transform[0], header.Transform[1], header.Transform[2], header.Transform[3]},
-                                        { header.Transform[4], header.Transform[5], header.Transform[6], header.Transform[7]},
-                                        { header.Transform[8], header.Transform[9], header.Transform[10], header.Transform[11]},
-                                        { header.Transform[12], header.Transform[13], header.Transform[14], header.Transform[15]}
-                                    }
-                                };
+                                solidObject.Transform = header.Transform;
 
                                 if (name.StartsWith("TRAF"))
                                 {
@@ -615,8 +581,8 @@ namespace Common.Geometry
                                         Flags = shadingGroup.Flags,
                                         NumIndices = shadingGroup.NumIndices == 0 ? shadingGroup.NumTris * 3 : shadingGroup.NumIndices,
                                         NumTris = shadingGroup.NumTris,
-                                        MinPoint = new SimpleVector3(shadingGroup.Bounding[0], shadingGroup.Bounding[1], shadingGroup.Bounding[2]),
-                                        MaxPoint = new SimpleVector3(shadingGroup.Bounding[3], shadingGroup.Bounding[4], shadingGroup.Bounding[5]),
+                                        MinPoint = shadingGroup.BoundsMin,
+                                        MaxPoint = shadingGroup.BoundsMax,
                                         Name = $"Unnamed Material #{j + 1:00}",
                                         NumVerts = shadingGroup.NumVerts,
                                         TextureHash = solidObject.TextureHashes[texIdx],

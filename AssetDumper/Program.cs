@@ -918,9 +918,9 @@ namespace AssetDumper
                             $"vt {BinaryUtil.FullPrecisionFloat(vertex.U)} {BinaryUtil.FullPrecisionFloat(vertex.V)}");
                     }
 
-                    var transformX = solidObject.Transform[3, 0];
-                    var transformY = solidObject.Transform[3, 1];
-                    var transformZ = solidObject.Transform[3, 2];
+                    var transformX = solidObject.Transform.M41;
+                    var transformY = solidObject.Transform.M42;
+                    var transformZ = solidObject.Transform.M43;
 
                     foreach (var vertex in solidObject.Vertices)
                     {
@@ -995,9 +995,9 @@ namespace AssetDumper
                         $"vt {BinaryUtil.FullPrecisionFloat(vertex.U)} {BinaryUtil.FullPrecisionFloat(vertex.V)}");
                 }
 
-                var transformX = options.BakePositions ? solidObject.Transform[3, 0] : 0.0f;
-                var transformY = options.BakePositions ? solidObject.Transform[3, 1] : 0.0f;
-                var transformZ = options.BakePositions ? solidObject.Transform[3, 2] : 0.0f;
+                var transformX = options.BakePositions ? solidObject.Transform.M41 : 0.0f;
+                var transformY = options.BakePositions ? solidObject.Transform.M42 : 0.0f;
+                var transformZ = options.BakePositions ? solidObject.Transform.M43 : 0.0f;
 
                 foreach (var vertex in solidObject.Vertices)
                 {

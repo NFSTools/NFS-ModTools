@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using Common.Geometry.Data;
 
@@ -48,21 +49,20 @@ namespace Common.Geometry
 
             public readonly int Blank4;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            public readonly float[] BoundsMin;
+            public readonly Vector3 BoundsMin;
+            public readonly int Blank5;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            public readonly float[] BoundsMax;
+            public readonly Vector3 BoundsMax;
+            public readonly int Blank6;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
-            public readonly float[] Transform;
+            public readonly Matrix4x4 Transform;
 
-            public readonly long Blank5;
+            public readonly long Blank7;
 
             public readonly int Unknown2;
             public readonly int Unknown3;
 
-            public readonly int Blank6;
+            public readonly int Blank8;
 
             public readonly int Unknown4;
 
@@ -73,11 +73,9 @@ namespace Common.Geometry
         [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 144)]
         private struct SolidObjectShadingGroup
         {
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-            public readonly float[] BoundsMin;
+            public readonly Vector3 BoundsMin;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-            public readonly float[] BoundsMax;
+            public readonly Vector3 BoundsMax;
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
             public readonly byte[] TextureIndices;
@@ -348,33 +346,12 @@ namespace Common.Geometry
 
                                 solidObject.Name = name;
                                 solidObject.Hash = header.Hash;
-                                solidObject.MinPoint = new SimpleVector4(
-                                    header.BoundsMin[0],
-                                    header.BoundsMin[1],
-                                    header.BoundsMin[2],
-                                    header.BoundsMin[3]
-                                );
-
-                                solidObject.MaxPoint = new SimpleVector4(
-                                    header.BoundsMax[0],
-                                    header.BoundsMax[1],
-                                    header.BoundsMax[2],
-                                    header.BoundsMax[3]
-                                );
-
+                                solidObject.MinPoint = header.BoundsMin;
+                                solidObject.MaxPoint = header.BoundsMax;
                                 solidObject.NumTris = header.NumTris;
                                 solidObject.NumShaders = header.ShaderCount;
                                 solidObject.NumTextures = header.TextureCount;
-                                solidObject.Transform = new SimpleMatrix
-                                {
-                                    Data = new[,]
-                                    {
-                                        { header.Transform[0], header.Transform[1], header.Transform[2], header.Transform[3]},
-                                        { header.Transform[4], header.Transform[5], header.Transform[6], header.Transform[7]},
-                                        { header.Transform[8], header.Transform[9], header.Transform[10], header.Transform[11]},
-                                        { header.Transform[12], header.Transform[13], header.Transform[14], header.Transform[15]}
-                                    }
-                                };
+                                solidObject.Transform = header.Transform;
 
                                 break;
                             }
@@ -427,8 +404,8 @@ namespace Common.Geometry
                                         Flags = shadingGroup.Flags,
                                         NumIndices = shadingGroup.NumTris * 3,
                                         NumTris = shadingGroup.NumTris,
-                                        MinPoint = new SimpleVector3(shadingGroup.BoundsMin[0], shadingGroup.BoundsMin[1], shadingGroup.BoundsMin[2]),
-                                        MaxPoint = new SimpleVector3(shadingGroup.BoundsMax[0], shadingGroup.BoundsMax[1], shadingGroup.BoundsMax[2]),
+                                        MinPoint = shadingGroup.BoundsMin,
+                                        MaxPoint = shadingGroup.BoundsMax,
                                         Name = $"Unnamed Material #{j + 1:00}",
                                         NumVerts = shadingGroup.NumVerts,
                                         TextureHash = solidObject.TextureHashes[texIdx],
