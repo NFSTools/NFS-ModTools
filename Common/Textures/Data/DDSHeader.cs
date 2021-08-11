@@ -89,31 +89,6 @@ namespace Common.Textures.Data
         /// <param name="texture"></param>
         public void Init(Texture texture)
         {
-            //Magic = 0x20534444; // "DDS "
-            //Size = 0x7C;
-            //Width = (int) texture.Width;
-            //Height = (int) texture.Height;
-            //MipMapCount = (int)texture.MipMapCount;
-            //PixelFormat.Size = 32;
-            //PitchOrLinearSize = texture.Data.Length;
-
-            //if ((int) texture.CompressionType == 0x15 || (int)texture.CompressionType == 0x29)
-            //{
-            //    PixelFormat.Flags = 0x41;
-            //    PixelFormat.RGBBitCount = 0x20;
-            //    PixelFormat.RBitMask = 0xFF0000;
-            //    PixelFormat.GBitMask = 0xFF00;
-            //    PixelFormat.BBitMask = 0xFF;
-            //    PixelFormat.AlphaBitMask = unchecked((int) 0xFF000000);
-            //    DDSCaps.Caps1 = 0x40100a;
-            //}
-            //else
-            //{
-            //    PixelFormat.Flags = 0x4;
-            //    PixelFormat.FourCC = (int) texture.CompressionType;
-            //    DDSCaps.Caps1 = 0x401008;
-            //}
-
             Magic = 0x20534444; // "DDS "
             Size = 0x7C;
             Flags = DdsConstants.DdsdCaps | DdsConstants.DdsdHeight | DdsConstants.DdsdWidth |
@@ -129,19 +104,18 @@ namespace Common.Textures.Data
             DDSCaps.Caps1 = DdsConstants.DdscapsComplex | DdsConstants.DdscapsTexture |
                             DdsConstants.DdscapsMipmap;
 
-            var textureCompressionType = (uint) texture.CompressionType;
-            if ((textureCompressionType & 0x00545844) == 0x00545844) // DXT check
+            if ((texture.Format & 0x00545844) == 0x00545844) // DXT check
             {
-                PitchOrLinearSize = Width * Height;
+                PitchOrLinearSize = /*Width * Height*/texture.PitchOrLinearSize;
                 PixelFormat.Flags = DdsConstants.DdpfFourcc;
-                PixelFormat.FourCC = textureCompressionType;
+                PixelFormat.FourCC = texture.Format;
                 Flags |= DdsConstants.DdsdLinearsize;
             }
-            else if ((textureCompressionType & 0x00495441) == 0x00495441) // ATI check
+            else if ((texture.Format & 0x00495441) == 0x00495441) // ATI check
             {
-                PitchOrLinearSize = Width * Height;
+                PitchOrLinearSize = /*Width * Height*/texture.PitchOrLinearSize;
                 PixelFormat.Flags = DdsConstants.DdpfFourcc;
-                PixelFormat.FourCC = textureCompressionType;
+                PixelFormat.FourCC = texture.Format;
                 Flags |= DdsConstants.DdsdLinearsize;
             }
             else
@@ -153,8 +127,7 @@ namespace Common.Textures.Data
                 PixelFormat.BBitMask = 255;
                 PixelFormat.AlphaBitMask = unchecked((int)4278190080);
                 Flags |= DdsConstants.DdsdPitch;
-                PitchOrLinearSize = (Width * 0x20 + 7) / 8;
-                //header.PixelFormat.FourCC = D3DFormat;
+                PitchOrLinearSize = /*(Width * 0x20 + 7) / 8*/texture.PitchOrLinearSize;
             }
 
             Reserved1 = new int[11];

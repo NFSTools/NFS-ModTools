@@ -196,7 +196,7 @@ namespace Common.Textures
                                             mbr.BaseStream.Position = realEnd;
                                             mbr.BaseStream.Position += 0x2F;
 
-                                            texture.CompressionType = (TextureCompression) mbr.ReadUInt32();
+                                            texture.Format = mbr.ReadUInt32();
  
                                             Array.ConstrainedCopy(blocks[0], 0x100, texture.Data, 0, texture.Data.Length);
                                         }
@@ -217,7 +217,7 @@ namespace Common.Textures
                                             mbr.BaseStream.Position = realEnd;
                                             mbr.BaseStream.Position += 0x2F;
 
-                                            texture.CompressionType = (TextureCompression)mbr.ReadUInt32();
+                                            texture.Format = mbr.ReadUInt32();
                                         }
 
                                         var copiedDataBytes = 0;
@@ -276,7 +276,7 @@ namespace Common.Textures
                                 foreach (var t in _texturePack.Textures)
                                 {
                                     br.BaseStream.Seek(0x0C, SeekOrigin.Current);
-                                    t.CompressionType = (TextureCompression)br.ReadUInt32();
+                                    t.Format = br.ReadUInt32();
                                     br.BaseStream.Seek(0x08, SeekOrigin.Current);
                                 }
                                 break;
@@ -306,7 +306,7 @@ namespace Common.Textures
                 MipMapCount = texture.MipMapCount,
                 TexHash = texture.Hash,
                 TypeHash = texture.Type,
-                CompressionType = TextureCompression.Unknown,
+                Format = 0,
                 PitchOrLinearSize = texture.DataSize,
                 NameLength = nameLength
             });

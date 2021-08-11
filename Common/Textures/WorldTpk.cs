@@ -161,7 +161,7 @@ namespace Common.Textures
                 foreach (var texture in texturePack.Textures)
                 {
                     cs.Write(new byte[0xC]);
-                    cs.Write((uint)texture.CompressionType);
+                    cs.Write((uint)texture.Format);
                     cs.Write(new byte[0x10]);
                 }
 
@@ -310,7 +310,7 @@ namespace Common.Textures
                                             ReadTexture(mbr);
                                             mbr.BaseStream.Seek(-20, SeekOrigin.End);
 
-                                            _texturePack.Textures[_texturePack.NumTextures - 1].CompressionType = (TextureCompression)mbr.ReadUInt32();
+                                            _texturePack.Textures[_texturePack.NumTextures - 1].Format = mbr.ReadUInt32();
                                             Array.Clear(_texturePack.Textures[_texturePack.NumTextures - 1].Data, 0, _texturePack.Textures[_texturePack.NumTextures - 1].Data.Length);
                                             mbr.BaseStream.Position = 0;
 
@@ -326,7 +326,7 @@ namespace Common.Textures
                                             ReadTexture(mbr);
                                             mbr.BaseStream.Seek(-20, SeekOrigin.End);
 
-                                            _texturePack.Textures[_texturePack.NumTextures - 1].CompressionType = (TextureCompression)mbr.ReadUInt32();
+                                            _texturePack.Textures[_texturePack.NumTextures - 1].Format = mbr.ReadUInt32();
                                         }
 
                                         _texturePack.Textures[_texturePack.NumTextures - 1].DataSize = 0;
@@ -386,10 +386,10 @@ namespace Common.Textures
                                     //    compType = 0x0034
                                     //}
 
-                                    t.CompressionType = (TextureCompression)compType;
+                                    t.Format = compType;
 
-                                    //t.CompressionType = (TextureCompression)br.ReadUInt32();
-                                    //Console.WriteLine($"{t.Name} = 0x{((int)t.CompressionType):X8}");
+                                    //t.Format = (TextureFormat)br.ReadUInt32();
+                                    //Console.WriteLine($"{t.Name} = 0x{((int)t.Format):X8}");
                                     br.BaseStream.Seek(16, SeekOrigin.Current);
                                 }
                                 break;
@@ -417,7 +417,7 @@ namespace Common.Textures
                 MipMapCount = texture.MipMapCount,
                 TexHash = texture.TexHash,
                 TypeHash = texture.TypeHash,
-                CompressionType = TextureCompression.Unknown,
+                Format = 0,
                 PitchOrLinearSize = (uint)texture.Unknown6,
                 NameLength = texture.NameLength
             };

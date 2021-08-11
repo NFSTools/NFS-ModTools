@@ -22,34 +22,69 @@ namespace Common.Textures
         private struct TextureStruct
         {
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 12)]
-            private byte[] blank;
+            public byte[] Padding1;
 
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 24)]
-            public string Name;
+            public string DebugName;
 
-            public uint Hash;
+            public uint NameHash;
+            public uint ClassNameHash;
+            public uint ImageParentHash;
+            public uint ImagePlacement;
+            public uint PalettePlacement;
+            public uint ImageSize;
+            public uint PaletteSize;
+            public uint BaseImageSize;
+            public ushort Width;
+            public ushort Height;
+            public byte ShiftWidth;
+            public byte ShiftHeight;
+            public byte ImageCompressionType;
+            public byte PaletteCompressionType;
+            public ushort NumPaletteEntries;
+            public byte NumMipMapLevels;
+            public byte TilableUV;
+            public byte BiasLevel;
+            public byte RenderingOrder;
+            public byte ScrollType;
+            public byte UsedFlag;
+            public byte ApplyAlphaSorting;
+            public byte AlphaUsageType;
+            public byte AlphaBlendType;
+            public byte Flags;
+            public short ScrollTimeStep;
+            public short ScrollSpeedS;
+            public short ScrollSpeedT;
+            public short OffsetS;
+            public short OffsetT;
+            public short ScaleS;
+            public short ScaleT;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 20)]
+            public byte[] Padding2;
 
-            public uint Type;
+            //public uint Hash;
 
-            private int blank2;
+            //public uint Type;
 
-            public uint DataOffset;
+            //private int blank2;
 
-            public uint PaletteOffset;
+            //public uint DataOffset;
 
-            public uint DataSize, PaletteSize, PitchOrLinearSize;
+            //public uint PaletteOffset;
 
-            public ushort Width, Height;
+            //public uint DataSize, PaletteSize, PitchOrLinearSize;
 
-            public uint D1;
+            //public ushort Width, Height;
 
-            public ushort D2;
+            //public uint D1;
 
-            public byte D3; // mipmap?
-            public byte D4;
+            //public ushort D2;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 44)]
-            public byte[] RestOfData;
+            //public byte D3; // mipmap?
+            //public byte D4;
+
+            //[MarshalAs(UnmanagedType.ByValArray, SizeConst = 44)]
+            //public byte[] RestOfData;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -160,7 +195,7 @@ namespace Common.Textures
                             {
                                 if (!_compressed)
                                 {
-                                    br.BaseStream.Position += 0x78;
+                                    BinaryUtil.AutoAlign(br, 0x80);
 
                                     var basePos = br.BaseStream.Position;
 
@@ -168,8 +203,13 @@ namespace Common.Textures
                                     {
                                         br.BaseStream.Position = basePos + t.DataOffset;
                                         t.Data = new byte[t.DataSize];
-
                                         br.Read(t.Data, 0, t.Data.Length);
+                                        if (t.PaletteSize > 0)
+                                        {
+                                            br.BaseStream.Position = basePos + t.PaletteOffset;
+                                            t.Palette = new byte[t.PaletteSize];
+                                            br.Read(t.Palette, 0, t.Palette.Length);
+                                        }
                                     }
                                 }
 
@@ -180,8 +220,8 @@ namespace Common.Textures
                                 foreach (var t in _texturePack.Textures)
                                 {
                                     br.BaseStream.Seek(20, SeekOrigin.Current);
-                                    t.CompressionType = (TextureCompression)br.ReadUInt32();
-                                    //Console.WriteLine($"{t.Name} = 0x{((int)t.CompressionType):X8}");
+                                    t.Format = br.ReadUInt32();
+                                    //Console.WriteLine($"{t.Name} = 0x{((int)t.Format):X8}");
                                     br.BaseStream.Seek(0x08, SeekOrigin.Current);
                                 }
                                 break;
@@ -201,14 +241,16 @@ namespace Common.Textures
             {
                 Width = texture.Width,
                 Height = texture.Height,
-                Name = texture.Name,
-                DataSize = texture.DataSize,
-                DataOffset = texture.DataOffset,
-                MipMapCount = texture.D3,
-                TexHash = texture.Hash,
-                TypeHash = texture.Type,
-                CompressionType = TextureCompression.Unknown,
-                PitchOrLinearSize = texture.PitchOrLinearSize
+                Name = texture.DebugName,
+                DataSize = texture.ImageSize,
+                DataOffset = texture.ImagePlacement,
+                PaletteSize = texture.PaletteSize,
+                PaletteOffset = texture.PalettePlacement,
+                MipMapCount = texture.NumMipMapLevels,
+                TexHash = texture.NameHash,
+                TypeHash = texture.ClassNameHash,
+                Format = 0,
+                PitchOrLinearSize = texture.BaseImageSize
             });
         }
 
@@ -239,7 +281,7 @@ namespace Common.Textures
             Array.ConstrainedCopy(outData, 0, _texturePack.Textures[_texturePack.NumTextures - 1].Data, 0,
                 outData.Length - 156);
 
-            _texturePack.Textures[_texturePack.NumTextures - 1].CompressionType = (TextureCompression)BitConverter.ToUInt32(outData, outData.Length - 12);
+            _texturePack.Textures[_texturePack.NumTextures - 1].Format = BitConverter.ToUInt32(outData, outData.Length - 12);
         }
     }
 }
