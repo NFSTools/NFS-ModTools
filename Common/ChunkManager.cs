@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using Common.Entity.Collision;
 using Common.Geometry;
+using Common.Scenery;
 using Common.Textures;
 
 namespace Common
@@ -167,6 +168,21 @@ namespace Common
                     case ObjectPackChunk:
                         switch (_game)
                         {
+                            case GameDetector.Game.Underground:
+                            {
+                                cd.Resource = new UndergroundSolids().ReadSolidList(_br, (uint)chunk.Length);
+                                break;
+                            }
+                            case GameDetector.Game.Underground2:
+                            {
+                                cd.Resource = new Underground2Solids().ReadSolidList(_br, (uint)chunk.Length);
+                                break;
+                            }
+                            case GameDetector.Game.MostWanted:
+                            {
+                                cd.Resource = new MostWantedSolids().ReadSolidList(_br, (uint)chunk.Length);
+                                break;
+                            }
                             case GameDetector.Game.Carbon:
                             {
                                 cd.Resource = new CarbonSolids().ReadSolidList(_br, (uint)chunk.Length);
@@ -187,6 +203,20 @@ namespace Common
                     case TexturePackChunk:
                     {
                         cd.Resource = new DelegateTpk().ReadTexturePack(_br, (uint) chunk.Length);
+                        break;
+                    }
+                    case 0x80034100:
+                    {
+                        switch (_game)
+                        {
+                            case GameDetector.Game.Underground2:
+                                cd.Resource = new Underground2Scenery().ReadScenery(_br, (uint) chunk.Length);
+                                break;
+                            case GameDetector.Game.MostWanted:
+                                cd.Resource = new MostWantedScenery().ReadScenery(_br, (uint) chunk.Length);
+                                break;
+                        }
+
                         break;
                     }
                     default:

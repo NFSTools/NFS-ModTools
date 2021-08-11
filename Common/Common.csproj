@@ -131,8 +131,13 @@
     <Compile Include="Geometry\Underground2Solids.cs" />
     <Compile Include="Geometry\World15Solids.cs" />
     <Compile Include="Hasher.cs" />
+    <Compile Include="MathUtil.cs" />
     <Compile Include="MessageUtil.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Scenery\Data\ScenerySection.cs" />
+    <Compile Include="Scenery\SceneryManager.cs" />
+    <Compile Include="Scenery\MostWantedScenery.cs" />
+    <Compile Include="Scenery\Underground2Scenery.cs" />
     <Compile Include="Textures\UndercoverTpk.cs" />
     <Compile Include="TrackStream\Data\LocationBundle.cs" />
     <Compile Include="TrackStream\Data\Vector3.cs" />
@@ -155,6 +160,5 @@
     <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
