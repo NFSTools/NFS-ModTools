@@ -169,7 +169,6 @@ namespace Common.Scenery
 
                 instance.InfoIndex = internalInstance.SceneryInfoNumber;
                 instance.Position = new Vector3(internalInstance.Position.X, internalInstance.Position.Y, internalInstance.Position.Z);
-                // instance.Scale = 
                 var vRight = new Vector3(internalInstance.Rotation.Value11, internalInstance.Rotation.Value12,
                     internalInstance.Rotation.Value13);
                 var vForward = new Vector3(internalInstance.Rotation.Value21, internalInstance.Rotation.Value22,
@@ -181,41 +180,37 @@ namespace Common.Scenery
                 vForward *= 0.0001220703125f; // vForward /= 0x2000
 
                 instance.Scale = new Vector3(vRight.Length(), vUpwards.Length(), vForward.Length());
-                //vRight = Vector3.Normalize(vRight);
-                //vUpwards = Vector3.Normalize(vUpwards);
-                //vForward = Vector3.Normalize(vForward);
+                vRight = Vector3.Normalize(vRight);
+                vUpwards = Vector3.Normalize(vUpwards);
+                vForward = Vector3.Normalize(vForward);
 
-                //if (Vector3.Dot(Vector3.Cross(vForward, vUpwards), vRight) < 0)
-                //{
-                //    vRight = -vRight;
-                //    instance.Scale = new Vector3(-instance.Scale.X, instance.Scale.Y, instance.Scale.Z);
-                //}
-                //instance.Rotation = MathUtil.LookRotation(vRight.X, vRight.Y, vRight.Z, vForward.X, vForward.Y,
-                //    vForward.Z, vUpwards.X, vUpwards.Y, vUpwards.Z);
+                if (Vector3.Dot(Vector3.Cross(vForward, vUpwards), vRight) < 0)
+                {
+                    vRight = -vRight;
+                    instance.Scale = new Vector3(-instance.Scale.X, instance.Scale.Y, instance.Scale.Z);
+                }
 
-                var rotation = Quaternion.CreateFromRotationMatrix(new Matrix4x4(
-                    internalInstance.Rotation.Value11 / 8192f,
-                    internalInstance.Rotation.Value12 / 8192f,
-                    internalInstance.Rotation.Value13 / 8192f,
+                instance.Rotation = Quaternion.CreateFromRotationMatrix(new Matrix4x4(
+                    vRight.X,
+                    vRight.Y,
+                    vRight.Z,
                     0,
-                    internalInstance.Rotation.Value21 / 8192f,
-                    internalInstance.Rotation.Value22 / 8192f,
-                    internalInstance.Rotation.Value23 / 8192f,
+
+                    vForward.X,
+                    vForward.Y,
+                    vForward.Z,
                     0,
-                    internalInstance.Rotation.Value31 / 8192f,
-                    internalInstance.Rotation.Value32 / 8192f,
-                    internalInstance.Rotation.Value33 / 8192f,
+                    
+                    vUpwards.X,
+                    vUpwards.Y,
+                    vUpwards.Z,
                     0,
+                    
                     0,
                     0,
                     0,
                     0
                 ));
-                //var ry = rotation.Y;
-                //var rz = rotation.Z;
-                //rotation.Z = ry;
-                //rotation.Y = rz;
-                instance.Rotation = rotation;
 
                 _scenerySection.Instances.Add(instance);
             }
