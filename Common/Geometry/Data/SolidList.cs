@@ -81,6 +81,7 @@ namespace Common.Geometry.Data
 
     public class ProStreetMaterial : CarbonMaterial
     {
+        public uint EffectId { get; set; }
     }
 
     public class World15Material : CarbonMaterial
@@ -191,11 +192,15 @@ namespace Common.Geometry.Data
         {
             var uvBase = stride == 6 ? 4 : 7;
 
+            // TODO: Properly handle different eEffects
             return new SolidMeshVertex
             {
                 X = buffer.Data[buffer.Position],
                 Y = buffer.Data[buffer.Position + 1],
                 Z = buffer.Data[buffer.Position + 2],
+                NormalX = stride != 6 ? buffer.Data[buffer.Position + 3] : 0,
+                NormalY = stride != 6 ? buffer.Data[buffer.Position + 4] : 0,
+                NormalZ = stride != 6 ? buffer.Data[buffer.Position + 5] : 0,
                 U = buffer.Data[buffer.Position + uvBase],
                 V = -buffer.Data[buffer.Position + uvBase + 1]
             };
@@ -211,6 +216,42 @@ namespace Common.Geometry.Data
     {
         private readonly bool _isTestObject;
 
+        enum EffectID
+        {
+            STANDARD,
+            TREELEAVES,
+            WORLD,
+            WORLDBONE,
+            WORLDNORMALMAP,
+            CARNORMALMAP,
+            CARVINYL,
+            CAR,
+            VISUAL_TREATMENT,
+            PARTICLES,
+            SKY,
+            GRASSCARD,
+            GRASSTERRAIN,
+            WorldDepthShader,
+            ScreenEffectShader,
+            UCAP,
+            WATER,
+            GHOSTCAR,
+            ROAD,
+            ROADLIGHTMAP,
+            WORLDCONSTANT,
+            TERRAIN,
+            WORLDBAKEDLIGHTING,
+            SHADOWMAPMESH,
+            DEBUGPOLY,
+            CROWD,
+            WORLDDECAL,
+            SMOKE,
+            FLAG,
+            TUNNEL,
+            WORLDENVIROMAP,
+            ALWAYSFACING,
+        }
+
         public ProStreetObject(bool isTestObject = false)
         {
             _isTestObject = isTestObject;
@@ -219,60 +260,92 @@ namespace Common.Geometry.Data
 
         public override SolidMeshVertex GetVertex(VertexBuffer buffer, SolidObjectMaterial material, int stride)
         {
-            // IsCompressed ---> packed floats
-            float x;
-            float y;
-            float z;
-            float u;
-            float v;
+            ProStreetMaterial psm = (ProStreetMaterial) material;
 
-            var uvBase = 7;
+            // TODO: Handle packed normals, multiple UV sets, maybe vertex colors?
 
-            if (stride < 9)
+            switch ((EffectID) psm.EffectId)
             {
-                uvBase = 3;
-            }
-
-            if (IsCompressed)
-            {
-                unsafe
-                {
-                    fixed (float* dataArray = buffer.Data)
+                case EffectID.WORLDBAKEDLIGHTING:
+                    return new SolidMeshVertex
                     {
-                        x = BinaryUtil.GetPackedFloat(&dataArray[buffer.Position], 0);
-                        y = BinaryUtil.GetPackedFloat(&dataArray[buffer.Position], 2);
-                        z = BinaryUtil.GetPackedFloat(&dataArray[buffer.Position], 1);
-                        u = -BinaryUtil.GetPackedFloat(&dataArray[buffer.Position + 2], 0);
-                        v = -BinaryUtil.GetPackedFloat(&dataArray[buffer.Position + 2], 1);
-                    }
-                }
+                        X = buffer.Data[buffer.Position + 0],
+                        Y = buffer.Data[buffer.Position + 2],
+                        Z = buffer.Data[buffer.Position + 1],
+                        U = buffer.Data[buffer.Position + 4],
+                        V = -buffer.Data[buffer.Position + 5],
+                    };
+                case EffectID.WORLD:
+                case EffectID.WORLDNORMALMAP:
+                case EffectID.WorldDepthShader:
+                    return new SolidMeshVertex
+                    {
+                        X = buffer.Data[buffer.Position + 0],
+                        Y = buffer.Data[buffer.Position + 2],
+                        Z = buffer.Data[buffer.Position + 1],
+                        NormalX = buffer.Data[buffer.Position + 3],
+                        NormalY = buffer.Data[buffer.Position + 5],
+                        NormalZ = buffer.Data[buffer.Position + 4],
+                        U = buffer.Data[buffer.Position + 7],
+                        V = -buffer.Data[buffer.Position + 8],
+                    };
+                case EffectID.TREELEAVES:
+                    return new SolidMeshVertex
+                    {
+                        X = buffer.Data[buffer.Position + 0],
+                        Y = buffer.Data[buffer.Position + 2],
+                        Z = buffer.Data[buffer.Position + 1],
+                        NormalX = buffer.Data[buffer.Position + 4],
+                        NormalY = buffer.Data[buffer.Position + 6],
+                        NormalZ = buffer.Data[buffer.Position + 5],
+                        U = buffer.Data[buffer.Position + 11],
+                        V = -buffer.Data[buffer.Position + 12],
+                    };
+                case EffectID.GRASSTERRAIN:
+                case EffectID.TERRAIN:
+                case EffectID.WORLDCONSTANT:
+                case EffectID.ROAD:
+                    return new SolidMeshVertex
+                    {
+                        X = buffer.Data[buffer.Position + 0],
+                        Y = buffer.Data[buffer.Position + 2],
+                        Z = buffer.Data[buffer.Position + 1],
+                        U = buffer.Data[buffer.Position + 3],
+                        V = -buffer.Data[buffer.Position + 4],
+                    };
+                case EffectID.FLAG:
+                    return new SolidMeshVertex
+                    {
+                        X = buffer.Data[buffer.Position + 0],
+                        Y = buffer.Data[buffer.Position + 2],
+                        Z = buffer.Data[buffer.Position + 1],
+                        U = buffer.Data[buffer.Position + 6],
+                        V = -buffer.Data[buffer.Position + 7],
+                    };
+                case EffectID.GRASSCARD:
+                    return new SolidMeshVertex
+                    {
+                        X = buffer.Data[buffer.Position + 0],
+                        Y = buffer.Data[buffer.Position + 2],
+                        Z = buffer.Data[buffer.Position + 1],
+                        U = buffer.Data[buffer.Position + 8],
+                        V = -buffer.Data[buffer.Position + 9],
+                    };
+                case EffectID.SKY:
+                    return new SolidMeshVertex
+                    {
+                        X = buffer.Data[buffer.Position + 0],
+                        Y = buffer.Data[buffer.Position + 2],
+                        Z = buffer.Data[buffer.Position + 1],
+                        NormalX = buffer.Data[buffer.Position + 3],
+                        NormalY = buffer.Data[buffer.Position + 5],
+                        NormalZ = buffer.Data[buffer.Position + 4],
+                        U = buffer.Data[buffer.Position + 7],
+                        V = -buffer.Data[buffer.Position + 8],
+                    };
+                default:
+                    throw new Exception($"Unsupported effect in object {Name}: {(EffectID)psm.EffectId}");
             }
-            else
-            {
-                x = buffer.Data[buffer.Position];
-                y = buffer.Data[buffer.Position + (_isTestObject ? 1 : 2)];
-                z = buffer.Data[buffer.Position + (_isTestObject ? 2 : 1)];
-                u = buffer.Data[buffer.Position + uvBase];
-                v = buffer.Data[buffer.Position + uvBase + 1] * -1.0f;
-            }
-
-            return new SolidMeshVertex
-            {
-                X = x,
-                Y = y,
-                Z = z,
-                U = u,
-                V = v
-            };
-
-            //return new SolidMeshVertex
-            //{
-            //    X = buffer.Data[buffer.Position],
-            //    Y = buffer.Data[buffer.Position + (_isTestObject ? 1 : 2)],
-            //    Z = buffer.Data[buffer.Position + (_isTestObject ? 2 : 1)],
-            //    U = buffer.Data[buffer.Position + uvBase],
-            //    V = buffer.Data[buffer.Position + uvBase + 1] * -1.0f
-            //};
         }
 
         public override int ComputeStride()

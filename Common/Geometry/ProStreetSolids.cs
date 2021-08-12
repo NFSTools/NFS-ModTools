@@ -113,7 +113,7 @@ namespace Common.Geometry
             // begin header
             public uint FirstIndex;
 
-            public uint Unknown1;
+            public uint EffectId;
 
             public uint Blank;
 
@@ -499,7 +499,8 @@ namespace Common.Geometry
                                             NumVerts = shadingGroup.VertexBufferUsage / shadingGroup.Flags2[2],
                                             VertexStreamIndex = j,
                                             Hash = shadingGroup.UnknownId,
-                                            TextureHash = solidObject.TextureHashes[shadingGroup.TextureShaderUsage[4]]
+                                            TextureHash = solidObject.TextureHashes[shadingGroup.TextureShaderUsage[4]],
+                                            EffectId = shadingGroup.EffectId
                                         });
 
                                         solidObject.MeshDescriptor.NumVerts +=

@@ -7,6 +7,7 @@ namespace Common.Scenery.Data
     {
         public string Name { get; set; }
         public uint SolidKey { get; set; }
+        public bool IsDeinstanced { get; set; }
     }
 
     public class SceneryInstance
