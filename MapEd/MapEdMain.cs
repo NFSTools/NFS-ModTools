@@ -78,13 +78,13 @@ namespace MapEd
                     case Texture texture:
                         panel1.Controls.Clear();
 
-                        if (texture.CompressionType == TextureCompression.P8
-                            || texture.CompressionType == TextureCompression.A8R8G8B8
-                            || texture.CompressionType == TextureCompression.Ati1
-                            || texture.CompressionType == TextureCompression.Unknown)
+                        if (texture.Format == 0x29 // P8
+                            || texture.Format == 0x15 // ARGB
+                            || texture.Format == 0x31495441 // ATI1
+                            || texture.Format == 0)
                         {
-                            Console.WriteLine(texture.CompressionType + $" {(int)texture.CompressionType:X8}");
-                            MessageUtil.ShowError("Preview is unavailable for this format: " + texture.CompressionType);
+                            Console.WriteLine(texture.Format + $" {(int)texture.Format:X8}");
+                            MessageUtil.ShowError("Preview is unavailable for this format: " + texture.Format);
                         }
                         else
                         {
@@ -157,7 +157,7 @@ namespace MapEd
                         var textureNode = subTree.Nodes.Add(texture.Name);
 
                         textureNode.Tag = texture;
-                        textureNode.ToolTipText = texture.Dimensions + $"- Mipmaps: {texture.MipMapCount} - Format: {texture.CompressionType.ToString().ToUpper()}";
+                        textureNode.ToolTipText = texture.Dimensions + $"- Mipmaps: {texture.MipMapCount} - Format: {texture.Format.ToString().ToUpper()}";
                     }
 
                     subTree.Visible = true;

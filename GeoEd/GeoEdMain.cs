@@ -210,203 +210,204 @@ namespace GeoEd
         {
             if (openModelDialog.ShowDialog(this) == DialogResult.OK)
             {
-                var objLoader = new ObjLoaderFactory().Create();
+                MessageUtil.ShowError("Not today...");
+                //var objLoader = new ObjLoaderFactory().Create();
 
-                var solidObj = new World15Object
-                {
-                    Name = Path.GetFileNameWithoutExtension(openModelDialog.FileName),
-                    MinPoint = new SimpleVector4(0.0f, 0.0f, 0.0f, 0.0f),
-                    MaxPoint = new SimpleVector4(0.0f, 0.0f, 0.0f, 0.0f),
-                    Transform = new SimpleMatrix
-                    {
-                        Data = new float[4, 4]
-                    }
-                };
+                //var solidObj = new World15Object
+                //{
+                //    Name = Path.GetFileNameWithoutExtension(openModelDialog.FileName),
+                //    MinPoint = new SimpleVector4(0.0f, 0.0f, 0.0f, 0.0f),
+                //    MaxPoint = new SimpleVector4(0.0f, 0.0f, 0.0f, 0.0f),
+                //    Transform = new SimpleMatrix
+                //    {
+                //        Data = new float[4, 4]
+                //    }
+                //};
 
-                var matrix = new float[16];
-                matrix[0] = 1.0f;
-                matrix[5] = 1.0f;
-                matrix[10] = 1.0f;
-                matrix[15] = 1.0f;
+                //var matrix = new float[16];
+                //matrix[0] = 1.0f;
+                //matrix[5] = 1.0f;
+                //matrix[10] = 1.0f;
+                //matrix[15] = 1.0f;
 
-                var matrixIdx = 0;
+                //var matrixIdx = 0;
 
-                for (var i = 0; i < 4; i++)
-                {
-                    for (var j = 0; j < 4; j++)
-                    {
-                        solidObj.Transform[i, j] = matrix[matrixIdx++];
-                    }
-                }
+                //for (var i = 0; i < 4; i++)
+                //{
+                //    for (var j = 0; j < 4; j++)
+                //    {
+                //        solidObj.Transform[i, j] = matrix[matrixIdx++];
+                //    }
+                //}
 
-                solidObj.Hash = Hasher.BinHash(solidObj.Name);
+                //solidObj.Hash = Hasher.BinHash(solidObj.Name);
 
-                using (var ms = new MemoryStream(
-                    Encoding.ASCII.GetBytes(File.ReadAllText(openModelDialog.FileName))))
-                {
-                    var result = objLoader.Load(ms);
-                    var totalTris = result.Groups.Sum(g => g.Faces.Count);
-                    var curTriIdx = 0;
-                    var curVertIdx = 0;
+                //using (var ms = new MemoryStream(
+                //    Encoding.ASCII.GetBytes(File.ReadAllText(openModelDialog.FileName))))
+                //{
+                //    var result = objLoader.Load(ms);
+                //    var totalTris = result.Groups.Sum(g => g.Faces.Count);
+                //    var curTriIdx = 0;
+                //    var curVertIdx = 0;
 
-                    Array.Resize(ref solidObj.Faces, totalTris);
+                //    Array.Resize(ref solidObj.Faces, totalTris);
 
-                    // group: face list->material
-                    foreach (var group in result.Groups)
-                    {
-                        var ambientFileName = Path.GetFileNameWithoutExtension(group.Material.AmbientTextureMap);
+                //    // group: face list->material
+                //    foreach (var group in result.Groups)
+                //    {
+                //        var ambientFileName = Path.GetFileNameWithoutExtension(group.Material.AmbientTextureMap);
 
-                        Debug.Assert(ambientFileName != null);
+                //        Debug.Assert(ambientFileName != null);
 
-                        var textureHash = ambientFileName.StartsWith("0x")
-                            ? uint.Parse(ambientFileName.Substring(2), NumberStyles.AllowHexSpecifier)
-                            : Hasher.BinHash(ambientFileName);
+                //        var textureHash = ambientFileName.StartsWith("0x")
+                //            ? uint.Parse(ambientFileName.Substring(2), NumberStyles.AllowHexSpecifier)
+                //            : Hasher.BinHash(ambientFileName);
 
-                        if (!solidObj.TextureHashes.Contains(textureHash))
-                        {
-                            solidObj.TextureHashes.Add(textureHash);
-                        }
+                //        if (!solidObj.TextureHashes.Contains(textureHash))
+                //        {
+                //            solidObj.TextureHashes.Add(textureHash);
+                //        }
 
-                        var solidMaterial = new SolidObjectMaterial
-                        {
-                            Name = group.Material.Name,
-                            Flags = 0x00224000,
-                            MinPoint = new SimpleVector3(0, 0, 0),
-                            MaxPoint = new SimpleVector3(0, 0, 0),
-                            TextureHash = textureHash,
-                            NumTris = (uint)group.Faces.Count,
-                            TextureIndex = (byte) solidObj.TextureHashes.IndexOf(textureHash)
-                        };
+                //        var solidMaterial = new SolidObjectMaterial
+                //        {
+                //            Name = group.Material.Name,
+                //            Flags = 0x00224000,
+                //            MinPoint = new SimpleVector3(0, 0, 0),
+                //            MaxPoint = new SimpleVector3(0, 0, 0),
+                //            TextureHash = textureHash,
+                //            NumTris = (uint)group.Faces.Count,
+                //            TextureIndex = (byte) solidObj.TextureHashes.IndexOf(textureHash)
+                //        };
 
-                        solidMaterial.Hash = Hasher.BinHash(solidMaterial.Name);
-                        solidMaterial.NumVerts = 0;
-                        solidMaterial.NumIndices = solidMaterial.NumTris * 3;
+                //        solidMaterial.Hash = Hasher.BinHash(solidMaterial.Name);
+                //        solidMaterial.NumVerts = 0;
+                //        solidMaterial.NumIndices = solidMaterial.NumTris * 3;
 
-                        var matVerts = new List<int>();
+                //        var matVerts = new List<int>();
 
-                        foreach (var face in group.Faces)
-                        {
-                            if (!matVerts.Contains(face[0].VertexIndex))
-                            {
-                                matVerts.Add(face[0].VertexIndex);
-                                solidMaterial.NumVerts++;
-                            }
+                //        foreach (var face in group.Faces)
+                //        {
+                //            if (!matVerts.Contains(face[0].VertexIndex))
+                //            {
+                //                matVerts.Add(face[0].VertexIndex);
+                //                solidMaterial.NumVerts++;
+                //            }
 
-                            if (!matVerts.Contains(face[1].VertexIndex))
-                            {
-                                matVerts.Add(face[1].VertexIndex);
-                                solidMaterial.NumVerts++;
-                            }
+                //            if (!matVerts.Contains(face[1].VertexIndex))
+                //            {
+                //                matVerts.Add(face[1].VertexIndex);
+                //                solidMaterial.NumVerts++;
+                //            }
 
-                            if (!matVerts.Contains(face[2].VertexIndex))
-                            {
-                                matVerts.Add(face[2].VertexIndex);
-                                solidMaterial.NumVerts++;
-                            }
-                        }
+                //            if (!matVerts.Contains(face[2].VertexIndex))
+                //            {
+                //                matVerts.Add(face[2].VertexIndex);
+                //                solidMaterial.NumVerts++;
+                //            }
+                //        }
 
-                        foreach (var vertIdx in matVerts)
-                        {
-                            var vertex = result.Vertices[vertIdx - 1];
+                //        foreach (var vertIdx in matVerts)
+                //        {
+                //            var vertex = result.Vertices[vertIdx - 1];
 
-                            // min
-                            if (vertex.X < solidMaterial.MinPoint.X)
-                            {
-                                solidMaterial.MinPoint.X = vertex.X;
-                            }
+                //            // min
+                //            if (vertex.X < solidMaterial.MinPoint.X)
+                //            {
+                //                solidMaterial.MinPoint.X = vertex.X;
+                //            }
 
-                            if (vertex.Y < solidMaterial.MinPoint.Y)
-                            {
-                                solidMaterial.MinPoint.Y = vertex.Y;
-                            }
+                //            if (vertex.Y < solidMaterial.MinPoint.Y)
+                //            {
+                //                solidMaterial.MinPoint.Y = vertex.Y;
+                //            }
 
-                            if (vertex.Z < solidMaterial.MinPoint.Z)
-                            {
-                                solidMaterial.MinPoint.Z = vertex.Z;
-                            }
+                //            if (vertex.Z < solidMaterial.MinPoint.Z)
+                //            {
+                //                solidMaterial.MinPoint.Z = vertex.Z;
+                //            }
 
-                            // max
-                            if (vertex.X > solidMaterial.MaxPoint.X)
-                            {
-                                solidMaterial.MaxPoint.X = vertex.X;
-                            }
+                //            // max
+                //            if (vertex.X > solidMaterial.MaxPoint.X)
+                //            {
+                //                solidMaterial.MaxPoint.X = vertex.X;
+                //            }
 
-                            if (vertex.Y > solidMaterial.MaxPoint.Y)
-                            {
-                                solidMaterial.MaxPoint.Y = vertex.Y;
-                            }
+                //            if (vertex.Y > solidMaterial.MaxPoint.Y)
+                //            {
+                //                solidMaterial.MaxPoint.Y = vertex.Y;
+                //            }
 
-                            if (vertex.Z > solidMaterial.MaxPoint.Z)
-                            {
-                                solidMaterial.MaxPoint.Z = vertex.Z;
-                            }
-                        }
+                //            if (vertex.Z > solidMaterial.MaxPoint.Z)
+                //            {
+                //                solidMaterial.MaxPoint.Z = vertex.Z;
+                //            }
+                //        }
 
-                        foreach (var face in group.Faces)
-                        {
-                            solidObj.Faces[curTriIdx++] = new SolidMeshFace
-                            {
-                                Vtx1 = (ushort)(face[0].VertexIndex - 1),
-                                Vtx2 = (ushort)(face[1].VertexIndex - 1),
-                                Vtx3 = (ushort)(face[2].VertexIndex - 1)
-                            };
-                        }
+                //        foreach (var face in group.Faces)
+                //        {
+                //            solidObj.Faces[curTriIdx++] = new SolidMeshFace
+                //            {
+                //                Vtx1 = (ushort)(face[0].VertexIndex - 1),
+                //                Vtx2 = (ushort)(face[1].VertexIndex - 1),
+                //                Vtx3 = (ushort)(face[2].VertexIndex - 1)
+                //            };
+                //        }
 
-                        solidObj.Materials.Add(solidMaterial);
-                    }
+                //        solidObj.Materials.Add(solidMaterial);
+                //    }
 
-                    for (var j = 0; j < result.Vertices.Count; j++)
-                    {
-                        var vertex = result.Vertices[j];
-                        var tv = result.Textures[j];
+                //    for (var j = 0; j < result.Vertices.Count; j++)
+                //    {
+                //        var vertex = result.Vertices[j];
+                //        var tv = result.Textures[j];
 
-                        // min
-                        if (vertex.X < solidObj.MinPoint.X)
-                        {
-                            solidObj.MinPoint.X = vertex.X;
-                        }
+                //        // min
+                //        if (vertex.X < solidObj.MinPoint.X)
+                //        {
+                //            solidObj.MinPoint.X = vertex.X;
+                //        }
 
-                        if (vertex.Y < solidObj.MinPoint.Y)
-                        {
-                            solidObj.MinPoint.Y = vertex.Y;
-                        }
+                //        if (vertex.Y < solidObj.MinPoint.Y)
+                //        {
+                //            solidObj.MinPoint.Y = vertex.Y;
+                //        }
 
-                        if (vertex.Z < solidObj.MinPoint.Z)
-                        {
-                            solidObj.MinPoint.Z = vertex.Z;
-                        }
+                //        if (vertex.Z < solidObj.MinPoint.Z)
+                //        {
+                //            solidObj.MinPoint.Z = vertex.Z;
+                //        }
 
-                        // max
-                        if (vertex.X > solidObj.MaxPoint.X)
-                        {
-                            solidObj.MaxPoint.X = vertex.X;
-                        }
+                //        // max
+                //        if (vertex.X > solidObj.MaxPoint.X)
+                //        {
+                //            solidObj.MaxPoint.X = vertex.X;
+                //        }
 
-                        if (vertex.Y > solidObj.MaxPoint.Y)
-                        {
-                            solidObj.MaxPoint.Y = vertex.Y;
-                        }
+                //        if (vertex.Y > solidObj.MaxPoint.Y)
+                //        {
+                //            solidObj.MaxPoint.Y = vertex.Y;
+                //        }
 
-                        if (vertex.Z > solidObj.MaxPoint.Z)
-                        {
-                            solidObj.MaxPoint.Z = vertex.Z;
-                        }
+                //        if (vertex.Z > solidObj.MaxPoint.Z)
+                //        {
+                //            solidObj.MaxPoint.Z = vertex.Z;
+                //        }
 
-                        solidObj.Vertices[curVertIdx++] = new SolidMeshVertex
-                        {
-                            U = tv.X,
-                            V = -tv.Y,
-                            X = vertex.X,
-                            Y = vertex.Y,
-                            Z = vertex.Z
-                        };
-                    }
-                }
+                //        solidObj.Vertices[curVertIdx++] = new SolidMeshVertex
+                //        {
+                //            U = tv.X,
+                //            V = -tv.Y,
+                //            X = vertex.X,
+                //            Y = vertex.Y,
+                //            Z = vertex.Z
+                //        };
+                //    }
+                //}
 
-                ((SolidList)_chunkManager.Chunks[_selectedSolidList].Resource).Objects.Add(solidObj);
-                ((SolidList)_chunkManager.Chunks[_selectedSolidList].Resource).ObjectCount++;
+                //((SolidList)_chunkManager.Chunks[_selectedSolidList].Resource).Objects.Add(solidObj);
+                //((SolidList)_chunkManager.Chunks[_selectedSolidList].Resource).ObjectCount++;
 
-                MessageUtil.ShowInfo("Imported object!");
+                //MessageUtil.ShowInfo("Imported object!");
             }
         }
     }

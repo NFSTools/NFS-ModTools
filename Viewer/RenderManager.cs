@@ -213,9 +213,9 @@ namespace Viewer
                                 )
                             ),
                             solidObject.EnableTransform ? new TranslateTransform3D(
-                                solidObject.Transform[3, 0],
-                                solidObject.Transform[3, 1],
-                                solidObject.Transform[3, 2]
+                                solidObject.Transform.M41,
+                                solidObject.Transform.M42,
+                                solidObject.Transform.M43
                             ) : new TranslateTransform3D()
                         }
                     }
