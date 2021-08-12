@@ -39,7 +39,7 @@ namespace Common.Textures
             public ushort Height;
             public byte ShiftWidth;
             public byte ShiftHeight;
-            public byte ImageCompressionType;
+            public TextureCompressionType ImageCompressionType;
             public byte PaletteCompressionType;
             public ushort NumPaletteEntries;
             public byte NumMipMapLevels;
@@ -250,7 +250,8 @@ namespace Common.Textures
                 TexHash = texture.NameHash,
                 TypeHash = texture.ClassNameHash,
                 Format = 0,
-                PitchOrLinearSize = texture.BaseImageSize
+                PitchOrLinearSize = texture.BaseImageSize,
+                CompressionType = texture.ImageCompressionType
             });
         }
 
