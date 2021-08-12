@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using System.Reflection;
 using CommandLine;
 using Common;
 using Common.Geometry.Data;
@@ -12,13 +11,12 @@ using Common.Scenery.Data;
 using Common.Textures.Data;
 using Common.TrackStream;
 using Common.TrackStream.Data;
-using Vector3 = System.Numerics.Vector3;
 
 namespace AssetDumper
 {
     internal class Program
     {
-        internal static bool IsVerbose = false;
+        private static bool IsVerbose;
 
         internal enum ObjectOutputType
         {
@@ -353,8 +351,6 @@ namespace AssetDumper
 
         private static void ExportScenerySection(Dictionary<uint, SolidObject> objects, ScenerySection scenerySection, string directory, string filename)
         {
-            //if (scenerySection.SectionNumber != 101)
-            //    return;
             Debug.WriteLine("Exporting scenery section {0} ({1} models, {2} instances)", scenerySection.SectionNumber,
                 scenerySection.Infos.Count, scenerySection.Instances.Count);
 
@@ -683,8 +679,30 @@ namespace AssetDumper
             {
                 var instance = scenerySection.Instances[idx];
                 var info = scenerySection.Infos[instance.InfoIndex];
-                var matrix = Matrix4x4.CreateScale(instance.Scale) * Matrix4x4.CreateFromQuaternion(instance.Rotation) *
-                             Matrix4x4.CreateTranslation(instance.Position);
+
+                if (!objects.TryGetValue(info.SolidKey, out var solid))
+                {
+                    continue;
+                }
+                
+                // returns (axis_x, axis_y, axis_z, theta)
+                Vector4 ComputeAxisAngle(Quaternion q)
+                {
+                    if (Math.Abs(q.W - 1) < 0.000000001)
+                    {
+                        // If q_0 = 1, 2acos(q_0) = 0, so there is no rotation
+                        return Vector4.UnitX;
+                    }
+
+                    var theta = 2 * Math.Acos(q.W);
+                    var axis_x = q.X / Math.Sin(theta / 2);
+                    var axis_y = q.Y / Math.Sin(theta / 2);
+                    var axis_z = q.Z / Math.Sin(theta / 2);
+
+                    return new Vector4((float) axis_x, (float) axis_y, (float) axis_z, (float) theta);
+                }
+
+                var rot = ComputeAxisAngle(instance.Rotation);
 
                 sceneNodes.Add(new node
                 {
@@ -692,33 +710,27 @@ namespace AssetDumper
                     id = $"scenery_instance_{scenerySection.SectionNumber}_{idx}",
                     Items = new object[]
                         {
-                            new matrix
+                            new TargetableFloat3
                             {
-                                sid = "mat",
-                                Values = new double[]
-                                {
-                                    matrix.M11,
-                                    matrix.M21,
-                                    matrix.M31,
-                                    matrix.M41,
-                                    matrix.M12,
-                                    matrix.M22,
-                                    matrix.M32,
-                                    matrix.M42,
-                                    matrix.M13,
-                                    matrix.M23,
-                                    matrix.M33,
-                                    matrix.M43,
-                                    matrix.M14,
-                                    matrix.M24,
-                                    matrix.M34,
-                                    matrix.M44,
-                                }
+                                Values = new double[] { instance.Position.X, instance.Position.Y, instance.Position.Z },
+                                sid = "trans"
                             },
+                            new rotate
+                            {
+                                Values = new[] { rot.X, rot.Y, rot.Z, rot.W * (180 / Math.PI) },
+                                sid = "rot"
+                            },
+                            new TargetableFloat3
+                            {
+                                Values = new double[] { instance.Scale.X, instance.Scale.Y, instance.Scale.Z },
+                                sid = "size"
+                            }
                         },
                     ItemsElementName = new[]
                         {
-                            ItemsChoiceType2.matrix
+                            ItemsChoiceType2.translate,
+                            ItemsChoiceType2.rotate,
+                            ItemsChoiceType2.scale,
                         },
                     instance_geometry = new[]
                         {
@@ -727,7 +739,7 @@ namespace AssetDumper
                                 url = $"#{geometryIds[info.SolidKey]}",
                                 bind_material = new bind_material
                                 {
-                                    technique_common = objects[info.SolidKey].Materials.Select((material, materialIdx) => new instance_material
+                                    technique_common = solid.Materials.Select((material, materialIdx) => new instance_material
                                     {
                                         symbol = $"material{materialIdx}",
                                         target = $"#texture-0x{material.TextureHash:X8}",
@@ -779,70 +791,6 @@ namespace AssetDumper
             };
 
             collada.Save(Path.Combine(directory, filename));
-
-            //if (scenerySection.SectionNumber==203)
-            //    ExportModelAsObj(solidsToAdd.Find(s => s.Hash == 0x67DCA9C0), "0x67DCA9C0.obj", new Options { });
-            //var fullPath = Path.Combine(directory, filename);
-            //using (var sw = new StreamWriter(File.OpenWrite(fullPath)))
-            //{
-            //    sw.WriteLine($"obj COMBINED");
-            //    var vertBaseOffset = 0;
-            //    for (var index = 0; index < scenerySection.Instances.Count; index++)
-            //    {
-            //        var sceneryInstance = scenerySection.Instances[index];
-            //        if (sceneryInstance.InfoIndex >= scenerySection.Infos.Count)
-            //        {
-            //            LogInfo($"WARN: Weirdness detected in ScenerySection - {sceneryInstance.InfoIndex} >= {scenerySection.Infos.Count}");
-            //            continue;
-            //        }
-            //        var sceneryInfo = scenerySection.Infos[sceneryInstance.InfoIndex];
-            //        var solidObject = solidObjects[sceneryInfo.SolidKey];
-
-            //        // LogInfo(solidObject.Name);
-
-            //        {
-            //            sw.WriteLine($"g scenery_{index}_{solidObject.Name}");
-
-            //            foreach (var vertex in solidObject.Vertices)
-            //            {
-            //                sw.WriteLine(
-            //                    $"vt {BinaryUtil.FullPrecisionFloat(vertex.U)} {BinaryUtil.FullPrecisionFloat(vertex.V)}");
-            //            }
-
-            //            foreach (var vertex in solidObject.Vertices)
-            //            {
-            //                var position = Vector3.Transform(
-            //                    Vector3.Multiply(Vector3.Add(new Vector3(vertex.X, vertex.Y, vertex.Z), sceneryInstance.Position), sceneryInstance.Scale),
-            //                    sceneryInstance.Rotation);
-
-            //                sw.WriteLine(
-            //                    $"v {BinaryUtil.FullPrecisionFloat(position.X)} {BinaryUtil.FullPrecisionFloat(position.Y)} {BinaryUtil.FullPrecisionFloat(position.Z)}");
-            //            }
-
-            //            for (var i = 0; i < solidObject.Materials.Count; i++)
-            //            {
-            //                var faces = solidObject.Faces.Where(f => f.MaterialIndex == i).ToList();
-
-            //                foreach (var face in faces)
-            //                {
-            //                    if (solidObject.MeshDescriptor.NumVerts > 0)
-            //                    {
-            //                        if (face.Vtx1 >= solidObject.MeshDescriptor.NumVerts
-            //                            || face.Vtx2 >= solidObject.MeshDescriptor.NumVerts
-            //                            || face.Vtx3 >= solidObject.MeshDescriptor.NumVerts) break;
-            //                    }
-
-            //                    sw.WriteLine(
-            //                        $"f {vertBaseOffset + face.Vtx1 + 1}/{vertBaseOffset + face.Vtx1 + 1} {vertBaseOffset + face.Vtx2 + 1}/{vertBaseOffset + face.Vtx2 + 1} {vertBaseOffset + face.Vtx3 + 1}/{vertBaseOffset + face.Vtx3 + 1}");
-            //                }
-            //            }
-
-            //            vertBaseOffset += solidObject.Vertices.Length;
-
-            //            sw.Flush();
-            //        }
-            //    }
-            //}
         }
 
         /// <summary>
