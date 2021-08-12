@@ -188,6 +188,11 @@ namespace Common
                                 cd.Resource = new CarbonSolids().ReadSolidList(_br, (uint)chunk.Length);
                                 break;
                             }
+                            case GameDetector.Game.ProStreet:
+                            {
+                                cd.Resource = new ProStreetSolids().ReadSolidList(_br, (uint)chunk.Length);
+                                break;
+                            }
                             case GameDetector.Game.Undercover:
                             {
                                 cd.Resource = new UndercoverSolids().ReadSolidList(_br, (uint) chunk.Length);
@@ -217,6 +222,9 @@ namespace Common
                                 break;
                             case GameDetector.Game.Carbon:
                                 cd.Resource = new CarbonScenery().ReadScenery(_br, (uint) chunk.Length);
+                                break;
+                            case GameDetector.Game.ProStreet:
+                                cd.Resource = new ProStreetScenery().ReadScenery(_br, (uint) chunk.Length);
                                 break;
                         }
 
