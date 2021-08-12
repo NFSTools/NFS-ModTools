@@ -227,43 +227,45 @@ namespace TexEd
 
         private void saveToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (!File.Exists(_fileName + ".bak"))
-            {
-                File.Copy(_fileName, _fileName + ".bak");
-            }
+            MessageUtil.ShowError("Not today...");
 
-            SolidListManager slm;
+            //if (!File.Exists(_fileName + ".bak"))
+            //{
+            //    File.Copy(_fileName, _fileName + ".bak");
+            //}
 
-            switch (_currentGame)
-            {
-                case GameDetector.Game.World:
-                    slm = new World15Solids();
-                    break;
-                default: throw new Exception("nah");
-            }
+            //SolidListManager slm;
 
-            using (var outputFile = new FileStream(_fileName, FileMode.Create))
-            {
-                var chunkStream = new ChunkStream(outputFile);
+            //switch (_currentGame)
+            //{
+            //    case GameDetector.Game.World:
+            //        slm = new World15Solids();
+            //        break;
+            //    default: throw new Exception("nah");
+            //}
 
-                foreach (var chunk in _chunkManager.Chunks)
-                {
-                    if (chunk.Resource is TexturePack tpk)
-                    {
-                        chunkStream.PaddingAlignment(0x80);
-                        new DelegateTpk().WriteTexturePack(chunkStream, tpk);
-                    }
-                    else
-                    {
-                        chunkStream.BeginChunk(chunk.Id);
-                        chunkStream.Write(chunk.Data);
-                        chunkStream.EndChunk();
-                        chunkStream.PaddingAlignment(0x10);
-                    }
-                }
-            }
+            //using (var outputFile = new FileStream(_fileName, FileMode.Create))
+            //{
+            //    var chunkStream = new ChunkStream(outputFile);
 
-            MessageUtil.ShowInfo("Done!");
+            //    foreach (var chunk in _chunkManager.Chunks)
+            //    {
+            //        if (chunk.Resource is TexturePack tpk)
+            //        {
+            //            chunkStream.PaddingAlignment(0x80);
+            //            new DelegateTpk().WriteTexturePack(chunkStream, tpk);
+            //        }
+            //        else
+            //        {
+            //            chunkStream.BeginChunk(chunk.Id);
+            //            chunkStream.Write(chunk.Data);
+            //            chunkStream.EndChunk();
+            //            chunkStream.PaddingAlignment(0x10);
+            //        }
+            //    }
+            //}
+
+            //MessageUtil.ShowInfo("Done!");
         }
     }
 }
