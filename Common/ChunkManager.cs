@@ -235,6 +235,9 @@ namespace Common
                         {
                             switch (_game)
                             {
+                                case GameDetector.Game.Underground:
+                                    cd.Resource = new UndergroundScenery().ReadScenery(_br, (uint)chunk.Length);
+                                    break;
                                 case GameDetector.Game.Underground2:
                                     cd.Resource = new Underground2Scenery().ReadScenery(_br, (uint)chunk.Length);
                                     break;

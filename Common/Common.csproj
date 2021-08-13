@@ -139,6 +139,7 @@
     <Compile Include="Scenery\CarbonScenery.cs" />
     <Compile Include="Scenery\SceneryManager.cs" />
     <Compile Include="Scenery\MostWantedScenery.cs" />
+    <Compile Include="Scenery\UndergroundScenery.cs" />
     <Compile Include="Scenery\Underground2Scenery.cs" />
     <Compile Include="Textures\UndercoverTpk.cs" />
     <Compile Include="TrackStream\Data\LocationBundle.cs" />
