@@ -270,8 +270,8 @@ namespace Common.Geometry.Data
                     return new SolidMeshVertex
                     {
                         X = buffer.Data[buffer.Position + 0],
-                        Y = buffer.Data[buffer.Position + 2],
-                        Z = buffer.Data[buffer.Position + 1],
+                        Y = buffer.Data[buffer.Position + 1],
+                        Z = buffer.Data[buffer.Position + 2],
                         U = buffer.Data[buffer.Position + 4],
                         V = -buffer.Data[buffer.Position + 5],
                     };
@@ -281,8 +281,8 @@ namespace Common.Geometry.Data
                     return new SolidMeshVertex
                     {
                         X = buffer.Data[buffer.Position + 0],
-                        Y = buffer.Data[buffer.Position + 2],
-                        Z = buffer.Data[buffer.Position + 1],
+                        Y = buffer.Data[buffer.Position + 1],
+                        Z = buffer.Data[buffer.Position + 2],
                         NormalX = buffer.Data[buffer.Position + 3],
                         NormalY = buffer.Data[buffer.Position + 5],
                         NormalZ = buffer.Data[buffer.Position + 4],
@@ -293,8 +293,8 @@ namespace Common.Geometry.Data
                     return new SolidMeshVertex
                     {
                         X = buffer.Data[buffer.Position + 0],
-                        Y = buffer.Data[buffer.Position + 2],
-                        Z = buffer.Data[buffer.Position + 1],
+                        Y = buffer.Data[buffer.Position + 1],
+                        Z = buffer.Data[buffer.Position + 2],
                         NormalX = buffer.Data[buffer.Position + 4],
                         NormalY = buffer.Data[buffer.Position + 6],
                         NormalZ = buffer.Data[buffer.Position + 5],
@@ -308,8 +308,8 @@ namespace Common.Geometry.Data
                     return new SolidMeshVertex
                     {
                         X = buffer.Data[buffer.Position + 0],
-                        Y = buffer.Data[buffer.Position + 2],
-                        Z = buffer.Data[buffer.Position + 1],
+                        Y = buffer.Data[buffer.Position + 1],
+                        Z = buffer.Data[buffer.Position + 2],
                         U = buffer.Data[buffer.Position + 3],
                         V = -buffer.Data[buffer.Position + 4],
                     };
@@ -317,8 +317,8 @@ namespace Common.Geometry.Data
                     return new SolidMeshVertex
                     {
                         X = buffer.Data[buffer.Position + 0],
-                        Y = buffer.Data[buffer.Position + 2],
-                        Z = buffer.Data[buffer.Position + 1],
+                        Y = buffer.Data[buffer.Position + 1],
+                        Z = buffer.Data[buffer.Position + 2],
                         U = buffer.Data[buffer.Position + 6],
                         V = -buffer.Data[buffer.Position + 7],
                     };
@@ -326,8 +326,8 @@ namespace Common.Geometry.Data
                     return new SolidMeshVertex
                     {
                         X = buffer.Data[buffer.Position + 0],
-                        Y = buffer.Data[buffer.Position + 2],
-                        Z = buffer.Data[buffer.Position + 1],
+                        Y = buffer.Data[buffer.Position + 1],
+                        Z = buffer.Data[buffer.Position + 2],
                         U = buffer.Data[buffer.Position + 8],
                         V = -buffer.Data[buffer.Position + 9],
                     };
@@ -335,8 +335,8 @@ namespace Common.Geometry.Data
                     return new SolidMeshVertex
                     {
                         X = buffer.Data[buffer.Position + 0],
-                        Y = buffer.Data[buffer.Position + 2],
-                        Z = buffer.Data[buffer.Position + 1],
+                        Y = buffer.Data[buffer.Position + 1],
+                        Z = buffer.Data[buffer.Position + 2],
                         NormalX = buffer.Data[buffer.Position + 3],
                         NormalY = buffer.Data[buffer.Position + 5],
                         NormalZ = buffer.Data[buffer.Position + 4],

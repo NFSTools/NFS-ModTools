@@ -158,7 +158,7 @@ namespace Common.Scenery
                 var vForward = internalInstance.Rotation1;
                 var vUpwards = internalInstance.Rotation2;
 
-                instance.Scale = new Vector3(vRight.Length(), vUpwards.Length(), -vForward.Length());
+                instance.Scale = new Vector3(vRight.Length(), vUpwards.Length(), vForward.Length());
 
                 vRight = Vector3.Normalize(vRight);
                 vUpwards = Vector3.Normalize(vUpwards);
@@ -166,12 +166,31 @@ namespace Common.Scenery
 
                 if (Vector3.Dot(Vector3.Cross(vForward, vUpwards), vRight) < 0)
                 {
+                    vRight = -vRight;
                     instance.Scale = new Vector3(-instance.Scale.X, instance.Scale.Y, instance.Scale.Z);
                 }
 
-                instance.Rotation = Quaternion.CreateFromRotationMatrix(
-                    Matrix4x4.CreateWorld(internalInstance.Rotation0, internalInstance.Rotation1,
-                        internalInstance.Rotation2));
+                instance.Rotation = Quaternion.CreateFromRotationMatrix(new Matrix4x4(
+                    vRight.X,
+                    vRight.Y,
+                    vRight.Z,
+                    0,
+
+                    vForward.X,
+                    vForward.Y,
+                    vForward.Z,
+                    0,
+
+                    vUpwards.X,
+                    vUpwards.Y,
+                    vUpwards.Z,
+                    0,
+
+                    0,
+                    0,
+                    0,
+                    0
+                ));
 
                 _scenerySection.Instances.Add(instance);
             }
