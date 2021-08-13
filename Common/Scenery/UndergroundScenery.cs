@@ -155,7 +155,7 @@ namespace Common.Scenery
                 var info = BinaryUtil.ReadStruct<SceneryInfoStruct>(br);
                 _scenerySection.Infos.Add(new SceneryInfo
                 {
-                    Name = $"model-0x{info.NameHash[0]}",
+                    Name = $"model-0x{info.NameHash[0]:X8}",
                     SolidKey = info.NameHash[0]
                 });
             }
