@@ -93,7 +93,8 @@ namespace Common.Geometry
             public readonly uint Blank6;
             public readonly uint Blank7;
             public readonly uint Blank8;
-            public readonly uint NumVerts;
+            public readonly ushort NumVerts;
+            public readonly ushort Unknown2;
             public readonly uint Blank9;
             public readonly uint Blank10;
         }
