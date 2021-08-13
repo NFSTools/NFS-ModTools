@@ -89,54 +89,52 @@ namespace Common.Geometry
             public readonly uint Zero3;
         }
 
-        [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 256)]
+        [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 44)]
+        internal struct eVertexStream
+        {
+            public uint VertexDataPointer;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
+            public uint[] VertexBufferOpaque;
+
+            public uint SizeOfVertexData;
+            public byte Stream;
+            public byte LoadStreamIndex;
+            public short VertexBytesAndFlag;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
         internal struct Material
         {
-            public readonly int FirstIndex; // / 3
-            public readonly int LastIndex; // / 3
-            public readonly uint Zero1;
+            public readonly int FirstIndex; // / 3; @0x0
+            public readonly int LastIndex; // / 3; @0x4
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
+            public readonly int[] TextureParam;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
+            public readonly byte[] TextureNumber; // @0x30
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
-            public readonly int[] Unknown2;
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 7)]
-            public readonly int[] Unknown3;
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            public readonly byte[] Bytes1;
+            public readonly byte NumTextures;
+            public readonly byte LightMaterialNumber;
 
-            public readonly uint Unknown4;
+            public readonly uint TextureSortKey; // @0x3C
+            public readonly uint MeshFlags; // @0x40
+            public readonly int IdxUsed; // @0x44
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            public readonly byte[] Bytes2;
-
-            public readonly uint ID;
-            public readonly uint Flags;
-            public readonly int IdxUsed;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
-            public readonly int[] Zero2;
-
-            public readonly byte Byte4;
-            public readonly byte Unknown5; // "m_nRefersToUnk3Chunk"
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
-            public readonly byte[] Align;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
-            public readonly int[] Zero3;
-
-            public readonly int VertBufUsage;
+            public eVertexStream VertexStream; // @0x48 [0x2C bytes]
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            public readonly byte[] Flags2;
+            public readonly int[] Zero4; // @0x74
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            public readonly int[] Zero4;
+            public uint MaterialAttribKey; // @0x84
+            public uint MaterialAttribPointer; // @0x88
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 15)]
-            public readonly int[] TextureIds;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
+            public readonly int[] TextureParamMaterial; // @0x8C
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
-            public readonly int[] Zero5;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
+            public readonly uint[] TextureNameMaterial; // @0xB4
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 36)]
+            public readonly byte[] Zero5; // @0xC0
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 0x18)]
@@ -326,7 +324,7 @@ namespace Common.Geometry
             throw new NotImplementedException();
         }
 
-        private SolidObject ReadObject(BinaryReader br, long size, bool compressed, SolidObject solidObject)
+        private UndercoverObject ReadObject(BinaryReader br, long size, bool compressed, UndercoverObject solidObject)
         {
             if (solidObject == null)
                 solidObject = new UndercoverObject();
@@ -421,18 +419,34 @@ namespace Common.Geometry
                                 {
                                     var shadingGroup = BinaryUtil.ReadStruct<Material>(br);
 
-                                    Debug.Assert(shadingGroup.VertBufUsage % shadingGroup.Flags2[2] == 0);
-                                    Debug.Assert(shadingGroup.Bytes1[0] != 0xff);
+                                    //Debug.Assert(shadingGroup.Zero4[0] == 0);
+                                    //Debug.Assert(shadingGroup.Zero4[1] == 0);
+                                    //Debug.Assert(shadingGroup.Zero4[2] == 0);
+                                    //Debug.Assert(shadingGroup.Zero4[3] == 0);
+
+                                    foreach (var t in shadingGroup.Zero4)
+                                        Debug.Assert(t == 0);
+                                    foreach (var t in shadingGroup.Zero5)
+                                        Debug.Assert(t == 0);
+
+                                    //Debug.WriteLine("object {0} material {1} unknown5={2}", solidObject.Name, j, shadingGroup.LightMaterialNumber);
+
+                                    var singleVertexSize = shadingGroup.VertexStream.VertexBytesAndFlag & 0x7FFF;
+                                    Debug.Assert(shadingGroup.VertexStream.SizeOfVertexData % singleVertexSize == 0);
+                                    Debug.Assert(shadingGroup.TextureNumber[0] < solidObject.TextureHashes.Count);
+
+                                    //Debug.Assert(shadingGroup.Bytes2[2] == 1);
+                                    //Debug.Assert(shadingGroup.LightMaterialNumber == 0xff);
 
                                     var solidObjectMaterial = new UndercoverMaterial
                                     {
-                                        Flags = shadingGroup.Flags,
+                                        Flags = shadingGroup.MeshFlags,
                                         NumIndices = (uint)shadingGroup.IdxUsed,
                                         NumTris = (uint)(shadingGroup.IdxUsed / 3),
                                         Name = $"Unnamed Material #{j + 1:00}",
-                                        NumVerts = (uint)(shadingGroup.VertBufUsage / shadingGroup.Flags2[2]),
+                                        NumVerts = (uint)(shadingGroup.VertexStream.SizeOfVertexData / singleVertexSize),
                                         VertexStreamIndex = j,
-                                        TextureHash = (uint)shadingGroup.TextureIds[12]
+                                        TextureHash = solidObject.TextureHashes[shadingGroup.TextureNumber[0]]
                                     };
 
                                     solidObject.Materials.Add(solidObjectMaterial);
@@ -496,6 +510,24 @@ namespace Common.Geometry
                                 }
                                 break;
                             }
+                        case 0x134015:
+                        {
+                            var numTextureTypes = br.ReadInt32();
+                            var typeOffsets = new uint[numTextureTypes];
+                            for (int i = 0; i < numTextureTypes; i++)
+                            {
+                                typeOffsets[i] = br.ReadUInt32();
+                            }
+
+                            var typeListStart = br.BaseStream.Position;
+
+                            for (int i = 0; i < numTextureTypes; i++)
+                            {
+                                br.BaseStream.Position = typeListStart + typeOffsets[i];
+                                solidObject.TextureTypeList.Add(BinaryUtil.ReadNullTerminatedString(br));
+                            }
+                            break;
+                        }
                         default:
                             //Console.WriteLine($"0x{chunkId:X8} [{chunkSize}] @{br.BaseStream.Position}");
                             break;

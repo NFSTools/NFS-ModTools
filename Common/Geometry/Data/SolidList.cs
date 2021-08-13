@@ -356,6 +356,13 @@ namespace Common.Geometry.Data
 
     public class UndercoverObject : SolidObject
     {
+        public List<string> TextureTypeList { get; set; }
+
+        public UndercoverObject()
+        {
+            TextureTypeList = new List<string>();
+        }
+
         /// <inheritdoc />
         /// <summary>
         /// This thing is responsible for somehow deriving proper vertex data from
