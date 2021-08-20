@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Media.Imaging;
@@ -29,40 +30,6 @@ namespace Common
         }
 
         public const string DoubleFixedPoint = "0.###################################################################################################################################################################################################################################################################################################################################################";
-
-        /// <summary>
-        /// Packed floats are bizarre. Enough said.
-        /// </summary>
-        /// <param name="buf"></param>
-        /// <param name="pos"></param>
-        /// <returns></returns>
-        public static unsafe float GetPackedFloat(void* buf, int pos, int divisor = 0x8000)
-        {
-            //v50 = (signed __int16 *)sub_DB1250((_DWORD*)a1, 16);
-            //*(float*)v6 = (float)*v50 * 0.00024414062;
-            //*(float*)(v6 + 4) = (float)v50[1] * 0.00024414062;
-            //*(float*)(v6 + 8) = (float)v50[2] * 0.00024414062;
-            //*(float*)(v6 + 44) = (float)((float)v50[4] * 0.000030517578) * 8.0;
-            //v51 = (float)((float)v50[5] * 0.000030517578) * 8.0;
-            //goto LABEL_225;
-
-            //short* sb = (short*)buf + pos + index;
-
-            //return (float) *sb * 0.00024414062f;
-
-            return (float)((int)((short*)buf)[pos]) / (float)divisor;
-        }
-
-        /// <summary>
-        /// The opposite of <see cref="GetPackedFloat"/>.
-        /// </summary>
-        /// <param name="buf"></param>
-        /// <param name="pos"></param>
-        /// <returns></returns>
-        public static unsafe float PackFloat(void* buf, int pos)
-        {
-            return (float)((int)((short*)buf)[pos]) * (float)0x8000;
-        }
 
         // Note this MODIFIES THE GIVEN ARRAY then returns a reference to the modified array.
         public static byte[] Reverse(this byte[] b)
@@ -356,6 +323,51 @@ namespace Common
             }
 
             return BitConverter.ToSingle(bytes, 0);
+        }
+
+        public static Vector2 ReadVector2(BinaryReader binaryReader, bool negateX = false, bool negateY = false)
+        {
+            var x = binaryReader.ReadSingle();
+            var y = binaryReader.ReadSingle();
+            return new Vector2(negateX ? -x : x, negateY ? -y : y);
+        }
+
+        public static Vector3 ReadVector3(BinaryReader binaryReader)
+        {
+            return new Vector3(binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle());
+        }
+
+        public static Vector2 ReadShort2N(BinaryReader binaryReader, bool negateX = false, bool negateY = false)
+        {
+            var x = binaryReader.ReadInt16() / 32767f;
+            var y = binaryReader.ReadInt16() / 32767f;
+
+            return new Vector2(negateX ? -x : x, negateY ? -y : y);
+        }
+
+        public static Vector4 ReadShort4N(BinaryReader binaryReader, bool negateX = false, bool negateY = false, bool negateZ = false, bool negateW = false)
+        {
+            var x = binaryReader.ReadInt16() / 32767f;
+            var y = binaryReader.ReadInt16() / 32767f;
+            var z = binaryReader.ReadInt16() / 32767f;
+            var w = binaryReader.ReadInt16() / 32767f;
+
+            return new Vector4(
+                negateX ? -x : x, 
+                negateY ? -y : y,
+                negateZ ? -z : z,
+                negateW ? -w : w);
+        }
+
+        public static Vector2 ReadUV(BinaryReader binaryReader, bool packed = false)
+        {
+            return packed ? ReadShort2N(binaryReader, negateY: true) * 32 : ReadVector2(binaryReader, negateY: true);
+        }
+
+        public static Vector3 ReadNormal(BinaryReader binaryReader, bool packed = false)
+        {
+            var vec = packed ? ReadShort4N(binaryReader) : new Vector4(ReadVector3(binaryReader), 1);
+            return new Vector3(vec.X, vec.Y, vec.Z);
         }
     }
 }
