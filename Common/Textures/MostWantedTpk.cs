@@ -61,30 +61,6 @@ namespace Common.Textures
             public short ScaleT;
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 20)]
             public byte[] Padding2;
-
-            //public uint Hash;
-
-            //public uint Type;
-
-            //private int blank2;
-
-            //public uint DataOffset;
-
-            //public uint PaletteOffset;
-
-            //public uint DataSize, PaletteSize, PitchOrLinearSize;
-
-            //public ushort Width, Height;
-
-            //public uint D1;
-
-            //public ushort D2;
-
-            //public byte D3; // mipmap?
-            //public byte D4;
-
-            //[MarshalAs(UnmanagedType.ByValArray, SizeConst = 44)]
-            //public byte[] RestOfData;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -153,8 +129,6 @@ namespace Common.Textures
                                 _texturePack.Name = new string(br.ReadChars(28)).Trim('\0');
                                 _texturePack.PipelinePath = new string(br.ReadChars(64)).Trim('\0');
                                 _texturePack.Hash = br.ReadUInt32();
-                                _texturePack.TpkOffset = _offset;
-                                _texturePack.TpkSize = _size;
 
                                 break;
                             }
@@ -277,12 +251,12 @@ namespace Common.Textures
                 }
             }
 
-            _texturePack.Textures[_texturePack.NumTextures - 1].Data = new byte[outData.Length - 156];
+            _texturePack.Textures[_texturePack.Textures.Count - 1].Data = new byte[outData.Length - 156];
 
-            Array.ConstrainedCopy(outData, 0, _texturePack.Textures[_texturePack.NumTextures - 1].Data, 0,
+            Array.ConstrainedCopy(outData, 0, _texturePack.Textures[_texturePack.Textures.Count - 1].Data, 0,
                 outData.Length - 156);
 
-            _texturePack.Textures[_texturePack.NumTextures - 1].Format = BitConverter.ToUInt32(outData, outData.Length - 12);
+            _texturePack.Textures[_texturePack.Textures.Count - 1].Format = BitConverter.ToUInt32(outData, outData.Length - 12);
         }
     }
 }

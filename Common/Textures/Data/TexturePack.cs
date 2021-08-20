@@ -64,30 +64,16 @@ namespace Common.Textures.Data
 
         public uint PitchOrLinearSize { get; set; }
 
-        public uint NameLength { get; set; }
-
         public uint Format { get; set; }
         public TextureCompressionType CompressionType { get; set; }
 
-        public Dictionary<string, object> Properties = new Dictionary<string, object>();
-
-        public string Dimensions => $"{Width}x{Height}";
-
-        private byte[] _cachedDds = new byte[0];
-
         /// <summary>
-        /// Generates a DDS byte array.
+        /// Writes DDS data to the given stream.
         /// </summary>
         /// <returns></returns>
-        public byte[] GenerateImage()
+        public void GenerateImage(Stream stream)
         {
-            if (_cachedDds.Length > 0)
-            {
-                return _cachedDds;
-            }
-
-            var ms = new MemoryStream();
-            var bw = new BinaryWriter(ms);
+            var bw = new BinaryWriter(stream);
 
             var dh = new DDSHeader();
             dh.Init(this);
@@ -116,25 +102,12 @@ namespace Common.Textures.Data
             {
                 bw.Write(Data);
             }
-
-            var outData = ms.ToArray();
-
-            ms.Dispose();
-            bw.Dispose();
-
-            _cachedDds = outData;
-
-            return outData;
         }
 
         public void DumpToFile(string path)
         {
-            var data = GenerateImage();
-
             using (var fs = new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
-            {
-                fs.Write(data, 0, data.Length);
-            }
+                GenerateImage(fs);
         }
     }
 
@@ -148,17 +121,7 @@ namespace Common.Textures.Data
 
         public uint Version { get; set; }
 
-        public uint TpkSize { get; set; }
-
-        public uint TpkOffset { get; set; }
-
-        public string Offset => $"0x{TpkOffset:X8}";
-
-        public string Size => ByteSize.FromBytes(TpkSize).ToString();
-
         public List<Texture> Textures { get; set; } = new List<Texture>();
-
-        public int NumTextures => Textures.Count;
 
         public Texture Find(uint hash) => Textures.Find(t => t.TexHash == hash);
         public Texture Find(string name) => Textures.Find(t => t.Name.Contains(name));

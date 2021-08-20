@@ -24,42 +24,43 @@ namespace Common.Textures
         private struct TextureStruct
         {
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 12)]
-            private byte[] blank; // 12
+            private byte[] blank;
 
-            public uint Hash; // 16
-
-            public uint Type; // 20
-
-            public uint DataOffset; // 24
-
-            public uint Unk1; // 28
-
-            public uint DataSize; // 32
-
-            public uint Unk2; // 36
-
-            public uint Scaler; // 40
-
-            public ushort Width; // 42
-
-            public ushort Height; // 44
-
-            public byte MipMapCount; // 45
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-            public byte[] Unk3; // 48
-
-            public uint Flags; // 52
-
-            public uint Unk4; // 56
-            public uint Unk5; // 60
-            public uint Unk6; // 64
-            public uint Unk7; // 68
-            public uint Unk8; // 72
-            public uint Unk9; // 76
-            public uint Unk10; // 80
-            public uint Unk11; // 84
-            public uint Unk12; // 88
+            public uint NameHash;
+            public uint ClassNameHash;
+            public uint ImagePlacement;
+            public uint PalettePlacement;
+            public uint ImageSize;
+            public uint PaletteSize;
+            public uint BaseImageSize;
+            public ushort Width;
+            public ushort Height;
+            public byte ShiftWidth;
+            public byte ShiftHeight;
+            public TextureCompressionType ImageCompressionType;
+            public byte PaletteCompressionType;
+            public ushort NumPaletteEntries;
+            public byte NumMipMapLevels;
+            public byte TilableUV;
+            public byte BiasLevel;
+            public byte RenderingOrder;
+            public byte ScrollType;
+            public byte UsedFlag;
+            public byte ApplyAlphaSorting;
+            public byte AlphaUsageType;
+            public byte AlphaBlendType;
+            public byte Flags;
+            public byte MipmapBiasType;
+            public byte Padding;
+            public short ScrollTimeStep;
+            public short ScrollSpeedS;
+            public short ScrollSpeedT;
+            public short OffsetS;
+            public short OffsetT;
+            public short ScaleS;
+            public short ScaleT;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 12)]
+            public byte[] Padding2;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -118,8 +119,6 @@ namespace Common.Textures
                                 _texturePack.Name = new string(br.ReadChars(28)).Trim('\0');
                                 _texturePack.PipelinePath = new string(br.ReadChars(64)).Trim('\0');
                                 _texturePack.Hash = br.ReadUInt32();
-                                _texturePack.TpkOffset = _offset;
-                                _texturePack.TpkSize = _size;
 
                                 break;
                             }
@@ -266,6 +265,11 @@ namespace Common.Textures
                                     {
                                         br.BaseStream.Position = basePos + t.DataOffset;
                                         br.Read(t.Data, 0, t.Data.Length);
+                                        if (t.PaletteSize > 0)
+                                        {
+                                            br.BaseStream.Position = basePos + t.PaletteOffset;
+                                            br.Read(t.Palette, 0, t.Palette.Length);
+                                        }
                                     }
                                 }
 
@@ -300,18 +304,21 @@ namespace Common.Textures
                 Width = texture.Width,
                 Height = texture.Height,
                 Name = name,
-                Data = new byte[texture.DataSize],
-                DataSize = texture.DataSize,
-                DataOffset = texture.DataOffset,
-                MipMapCount = texture.MipMapCount,
-                TexHash = texture.Hash,
-                TypeHash = texture.Type,
+                Data = new byte[texture.ImageSize],
+                DataSize = texture.ImageSize,
+                DataOffset = texture.ImagePlacement,
+                MipMapCount = texture.NumMipMapLevels,
+                TexHash = texture.NameHash,
+                TypeHash = texture.ClassNameHash,
                 Format = 0,
-                PitchOrLinearSize = texture.DataSize,
-                NameLength = nameLength
+                PitchOrLinearSize = texture.BaseImageSize,
+                CompressionType = texture.ImageCompressionType,
+                PaletteOffset = texture.PalettePlacement,
+                Palette = new byte[texture.PaletteSize],
+                PaletteSize = texture.PaletteSize
             });
 
-            return _texturePack.Textures[_texturePack.NumTextures - 1];
+            return _texturePack.Textures[_texturePack.Textures.Count - 1];
         }
     }
 }

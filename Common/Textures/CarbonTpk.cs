@@ -119,8 +119,6 @@ namespace Common.Textures
                                 _texturePack.Name = new string(br.ReadChars(28)).Trim('\0');
                                 _texturePack.PipelinePath = new string(br.ReadChars(64)).Trim('\0');
                                 _texturePack.Hash = br.ReadUInt32();
-                                _texturePack.TpkOffset = _offset;
-                                _texturePack.TpkSize = _size;
 
                                 break;
                             }
@@ -260,7 +258,7 @@ namespace Common.Textures
                             }
                         case DDSChunkId:
                             {
-                                if (chunkSize / _texturePack.NumTextures == 0x18)
+                                if (chunkSize / _texturePack.Textures.Count == 0x18)
                                 {
                                     foreach (var t in _texturePack.Textures)
                                     {
@@ -308,10 +306,9 @@ namespace Common.Textures
                 TypeHash = texture.ClassNameHash,
                 Format = 0,
                 PitchOrLinearSize = texture.BaseImageSize,
-                NameLength = nameLength
             });
 
-            return _texturePack.Textures[_texturePack.NumTextures - 1];
+            return _texturePack.Textures[_texturePack.Textures.Count - 1];
         }
     }
 }

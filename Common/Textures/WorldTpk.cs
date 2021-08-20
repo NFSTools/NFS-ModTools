@@ -20,35 +20,47 @@ namespace Common.Textures
         private const uint DDSChunkId = 0x33310005;
         private const uint TexDataChunkId = 0x33320002;
 
-        [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 124)]
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
         private struct TextureStruct
         {
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 12)]
             private byte[] blank;
 
-            public uint TexHash, TypeHash;
+            public uint NameHash;
+            public uint ClassNameHash;
+            public uint SurfaceNameHash;
+            public uint ImageSize;
+            public uint BaseImageSize;
+            public uint Width;
+            public uint Height;
+            public uint ShiftWidth;
+            public uint ShiftHeight;
+            public TextureCompressionType ImageCompressionType;
+            public byte NumMipMapLevels;
+            public byte TilableUV;
+            public byte BiasLevel;
+            public byte RenderingOrder;
+            public byte ScrollType;
+            public byte UsedFlag;
+            public byte ApplyAlphaSorting;
+            public byte AlphaUsageType;
+            public byte AlphaBlendType;
+            public byte Flags;
+            public byte MipmapBiasType;
+            public short ScrollTimeStep;
+            public short ScrollSpeedS;
+            public short ScrollSpeedT;
+            public short OffsetS;
+            public short OffsetT;
+            public short ScaleS;
+            public short ScaleT;
+            public short Pad;
+            public uint DataSize0;
+            public uint DataOffset0;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1 + 3*4 + 2)]
+            public uint[] Padding;
 
-            public int Unknown1;
-
-            public uint DataSize;
-
-            public int Unknown2;
-
-            public uint Width, Height, MipMapCount;
-
-            public int Unknown3, Unknown4;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 24)]
-            public byte[] Unknown5;
-
-            public int Unknown6;
-
-            public uint DataOffset;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 60)]
-            public byte[] Unknown7;
-
-            public byte NameLength;
+            public byte DebugNameSize;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -83,151 +95,7 @@ namespace Common.Textures
 
         public override void WriteTexturePack(ChunkStream cs, TexturePack texturePack)
         {
-            cs.BeginChunk(0xb3300000);
-
-            // pre null
-            cs.BeginChunk(0x00000000);
-            cs.Write(new byte[0x30]);
-            cs.EndChunk();
-
-            // tpk capsule
-            cs.BeginChunk(0xb3310000);
-
-            {
-                // tpk info
-                cs.BeginChunk(0x33310001);
-                cs.Write(0x9);
-                cs.Write(new FixedLenString(texturePack.Name, 28));
-                cs.Write(new FixedLenString(texturePack.PipelinePath, 64));
-                cs.Write(texturePack.Hash);
-                cs.Write(new byte[0x18]);
-
-                cs.EndChunk();
-
-                // hash table
-                cs.BeginChunk(0x33310002);
-                foreach (var u in texturePack.Textures.Select(t => t.TexHash))
-                {
-                    cs.Write(u);
-                    cs.Write(0x00000000);
-                }
-                cs.EndChunk();
-
-                // textures
-                cs.BeginChunk(0x33310004);
-
-                {
-                    var dataOffset = 0u;
-
-                    foreach (var texture in texturePack.Textures)
-                    {
-                        var texStruct = new TextureStruct
-                        {
-                            TexHash = texture.TexHash,
-                            TypeHash = texture.TypeHash,
-                            DataOffset = dataOffset,
-                            Height = texture.Height,
-                            Width = texture.Width,
-                            MipMapCount = texture.MipMapCount,
-                            DataSize = (uint)texture.Data.Length,
-                            Unknown2 = texture.Data.Length,
-                            Unknown6 = (int) texture.PitchOrLinearSize,
-                        };
-
-                        var padding = 128 - texture.Data.Length % 128;
-
-                        if (padding < 48)
-                        {
-                            padding = 48;
-                        }
-
-                        dataOffset += (uint)texture.Data.Length;
-                        dataOffset += (uint)padding;
-
-                        var namePad = 4 - texture.Name.Length % 4;
-                        texStruct.NameLength = (byte)(texture.Name.Length + namePad + 1);
-                        cs.WriteStruct(texStruct);
-                        cs.Write(Encoding.ASCII.GetBytes(texture.Name));
-                        cs.Write((byte) 0);
-                        cs.Write(new byte[namePad]);
-                    }
-                }
-
-                cs.EndChunk();
-
-                // DDS compression info
-                cs.BeginChunk(0x33310005);
-
-                foreach (var texture in texturePack.Textures)
-                {
-                    cs.Write(new byte[0xC]);
-                    cs.Write((uint)texture.Format);
-                    cs.Write(new byte[0x10]);
-                }
-
-                cs.EndChunk();
-            }
-
-            cs.EndChunk();
-
-            // Data capsule
-            {
-                cs.PaddingAlignment(0x80);
-
-                cs.BeginChunk(0xb3320000);
-
-                cs.BeginChunk(0x33330001);
-                cs.Write(new byte[4]);
-                cs.EndChunk();
-
-                cs.BeginChunk(0x33320001);
-                cs.Write(0x0);
-                cs.Write(0x0);
-                cs.Write(0x2);
-                cs.Write(texturePack.Hash);
-                cs.Write(0x0);
-                cs.Write(0x0);
-                cs.Write(new byte[56]);
-                cs.EndChunk();
-
-                cs.BeginChunk(0x00);
-                cs.Write(new byte[0xC]);
-                cs.EndChunk();
-
-                cs.BeginChunk(0x33320002);
-
-                for (var i = 0; i < 0x78; i++)
-                {
-                    cs.Write((byte)0x11);
-                }
-
-                for (var i = 0; i < texturePack.Textures.Count; i++)
-                {
-                    var texture = texturePack.Textures[i];
-                    cs.Write(texture.Data);
-
-                    if (i != texturePack.Textures.Count - 1)
-                    {
-                        if (texture.Data.Length % 128 != 0)
-                        {
-                            var padding = 128 - texture.Data.Length % 128;
-
-                            if (padding < 48)
-                            {
-                                padding = 48;
-                            }
-
-                            cs.Write(new byte[padding]);
-                        }
-                    }
-                }
-
-                cs.EndChunk();
-
-                cs.EndChunk();
-            }
-
-            cs.EndChunk();
+            throw new NotImplementedException();
         }
 
         protected override void ReadChunks(BinaryReader br, uint containerSize)
@@ -254,8 +122,6 @@ namespace Common.Textures
                                 _texturePack.Name = new string(br.ReadChars(28)).Trim('\0');
                                 _texturePack.PipelinePath = new string(br.ReadChars(64)).Trim('\0');
                                 _texturePack.Hash = br.ReadUInt32();
-                                _texturePack.TpkOffset = _offset;
-                                _texturePack.TpkSize = _size;
 
                                 break;
                             }
@@ -310,11 +176,11 @@ namespace Common.Textures
                                             ReadTexture(mbr);
                                             mbr.BaseStream.Seek(-20, SeekOrigin.End);
 
-                                            _texturePack.Textures[_texturePack.NumTextures - 1].Format = mbr.ReadUInt32();
-                                            Array.Clear(_texturePack.Textures[_texturePack.NumTextures - 1].Data, 0, _texturePack.Textures[_texturePack.NumTextures - 1].Data.Length);
+                                            _texturePack.Textures[_texturePack.Textures.Count - 1].Format = mbr.ReadUInt32();
+                                            Array.Clear(_texturePack.Textures[_texturePack.Textures.Count - 1].Data, 0, _texturePack.Textures[_texturePack.Textures.Count - 1].Data.Length);
                                             mbr.BaseStream.Position = 0;
 
-                                            _texturePack.Textures[_texturePack.NumTextures - 1].Data = mbr.ReadBytes((uint)(mbr.BaseStream.Length - 212));
+                                            _texturePack.Textures[_texturePack.Textures.Count - 1].Data = mbr.ReadBytes((uint)(mbr.BaseStream.Length - 212));
                                         }
                                     }
                                     else
@@ -326,16 +192,16 @@ namespace Common.Textures
                                             ReadTexture(mbr);
                                             mbr.BaseStream.Seek(-20, SeekOrigin.End);
 
-                                            _texturePack.Textures[_texturePack.NumTextures - 1].Format = mbr.ReadUInt32();
+                                            _texturePack.Textures[_texturePack.Textures.Count - 1].Format = mbr.ReadUInt32();
                                         }
 
-                                        _texturePack.Textures[_texturePack.NumTextures - 1].DataSize = 0;
+                                        _texturePack.Textures[_texturePack.Textures.Count - 1].DataSize = 0;
 
                                         blocks.RemoveAt(blocks.Count - 2);
 
-                                        _texturePack.Textures[_texturePack.NumTextures - 1].Data =
+                                        _texturePack.Textures[_texturePack.Textures.Count - 1].Data =
                                             blocks.SelectMany(b => b).ToArray();
-                                        _texturePack.Textures[_texturePack.NumTextures - 1].DataSize =
+                                        _texturePack.Textures[_texturePack.Textures.Count - 1].DataSize =
                                             (uint) blocks.SelectMany(b => b).Count();
                                     }
 
@@ -404,22 +270,22 @@ namespace Common.Textures
         private Texture ReadTexture(BinaryReader br)
         {
             var texture = BinaryUtil.ReadStruct<TextureStruct>(br);
-            var name = new string(br.ReadChars(texture.NameLength)).TrimEnd('\0');
+            var name = new string(br.ReadChars(texture.DebugNameSize)).TrimEnd('\0');
 
             var realTexture = new Texture
             {
                 Width = texture.Width,
                 Height = texture.Height,
                 Name = name,
-                Data = new byte[texture.Unknown2],
-                DataSize = (uint) texture.Unknown2,
-                DataOffset = texture.DataOffset,
-                MipMapCount = texture.MipMapCount,
-                TexHash = texture.TexHash,
-                TypeHash = texture.TypeHash,
+                Data = new byte[texture.ImageSize],
+                DataSize = texture.DataSize0,
+                DataOffset = texture.DataOffset0,
+                MipMapCount = texture.NumMipMapLevels,
+                TexHash = texture.NameHash,
+                TypeHash = texture.ClassNameHash,
                 Format = 0,
-                PitchOrLinearSize = (uint)texture.Unknown6,
-                NameLength = texture.NameLength
+                PitchOrLinearSize = texture.BaseImageSize,
+                CompressionType = texture.ImageCompressionType
             };
 
             _texturePack.Textures.Add(realTexture);
