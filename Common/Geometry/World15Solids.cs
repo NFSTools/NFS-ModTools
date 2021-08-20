@@ -40,7 +40,7 @@ namespace Common.Geometry
         {
             public uint Flags;
             public uint TextureHash;
-            public int EffectId;
+            public int EffectID;
             public int Unknown2;
 
             public Vector3 BoundsMin;
@@ -58,7 +58,7 @@ namespace Common.Geometry
             public uint NumVerts;
             public uint NumIndices;
             public uint NumTris;
-            public uint IndexOffset; // sequential addition
+            public uint IndexOffset;
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 36)]
             public byte[] Unknown5;
@@ -305,184 +305,10 @@ namespace Common.Geometry
         /// <param name="solidList"></param>
         public override void WriteSolidList(ChunkStream chunkStream, SolidList solidList)
         {
-            chunkStream.PaddingAlignment(0x80);
-
-            // 00 40 13 80 - root container
-            chunkStream.BeginChunk(0x80134000);
-
-            {
-                chunkStream.PaddingAlignment(0x10);
-
-                // 01 40 13 80 - data container
-                chunkStream.BeginChunk(0x80134001);
-
-                {
-                    // 02 40 13 00 - list info
-                    chunkStream.BeginChunk(0x00134002);
-
-                    var info = new SolidListInfo
-                    {
-                        Marker = 0x1D,
-                        NumObjects = solidList.Objects.Count,
-                        ClassType = solidList.ClassType,
-                        PipelinePath = solidList.PipelinePath,
-                        UnknownOffset = 0x80 // ???
-                    };
-
-                    chunkStream.WriteStruct(info);
-                    chunkStream.Write(new byte[0x1C]);
-
-                    chunkStream.EndChunk();
-
-                    // 03 40 13 00 - hash list
-                    chunkStream.BeginChunk(0x00134003);
-
-                    foreach (var solidObject in solidList.Objects.OrderBy(o => o.Hash))
-                    {
-                        chunkStream.Write(solidObject.Hash);
-                        chunkStream.Write(0x00000000);
-                    }
-
-                    chunkStream.EndChunk();
-                }
-
-                // 08 40 13 80 - empty
-                chunkStream.BeginChunk(0x80134008);
-                chunkStream.EndChunk();
-
-                chunkStream.EndChunk();
-
-                foreach (var solidObject in solidList.Objects)
-                {
-                    {
-                        // 10 40 13 80 - object container
-                        chunkStream.BeginChunk(0x80134010);
-                        {
-                            // 11 40 13 00 - object info
-                            chunkStream.BeginChunk(0x00134011);
-                            chunkStream.NextAlignment(0x10, true);
-
-                            var objHeader = new ObjectHeader
-                            {
-                                BoundsMin = solidObject.MinPoint,
-                                BoundsMax = solidObject.MaxPoint,
-                                NumTris = solidObject.NumTris,
-                                ObjectHash = solidObject.Hash,
-                                InitialData = {[12] = 0x16}
-                            };
-
-                            chunkStream.WriteStruct(objHeader);
-
-                            var fls = new FixedLenString(solidObject.Name);
-                            chunkStream.Write(fls);
-
-                            chunkStream.EndChunk();
-
-                            // 12 40 13 00 - texture list
-                            chunkStream.BeginChunk(0x00134012);
-
-                            foreach (var textureHash in solidObject.TextureHashes)
-                            {
-                                chunkStream.Write(textureHash);
-                                chunkStream.Write(0x00000000);
-                            }
-
-                            chunkStream.EndChunk();
-
-                            // 00 41 13 80 - mesh data
-                            chunkStream.BeginChunk(0x80134100);
-                            {
-                                // 00 49 13 00 - mesh descriptor
-                                chunkStream.BeginChunk(0x00134900);
-                                chunkStream.NextAlignment(0x10, true);
-
-                                var md = new MeshDescriptor
-                                {
-                                    Flags = solidObject.MeshDescriptor.Flags,
-                                    MaterialShaderNum = solidObject.MeshDescriptor.NumMats,
-                                    NumTriIndex = solidObject.MeshDescriptor.NumIndices,
-                                    NumTriangles = solidObject.MeshDescriptor.NumTris,
-                                    NumVertexStreams = solidObject.MeshDescriptor.NumVertexStreams,
-                                    Unknown1 = 0x12
-                                };
-
-                                chunkStream.WriteStruct(md);
-                                chunkStream.EndChunk();
-
-                                // 02 4B 13 00 - materials
-                                chunkStream.BeginChunk(0x00134B02);
-                                chunkStream.NextAlignment(0x10, true);
-
-                                var indexOffset = 0u;
-
-                                foreach (var solidObjectMaterial in solidObject.Materials)
-                                {
-                                    var material = (World15Material)solidObjectMaterial;
-                                    var matStruct = new Material
-                                    {
-                                        Flags = material.Flags,
-                                        EffectId = material.Unknown1,
-                                        TextureAssignments = new byte[4],
-                                        BoundsMin = material.MinPoint,
-                                        BoundsMax = material.MaxPoint
-                                    };
-
-                                    matStruct.IndexOffset = indexOffset;
-                                    matStruct.NumIndices = material.NumIndices;
-                                    matStruct.NumTris = material.NumTris;
-                                    matStruct.NumVerts = material.NumVerts;
-                                    matStruct.TextureAssignments[0] = material.TextureIndex;
-                                    matStruct.TextureAssignments[1] = 0xff;
-                                    matStruct.TextureHash = material.TextureHash;
-
-                                    chunkStream.WriteStruct(matStruct);
-
-                                    indexOffset += material.NumIndices;
-
-                                    chunkStream.GetStream().Seek(116 - Marshal.SizeOf<Material>(), SeekOrigin.Current);
-                                }
-
-                                chunkStream.EndChunk();
-
-                                // Write faces
-                                chunkStream.BeginChunk(0x00134B03);
-                                chunkStream.NextAlignment(0x10, true);
-
-                                foreach (var face in solidObject.Faces)
-                                {
-                                    chunkStream.Write(face.ToArray());
-                                }
-
-                                chunkStream.EndChunk();
-
-                                // Write vertex buffers
-                                foreach (var vertexBuffer in solidObject.VertexBuffers)
-                                {
-                                    chunkStream.BeginChunk(0x00134B01);
-                                    chunkStream.NextAlignment(0x10, true);
-                                    chunkStream.Write(vertexBuffer.Data.ToArray());
-                                    chunkStream.EndChunk();
-                                }
-
-                                // Write material names
-                                foreach (var material in solidObject.Materials)
-                                {
-                                    chunkStream.BeginChunk(0x00134C02);
-                                    chunkStream.Write(new FixedLenString(material.Name));
-                                    chunkStream.EndChunk();
-                                }
-                            }
-                            chunkStream.EndChunk();
-                        }
-                        chunkStream.EndChunk();
-                    }
-                }
-            }
-
-            chunkStream.EndChunk();
+            throw new NotImplementedException();
         }
 
-        private SolidObject ReadObject(BinaryReader br, long size, bool unpackFloats, SolidObject solidObject)
+        private World15Object ReadObject(BinaryReader br, long size, bool unpackFloats, World15Object solidObject)
         {
             if (solidObject == null)
                 solidObject = new World15Object();
@@ -563,60 +389,36 @@ namespace Common.Geometry
                             {
                                 Debug.Assert(chunkSize % solidObject.MeshDescriptor.NumMats == 0);
 
-                                var lastUnknown1 = -1;
-                                var lastStreamIdx = -1;
+                                var streamIndex = 0;
+                                var lastEffectID = 0;
 
                                 for (var j = 0; j < solidObject.MeshDescriptor.NumMats; j++)
                                 {
                                     var shadingGroup = BinaryUtil.ReadStruct<Material>(br);
-                                    byte texIdx = 0;
 
-                                    if (solidObject.TextureHashes.Count > shadingGroup.TextureAssignments[0])
+                                    if (j > 0 && shadingGroup.EffectID != lastEffectID)
                                     {
-                                        texIdx = shadingGroup.TextureAssignments[0];
+                                        streamIndex++;
                                     }
 
                                     var solidObjectMaterial = new World15Material
                                     {
                                         Flags = shadingGroup.Flags,
                                         NumIndices = shadingGroup.NumIndices == 0 ? shadingGroup.NumTris * 3 : shadingGroup.NumIndices,
-                                        NumTris = shadingGroup.NumTris,
                                         MinPoint = shadingGroup.BoundsMin,
                                         MaxPoint = shadingGroup.BoundsMax,
                                         Name = $"Unnamed Material #{j + 1:00}",
                                         NumVerts = shadingGroup.NumVerts,
-                                        TextureHash = solidObject.TextureHashes[texIdx],
-                                        TextureIndex = texIdx,
-                                        Unknown1 = shadingGroup.EffectId
+                                        TextureHash = solidObject.TextureHashes[shadingGroup.TextureAssignments[0]],
+                                        EffectID = shadingGroup.EffectID,
+                                        VertexStreamIndex = streamIndex
                                     };
-
-                                    int vsIdx;
-
-                                    if (solidObject.MeshDescriptor.NumMats == solidObject.MeshDescriptor.NumVertexStreams)
-                                    {
-                                        vsIdx = j;
-                                    }
-                                    else if (j == 0)
-                                    {
-                                        vsIdx = 0;
-                                    }
-                                    else if (shadingGroup.EffectId == lastUnknown1)
-                                    {
-                                        vsIdx = lastStreamIdx;
-                                    }
-                                    else
-                                    {
-                                        vsIdx = lastStreamIdx + 1;
-                                    }
-
-                                    solidObjectMaterial.VertexStreamIndex = vsIdx;
 
                                     solidObject.Materials.Add(solidObjectMaterial);
 
                                     solidObject.MeshDescriptor.NumVerts += shadingGroup.NumVerts;
 
-                                    lastUnknown1 = shadingGroup.EffectId;
-                                    lastStreamIdx = vsIdx;
+                                    lastEffectID = shadingGroup.EffectID;
                                 }
 
                                 break;
@@ -632,19 +434,8 @@ namespace Common.Geometry
                             }
                         case 0x134b01:
                             {
-                                var vb = new VertexBuffer
-                                {
-                                    Data = new float[chunkSize >> 2]
-                                };
-
-                                var pos = 0;
-
-                                while (br.BaseStream.Position < chunkEndPos)
-                                {
-                                    var v = br.ReadSingle();
-
-                                    vb.Data[pos++] = v;
-                                }
+                                var vb = new byte[chunkSize];
+                                Debug.Assert(br.Read(vb, 0, vb.Length) == chunkSize);
 
                                 solidObject.VertexBuffers.Add(vb);
 
@@ -652,30 +443,12 @@ namespace Common.Geometry
                             }
                         case 0x134b03:
                             {
-                                Array.Resize(ref solidObject.Faces, (int)solidObject.Materials.Sum(m => m.NumTris));
-
-                                var faceIndex = 0;
-
                                 foreach (var material in solidObject.Materials)
                                 {
-                                    for (var j = 0; j < material.NumTris; j++)
+                                    material.Indices = new ushort[material.NumIndices];
+                                    for (var j = 0; j < material.NumIndices; j++)
                                     {
-                                        var f1 = br.ReadUInt16();
-                                        var f2 = br.ReadUInt16();
-                                        var f3 = br.ReadUInt16();
-
-                                        solidObject.Faces[faceIndex++] = new SolidMeshFace
-                                        {
-                                            Vtx1 = f1,
-                                            Vtx2 = f2,
-                                            Vtx3 = f3
-                                        };
-                                        //solidObject.Faces.Add(new SolidMeshFace
-                                        //{
-                                        //    Vtx1 = f1,
-                                        //    Vtx2 = f2,
-                                        //    Vtx3 = f3
-                                        //});
+                                        material.Indices[j] = br.ReadUInt16();
                                     }
                                 }
 
@@ -690,8 +463,39 @@ namespace Common.Geometry
                                 }
                                 break;
                             }
+                        case 0x134c06:
+                        {
+                            Debug.Assert(chunkSize % 0x40 == 0);
+
+                            for (int i = 0; i < chunkSize / 0x40; i++)
+                            {
+                                solidObject.MorphMatrices.Add(BinaryUtil.ReadStruct<Matrix4x4>(br));
+                            }
+
+                            break;
+                        }
+                        case 0x134c05:
+                        {
+                            Debug.Assert(chunkSize % 0x10 == 0);
+                            var morphList = new List<World15Object.MorphInfo>();
+
+                            for (int i = 0; i < chunkSize / 0x10; i++)
+                            {
+                                morphList.Add(new World15Object.MorphInfo
+                                {
+                                    VertexStartIndex = br.ReadInt32(),
+                                    VertexEndIndex = br.ReadInt32(),
+                                    MorphMatrixIndex = br.ReadInt32()
+                                });
+                                br.ReadInt32();
+                            }
+
+                            solidObject.MorphLists.Add(morphList);
+
+                            break;
+                        }
                         default:
-                            //Console.WriteLine($"0x{chunkId:X8} [{chunkSize}] @{br.BaseStream.Position}");
+                            //Debug.WriteLine($"unhandled chunk in World15Solids: 0x{chunkId:X8} [{chunkSize}] @{br.BaseStream.Position:X}");
                             break;
                     }
                 }

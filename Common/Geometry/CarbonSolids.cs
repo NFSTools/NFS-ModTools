@@ -73,35 +73,46 @@ namespace Common.Geometry
         [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 144)]
         private struct SolidObjectShadingGroup
         {
-            public readonly Vector3 BoundsMin;
+            public readonly Vector3 BoundsMin; // @0x0
 
-            public readonly Vector3 BoundsMax;
+            public readonly Vector3 BoundsMax; // @0xC
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-            public readonly byte[] TextureIndices;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
+            public readonly byte[] TextureNumber; // @0x18
+
+            public readonly byte LightMaterialNumber; // @0x1D
+
+            public readonly ushort Unknown; // @0x1E
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
-            private readonly byte[] Blank;
+            private readonly byte[] Blank; // @0x20
 
-            public readonly uint Unknown1;
+            public readonly ushort EffectID; // @0x30
+            public readonly ushort Unknown2; // @0x32
 
-            public readonly uint Unknown2;
+            public readonly uint Unknown3; // @0x34
 
-            public readonly uint Unknown3;
+            public readonly uint Flags; // @0x38
 
-            public readonly uint UnknownId;
+            public readonly uint TextureSortKey; // @0x3C
 
-            public readonly uint NumVerts;
-            public readonly uint Flags;
+            public readonly uint NumVerts; // @0x40
+            public readonly uint Unknown4; // @0x44
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
-            private readonly uint[] Blank2;
+            private readonly uint[] Blank2; // @0x48
 
-            public readonly uint NumTris;
-            public readonly uint BaseIdx;
+            public readonly uint NumTris; // @0x60
+            public readonly uint IndexOffset; // @0x64
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
-            private readonly uint[] Blank3;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
+            private readonly uint[] Blank3; // @0x68
+
+            public readonly uint NumIndices; // @0x7C
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+            private readonly uint[] Blank4; // @0x80
+            // end @ 0x90
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -386,108 +397,59 @@ namespace Common.Geometry
                                 Debug.Assert(chunkSize % 144 == 0);
                                 var numMats = chunkSize / 144;
 
-                                var lastUnknown1 = -1;
-                                var lastStreamIdx = -1;
+                                var streamIndex = 0;
+                                var lastEffectID = 0u;
 
                                 for (var j = 0; j < numMats; j++)
                                 {
                                     var shadingGroup = BinaryUtil.ReadStruct<SolidObjectShadingGroup>(br);
-                                    var texIdx = 0;
 
-                                    if (solidObject.TextureHashes.Count > shadingGroup.TextureIndices[0])
+                                    if (j > 0 && shadingGroup.EffectID != lastEffectID)
                                     {
-                                        texIdx = shadingGroup.TextureIndices[0];
+                                        streamIndex++;
                                     }
 
                                     var solidObjectMaterial = new CarbonMaterial
                                     {
                                         Flags = shadingGroup.Flags,
                                         NumIndices = shadingGroup.NumTris * 3,
-                                        NumTris = shadingGroup.NumTris,
                                         MinPoint = shadingGroup.BoundsMin,
                                         MaxPoint = shadingGroup.BoundsMax,
                                         Name = $"Unnamed Material #{j + 1:00}",
                                         NumVerts = shadingGroup.NumVerts,
-                                        TextureHash = solidObject.TextureHashes[texIdx],
-                                        Unknown1 = (int)shadingGroup.Unknown1
+                                        TextureHash = solidObject.TextureHashes[shadingGroup.TextureNumber[0]],
+                                        EffectID = shadingGroup.EffectID,
+                                        VertexStreamIndex = streamIndex
                                     };
-
-                                    uint vsIdx;
-                                    if (j == 0)
-                                    {
-                                        vsIdx = 0;
-                                    }
-                                    else
-                                    {
-                                        if (numMats == solidObject.MeshDescriptor.NumVertexStreams)
-                                        {
-                                            vsIdx = (uint)j;
-                                        }
-                                        else
-                                        {
-                                            if (shadingGroup.Unknown1 == lastUnknown1)
-                                            {
-                                                vsIdx = (uint)lastStreamIdx;
-                                            }
-                                            else
-                                            {
-                                                vsIdx = (uint)(lastStreamIdx + 1);
-                                            }
-                                        }
-                                    }
-
-                                    solidObjectMaterial.VertexStreamIndex = (int)vsIdx;
 
                                     solidObject.Materials.Add(solidObjectMaterial);
 
                                     solidObject.MeshDescriptor.NumVerts += shadingGroup.NumVerts;
-
-                                    lastUnknown1 = (int)shadingGroup.Unknown1;
-                                    lastStreamIdx = (int)vsIdx;
+                                    lastEffectID = shadingGroup.EffectID;
                                 }
 
                                 break;
                             }
                         case 0x134b01:
                             {
-                                var vb = new VertexBuffer
+                                if (chunkSize > 0)
                                 {
-                                    Data = new float[chunkSize >> 2]
-                                };
+                                    var vb = new byte[chunkSize];
+                                    var readSize = br.Read(vb, 0, vb.Length);
+                                    Debug.Assert(readSize == chunkSize);
 
-                                var pos = 0;
-
-                                while (br.BaseStream.Position < chunkEndPos)
-                                {
-                                    var v = br.ReadSingle();
-
-                                    vb.Data[pos++] = v;
+                                    solidObject.VertexBuffers.Add(vb);
                                 }
-
-                                solidObject.VertexBuffers.Add(vb);
-
                                 break;
                             }
                         case 0x134b03:
                             {
-                                Array.Resize(ref solidObject.Faces, (int)solidObject.Materials.Sum(m => m.NumTris));
-
-                                var faceIndex = 0;
-
                                 foreach (var material in solidObject.Materials)
                                 {
-                                    for (var j = 0; j < material.NumTris; j++)
+                                    material.Indices = new ushort[material.NumIndices];
+                                    for (var j = 0; j < material.NumIndices; j++)
                                     {
-                                        var f1 = br.ReadUInt16();
-                                        var f2 = br.ReadUInt16();
-                                        var f3 = br.ReadUInt16();
-
-                                        solidObject.Faces[faceIndex++] = new SolidMeshFace
-                                        {
-                                            Vtx1 = f1,
-                                            Vtx2 = f2,
-                                            Vtx3 = f3
-                                        };
+                                        material.Indices[j] = br.ReadUInt16();
                                     }
                                 }
 

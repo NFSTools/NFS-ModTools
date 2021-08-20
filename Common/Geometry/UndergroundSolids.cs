@@ -185,7 +185,7 @@ namespace Common.Geometry
             throw new NotImplementedException();
         }
 
-        private SolidObject ReadObject(BinaryReader br, long size, SolidObject solidObject)
+        private UndergroundObject ReadObject(BinaryReader br, long size, UndergroundObject solidObject)
         {
             if (solidObject == null)
                 solidObject = new UndergroundObject();
@@ -262,7 +262,7 @@ namespace Common.Geometry
                                     NumIndices = descriptor.NumTris * 3,
                                     NumMats = descriptor.NumMats,
                                     NumVertexStreams = 1,
-                                    NumVerts = descriptor.NumVerts
+                                    NumVerts = descriptor.NumVerts,
                                 };
 
                                 break;
@@ -284,11 +284,8 @@ namespace Common.Geometry
                                         MinPoint = shadingGroup.BoundsMin,
                                         MaxPoint = shadingGroup.BoundsMax,
                                         NumIndices = shadingGroup.Length,
-                                        NumTris = shadingGroup.Length / 3,
                                         VertexStreamIndex = 0,
                                         TextureHash = solidObject.TextureHashes[(int) shadingGroup.TextureIndex],
-                                        TextureIndex = (byte) shadingGroup.TextureIndex,
-                                        RawStructure = shadingGroup
                                     });
                                 }
 
@@ -296,46 +293,24 @@ namespace Common.Geometry
                             }
                         case 0x134b01:
                             {
-                                var vb = new VertexBuffer
-                                {
-                                    Data = new float[chunkSize >> 2]
-                                };
-
                                 if (chunkSize > 0)
                                 {
-                                    var pos = 0;
+                                    var vb = new byte[chunkSize];
+                                    var readSize = br.Read(vb, 0, vb.Length);
+                                    Debug.Assert(readSize == chunkSize);
 
-                                    while (br.BaseStream.Position < chunkEndPos)
-                                    {
-                                        var v = br.ReadSingle();
-
-                                        vb.Data[pos++] = v;
-                                    }
+                                    solidObject.VertexBuffers.Add(vb);
                                 }
-
-                                solidObject.VertexBuffers.Add(vb);
                                 break;
                             }
                         case 0x134b03:
                             {
-                                Array.Resize(ref solidObject.Faces, (int)solidObject.Materials.Sum(m => m.NumTris));
-
-                                var faceIndex = 0;
-
                                 foreach (var material in solidObject.Materials)
                                 {
-                                    for (var j = 0; j < material.NumTris; j++)
+                                    material.Indices = new ushort[material.NumIndices];
+                                    for (var j = 0; j < material.NumIndices; j++)
                                     {
-                                        var f1 = br.ReadUInt16();
-                                        var f2 = br.ReadUInt16();
-                                        var f3 = br.ReadUInt16();
-
-                                        solidObject.Faces[faceIndex++] = new SolidMeshFace
-                                        {
-                                            Vtx1 = f1,
-                                            Vtx2 = f2,
-                                            Vtx3 = f3
-                                        };
+                                        material.Indices[j] = br.ReadUInt16();
                                     }
                                 }
 

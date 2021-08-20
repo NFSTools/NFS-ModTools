@@ -86,13 +86,10 @@ namespace Common.Geometry
         private struct SolidObjectDescriptor
         {
             public readonly long Blank1;
-            public readonly int Unknown1;
+            public readonly int Version;
             public readonly uint Flags;
             public readonly uint NumMats;
-            public readonly long Blank2;
-            public readonly long Blank3;
-            public readonly long Blank4;
-            public readonly long Blank5;
+            public uint Blank2, Blank3, Blank4, Blank5;
             public readonly uint NumTris;
             public readonly uint Blank6;
             public readonly uint Blank7;
@@ -265,6 +262,7 @@ namespace Common.Geometry
                                     HasNormals = (descriptor.Flags & 0x0080) != 0,
                                     NumIndices = descriptor.NumTris * 3,
                                     NumMats = descriptor.NumMats,
+                                    NumVerts = descriptor.NumVerts,
                                     NumVertexStreams = 1
                                 };
 
@@ -287,11 +285,8 @@ namespace Common.Geometry
                                         MinPoint = shadingGroup.BoundsMin,
                                         MaxPoint = shadingGroup.BoundsMax,
                                         NumIndices = shadingGroup.Length,
-                                        NumTris = shadingGroup.Length / 3,
                                         VertexStreamIndex = 0,
-                                        TextureHash = solidObject.TextureHashes[(int) shadingGroup.TextureIndex],
-                                        TextureIndex = (byte) shadingGroup.TextureIndex,
-                                        RawStructure = shadingGroup
+                                        TextureHash = solidObject.TextureHashes[(int)shadingGroup.TextureIndex],
                                     });
                                 }
 
@@ -299,46 +294,24 @@ namespace Common.Geometry
                             }
                         case 0x134b01:
                             {
-                                var vb = new VertexBuffer
-                                {
-                                    Data = new float[chunkSize >> 2]
-                                };
-
                                 if (chunkSize > 0)
                                 {
-                                    var pos = 0;
+                                    var vb = new byte[chunkSize];
+                                    var readSize = br.Read(vb, 0, vb.Length);
+                                    Debug.Assert(readSize == chunkSize);
 
-                                    while (br.BaseStream.Position < chunkEndPos)
-                                    {
-                                        var v = br.ReadSingle();
-
-                                        vb.Data[pos++] = v;
-                                    }
+                                    solidObject.VertexBuffers.Add(vb);
                                 }
-
-                                solidObject.VertexBuffers.Add(vb);
                                 break;
                             }
                         case 0x134b03:
                             {
-                                Array.Resize(ref solidObject.Faces, (int)solidObject.Materials.Sum(m => m.NumTris));
-
-                                var faceIndex = 0;
-
                                 foreach (var material in solidObject.Materials)
                                 {
-                                    for (var j = 0; j < material.NumTris; j++)
+                                    material.Indices = new ushort[material.NumIndices];
+                                    for (var j = 0; j < material.NumIndices; j++)
                                     {
-                                        var f1 = br.ReadUInt16();
-                                        var f2 = br.ReadUInt16();
-                                        var f3 = br.ReadUInt16();
-
-                                        solidObject.Faces[faceIndex++] = new SolidMeshFace
-                                        {
-                                            Vtx1 = f1,
-                                            Vtx2 = f2,
-                                            Vtx3 = f3
-                                        };
+                                        material.Indices[j] = br.ReadUInt16();
                                     }
                                 }
 
