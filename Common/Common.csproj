@@ -134,6 +134,8 @@
     <Compile Include="MathUtil.cs" />
     <Compile Include="MessageUtil.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Scenery\WorldScenery.cs" />
+    <Compile Include="Scenery\UndercoverScenery.cs" />
     <Compile Include="Scenery\ProStreetScenery.cs" />
     <Compile Include="Scenery\Data\ScenerySection.cs" />
     <Compile Include="Scenery\CarbonScenery.cs" />

@@ -250,6 +250,12 @@ namespace Common
                                 case GameDetector.Game.ProStreet:
                                     cd.Resource = new ProStreetScenery().ReadScenery(_br, (uint)chunk.Length);
                                     break;
+                                case GameDetector.Game.Undercover:
+                                    cd.Resource = new UndercoverScenery().ReadScenery(_br, (uint)chunk.Length);
+                                    break;
+                                case GameDetector.Game.World:
+                                    cd.Resource = new WorldScenery().ReadScenery(_br, (uint)chunk.Length);
+                                    break;
                             }
 
                             break;
