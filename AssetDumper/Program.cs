@@ -11,6 +11,7 @@ using Common.Scenery.Data;
 using Common.Textures.Data;
 using Common.TrackStream;
 using Common.TrackStream.Data;
+using Vector3 = System.Numerics.Vector3;
 
 namespace AssetDumper
 {
@@ -37,7 +38,7 @@ namespace AssetDumper
             public bool OverwriteAssets { get; set; }
 
             [Option('c', "combine-models", Required = false, HelpText = "Combine all models into one file.")]
-            public string ModelCombine { get; set; }
+            public bool ModelCombine { get; set; }
 
             [Option('v', "verbose", Required = false, HelpText = "Enable verbose messages.")]
             public bool Verbose { get; set; }
@@ -51,10 +52,6 @@ namespace AssetDumper
 
             [Option('f', "output-dir", Required = true, HelpText = "Set the base output directory for assets.")]
             public string OutputDirectory { get; set; }
-
-            [Option("mfmt", Required = false, Default = ObjectOutputType.Wavefront,
-                HelpText = "Change the object export format.")]
-            public ObjectOutputType OutputType { get; set; }
         }
 
         /// <summary>
@@ -223,25 +220,17 @@ namespace AssetDumper
             string baseDir,
             Options options)
         {
-            var modelsDir = Path.Combine(baseDir, "models");
             var texturesDir = Path.Combine(baseDir, "textures");
-
-            if (!Directory.Exists(modelsDir))
-            {
-                Directory.CreateDirectory(modelsDir);
-                LogVerbose("Created models directory");
-            }
 
             if (!Directory.Exists(texturesDir))
             {
                 Directory.CreateDirectory(texturesDir);
-                LogVerbose("Created textures directory");
             }
 
-            var textureHashes = new HashSet<uint>();
+            LogInfo("Processing texture packs...");
 
             // Process texture packs
-            foreach (var resource in resources.Where(r => r is TexturePack).Cast<TexturePack>())
+            foreach (var resource in resources.OfType<TexturePack>())
             {
                 LogVerbose($"Processing TPK: {resource.PipelinePath} ({resource.Name})");
 
@@ -249,124 +238,153 @@ namespace AssetDumper
                 {
                     var texturePath = Path.Combine(texturesDir, $"0x{texture.TexHash:X8}.dds");
 
-                    //if (File.Exists(texturePath))
-                    //{
-                    //    LogVerbose($"\tSkipping texture {texture.Name}");
-                    //    continue;
-                    //}
-
                     LogVerbose($"\tExporting texture {texture.Name} to {texturePath}");
                     texture.DumpToFile(texturePath);
-                    textureHashes.Add(texture.TexHash);
                 }
             }
 
-            string objExtension;
+            var solidLists = resources.OfType<SolidList>().ToList();
+            var scenerySections = resources.OfType<ScenerySection>().ToList();
 
-            switch (options.OutputType)
+            if (scenerySections.Any())
             {
-                case ObjectOutputType.Wavefront:
-                    objExtension = ".obj";
-                    break;
-                case ObjectOutputType.Collada:
-                    objExtension = ".dae";
-                    break;
-                case ObjectOutputType.Fbx:
-                    objExtension = ".fbx";
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException($"Invalid output type: {options.OutputType}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(options.ModelCombine))
-            {
-                LogVerbose("Combining models");
-
-                if (options.OutputType == ObjectOutputType.Wavefront)
+                LogInfo("Processing scenery sections...");
+                var solidObjects = solidLists.SelectMany(l => l.Objects)
+                        .ToLookup(o => o.Hash, o => o)
+                        .ToDictionary(o => o.Key, o => o.First());
+                foreach (var scenerySection in scenerySections.OrderBy(s => s.SectionNumber))
                 {
-                    ExportCombinedModelsAsObj(
-                        resources.Where(r => r is SolidList).Cast<SolidList>().SelectMany(l => l.Objects).ToList(),
-                        modelsDir, options.ModelCombine);
+                    ExportScenerySection(solidObjects, scenerySection, Path.Combine(options.OutputDirectory,
+                        scenerySection.SectionNumber + ".dae"));
+                }
+            }
+            else if (solidLists.Any())
+            {
+                LogInfo("Processing model packs...");
+
+                if (options.ModelCombine)
+                {
+                    LogInfo("Exporting all models to <output>/combined.dae");
+                    ExportMultipleSolids(solidLists.SelectMany(s => s.Objects).ToList(),
+                        Path.Combine(options.OutputDirectory, "combined.dae"));
+                }
+                else
+                {
+                    LogInfo("Exporting individual models");
+
+                    var modelsDir = Path.Combine(baseDir, "models");
+                    if (!Directory.Exists(modelsDir))
+                    {
+                        Directory.CreateDirectory(modelsDir);
+                    }
+
+                    foreach (var solidObject in solidLists.SelectMany(l => l.Objects))
+                    {
+                        ExportSingleSolid(solidObject,
+                            Path.Combine(modelsDir, $"{solidObject.Name}.dae"));
+                    }
                 }
             }
             else
             {
-                var solidObjects = resources.OfType<SolidList>().SelectMany(l => l.Objects)
-                    .ToLookup(o => o.Hash, o => o)
-                    .ToDictionary(o => o.Key, o => o.First());
-                foreach (var scenerySection in resources.OfType<ScenerySection>().OrderBy(s => s.SectionNumber))
-                {
-                    // if (scenerySection.SectionNumber == 2600)
-
-                    LogInfo(
-                        $"ScenerySection: {scenerySection.SectionNumber} ({scenerySection.Infos.Count} info entries, {scenerySection.Instances.Count} instances)");
-                    ExportScenerySection(solidObjects, scenerySection, options.OutputDirectory,
-                        scenerySection.SectionNumber + ".dae");
-                }
-
-                // Process model packs
-                // foreach (var resource in resources.Where(r => r is SolidList).Cast<SolidList>())
-                // {
-                //     LogVerbose(
-                //         $"Processing object pack: {resource.PipelinePath} ({resource.ClassType}, {resource.ObjectCount} objects)");
-                //
-                //     foreach (var solidObject in resource.Objects)
-                //     {
-                //         var objectPath = Path.Combine(modelsDir, $"{solidObject.Name}{objExtension}");
-                //
-                //         //if (File.Exists(objectPath))
-                //         //{
-                //         //    LogVerbose($"\tSkipping object {solidObject.Name}");
-                //         //    continue;
-                //         //}
-                //
-                //         foreach (var material in solidObject.Materials.ToList())
-                //         {
-                //             // Ensure every material has a unique name
-                //             var repCount = 0;
-                //
-                //             foreach (var t in solidObject.Materials)
-                //             {
-                //                 if (!string.Equals(t.Name, material.Name)) continue;
-                //
-                //                 if (repCount > 0)
-                //                 {
-                //                     t.Name += $"_{repCount + 1}";
-                //                 }
-                //
-                //                 repCount++;
-                //             }
-                //         }
-                //
-                //         LogVerbose($"\tExporting object {solidObject.Name} to {objectPath}");
-                //
-                //         if (options.OutputType == ObjectOutputType.Wavefront)
-                //         {
-                //             ExportModelAsObj(solidObject, objectPath, options);
-                //         }
-                //     }
-                // }
+                LogInfo("No models or scenery sections were found.");
             }
         }
 
-        private static void ExportScenerySection(Dictionary<uint, SolidObject> objects, ScenerySection scenerySection, string directory, string filename)
+        private class SceneExportNode
         {
-            Debug.WriteLine("Exporting scenery section {0} ({1} models, {2} instances)", scenerySection.SectionNumber,
-                scenerySection.Infos.Count, scenerySection.Instances.Count);
+            public SolidObject SolidObject { get; }
+            public string Name { get; }
+            public Matrix4x4 Transform { get; }
 
+            public SceneExportNode(SolidObject solidObject, string name, Matrix4x4 transform)
+            {
+                SolidObject = solidObject;
+                Name = name;
+                Transform = transform;
+            }
+        }
+
+        private class SceneExport
+        {
+            public List<SceneExportNode> Nodes { get; }
+            public string SceneName { get; }
+
+            public SceneExport(List<SceneExportNode> nodes, string sceneName)
+            {
+                Nodes = nodes;
+                SceneName = sceneName;
+            }
+        }
+
+        private static void ExportScenerySection(IReadOnlyDictionary<uint, SolidObject> objects,
+            ScenerySection scenerySection, string outputPath)
+        {
+            LogInfo(
+                $"Exporting scenery section {scenerySection.SectionNumber} ({scenerySection.Infos.Count} models, {scenerySection.Instances.Count} instances)");
+
+            var sceneNodes = new List<SceneExportNode>();
+
+            foreach (var instance in scenerySection.Instances)
+            {
+                var info = scenerySection.Infos[instance.InfoIndex];
+
+                if (!objects.TryGetValue(info.SolidKey, out var solid))
+                    continue;
+
+                var instanceMatrix =
+                    Matrix4x4.CreateScale(instance.Scale) * Matrix4x4.CreateFromQuaternion(instance.Rotation)
+                                                          * Matrix4x4.CreateTranslation(instance.Position);
+                sceneNodes.Add(new SceneExportNode(solid, info.Name, instanceMatrix));
+            }
+
+            var scene = new SceneExport(sceneNodes, $"ScenerySection_{scenerySection.SectionNumber}");
+            ExportScene(scene, outputPath, "textures");
+        }
+
+        private static void ExportMultipleSolids(List<SolidObject> solidObjects, string outputPath)
+        {
+            var sceneNodes = new List<SceneExportNode>();
+
+            foreach (var solid in solidObjects)
+            {
+                sceneNodes.Add(new SceneExportNode(solid, solid.Name, solid.Transform));
+            }
+
+            var scene = new SceneExport(sceneNodes, "MultiSolidExport");
+            ExportScene(scene, outputPath, "textures");
+        }
+
+        private static void ExportSingleSolid(SolidObject solidObject, string outputPath)
+        {
+            var sceneNodes = new List<SceneExportNode>
+            {
+                new SceneExportNode(solidObject, solidObject.Name, solidObject.Transform)
+            };
+
+            var scene = new SceneExport(sceneNodes, solidObject.Name);
+            ExportScene(scene, outputPath, "../textures");
+        }
+
+        private static void ExportScene(SceneExport scene, string outputPath, string texturesDirectory)
+        {
             var collada = new COLLADA();
             collada.version = VersionType.Item141;
 
-            var solidsToAdd = scenerySection.Infos.Select(i => i.SolidKey)
+            var solidsToAdd = scene.Nodes.Select(n => n.SolidObject)
+                .Distinct(SolidObject.HashComparer)
+                .ToList();
+            var texturesToAdd = solidsToAdd
+                .SelectMany(s => s.TextureHashes)
                 .Distinct()
-                .Where(objects.ContainsKey)
-                .Select(k => objects[k]).ToList();
+                .ToList();
 
-            var texturesToAdd = solidsToAdd.SelectMany(s => s.TextureHashes).ToList();
-
-            // Build image library
             var images = new library_images();
             var imageList = new List<image>();
+            var materials = new library_materials();
+            var materialList = new List<material>();
+            var effects = new library_effects();
+            var effectList = new List<effect>();
 
             foreach (var textureId in texturesToAdd)
             {
@@ -378,23 +396,9 @@ namespace AssetDumper
                 {
                     id = $"texture-0x{textureId:X8}-img",
                     name = $"TextureIMG-0x{textureId:X8}",
-                    Item = Path.Combine("textures", $"0x{textureId:X8}.dds"),
+                    Item = Path.Combine(texturesDirectory, $"0x{textureId:X8}.dds"),
                     depth = 1
                 });
-            }
-
-            images.image = imageList.ToArray();
-
-            // Build material library
-            var materials = new library_materials();
-            var materialList = new List<material>();
-
-            foreach (var textureId in texturesToAdd)
-            {
-                /*
-                symbol = $"material{materialIdx}",
-                target = $"#texture-0x{material.TextureHash:X8}"
-                 */
                 materialList.Add(new material
                 {
                     id = $"texture-0x{textureId:X8}",
@@ -404,20 +408,6 @@ namespace AssetDumper
                         url = $"#texture-0x{textureId:X8}-fx"
                     },
                 });
-            }
-
-            materials.material = materialList.ToArray();
-
-            // Build effect library
-            var effects = new library_effects();
-            var effectList = new List<effect>();
-
-            foreach (var textureId in texturesToAdd)
-            {
-                /*
-                symbol = $"material{materialIdx}",
-                target = $"#texture-0x{material.TextureHash:X8}"
-                 */
                 effectList.Add(new effect
                 {
                     id = $"texture-0x{textureId:X8}-fx",
@@ -473,6 +463,8 @@ namespace AssetDumper
                 });
             }
 
+            images.image = imageList.ToArray();
+            materials.material = materialList.ToArray();
             effects.effect = effectList.ToArray();
 
             // Build geometry library
@@ -483,190 +475,9 @@ namespace AssetDumper
 
             foreach (var solidObject in solidsToAdd)
             {
-                //Debug.WriteLine("Adding model '{0}' (0x{1:X8}) to COLLADA file", solidObject.Name, solidObject.Hash);
-                var geometryId = $"{scenerySection.SectionNumber}-0x{solidObject.Hash:X8}";
-                var positionsSourceId = $"{scenerySection.SectionNumber}-{solidObject.Name}_positions";
-                var positionsDataId = $"{scenerySection.SectionNumber}-{solidObject.Name}_positions_array";
-                var normalsSourceId = $"{scenerySection.SectionNumber}-{solidObject.Name}_normals";
-                var normalsDataId = $"{scenerySection.SectionNumber}-{solidObject.Name}_normals_array";
-                var uvSourceId = $"{scenerySection.SectionNumber}-{solidObject.Name}_texcoords";
-                var uvDataId = $"{scenerySection.SectionNumber}-{solidObject.Name}_texcoords_array";
-                var verticesId = $"{scenerySection.SectionNumber}-{solidObject.Name}_vertices";
-
+                var geometryId = $"0x{solidObject.Hash:X8}";
+                geometryList.Add(SolidToGeometry(solidObject, geometryId));
                 geometryIds.Add(solidObject.Hash, geometryId);
-
-                geometryList.Add(new geometry
-                {
-                    name = solidObject.Name,
-                    id = geometryId,
-                    Item = new mesh
-                    {
-                        source = new[]
-                        {
-                            new source
-                            {
-                                name = "position",
-                                id = positionsSourceId,
-                                Item = new float_array
-                                {
-                                    Values = solidObject.Vertices.SelectMany(v => new double[] { v.X, v.Y, v.Z }).ToArray(),
-                                    id = positionsDataId,
-                                    count = (ulong) (solidObject.Vertices.Length * 3)
-                                },
-                                technique_common = new sourceTechnique_common
-                                {
-                                    accessor = new accessor
-                                    {
-                                        count = (ulong) solidObject.Vertices.Length,
-                                        offset = 0,
-                                        source = $"#{positionsDataId}",
-                                        stride = 3,
-                                        param = new[]
-                                        {
-                                            new param
-                                            {
-                                                name = "X",
-                                                type = "float"
-                                            },
-                                            new param
-                                            {
-                                                name = "Y",
-                                                type = "float"
-                                            },
-                                            new param
-                                            {
-                                                name = "Z",
-                                                type = "float"
-                                            },
-                                        }
-                                    }
-                                }
-                            },
-                            new source
-                            {
-                                name = "normal",
-                                id = normalsSourceId,
-                                Item = new float_array
-                                {
-                                    Values = solidObject.Vertices.SelectMany(v => new double[] { v.NormalX, v.NormalY, v.NormalZ }).ToArray(),
-                                    id = normalsDataId,
-                                    count = (ulong) (solidObject.Vertices.Length * 3)
-                                },
-                                technique_common = new sourceTechnique_common
-                                {
-                                    accessor = new accessor
-                                    {
-                                        count = (ulong) solidObject.Vertices.Length,
-                                        offset = 0,
-                                        source = $"#{normalsDataId}",
-                                        stride = 3,
-                                        param = new[]
-                                        {
-                                            new param
-                                            {
-                                                name = "X",
-                                                type = "float"
-                                            },
-                                            new param
-                                            {
-                                                name = "Y",
-                                                type = "float"
-                                            },
-                                            new param
-                                            {
-                                                name = "Z",
-                                                type = "float"
-                                            },
-                                        }
-                                    }
-                                }
-                            },
-                            new source
-                            {
-                                name = "texcoord",
-                                id = uvSourceId,
-                                Item = new float_array
-                                {
-                                    Values = solidObject.Vertices.SelectMany(v => new double[] { v.U, v.V }).ToArray(),
-                                    id = uvDataId,
-                                    count = (ulong) (solidObject.Vertices.Length * 2)
-                                },
-                                technique_common = new sourceTechnique_common
-                                {
-                                    accessor = new accessor
-                                    {
-                                        count = (ulong) solidObject.Vertices.Length,
-                                        offset = 0,
-                                        source = $"#{uvDataId}",
-                                        stride = 2,
-                                        param = new[]
-                                        {
-                                            new param
-                                            {
-                                                name = "S",
-                                                type = "float"
-                                            },
-                                            new param
-                                            {
-                                                name = "T",
-                                                type = "float"
-                                            },
-                                        }
-                                    }
-                                }
-                            },
-                        },
-                        vertices = new vertices
-                        {
-                            input = new InputLocal[]
-                            {
-                                new InputLocal
-                                {
-                                    semantic = "POSITION",
-                                    source = $"#{positionsSourceId}"
-                                }
-                            },
-                            id = verticesId
-                        },
-                        Items = solidObject.Materials.Select((material, materialIdx) =>
-                        {
-                            var faces = solidObject.Faces.Where(f => f.MaterialIndex == materialIdx).ToList();
-                            return new triangles
-                            {
-                                count = (ulong)faces.Count,
-                                input = new[]
-                                        {
-                                            new InputLocalOffset
-                                            {
-                                                offset = 0,
-                                                semantic = "VERTEX",
-                                                source = $"#{verticesId}"
-                                            },
-                                            new InputLocalOffset
-                                            {
-                                                offset = 1,
-                                                semantic = "NORMAL",
-                                                source = $"#{normalsSourceId}",
-                                            },
-                                            new InputLocalOffset
-                                            {
-                                                offset = 2,
-                                                semantic = "TEXCOORD",
-                                                source = $"#{uvSourceId}",
-                                                set = 0
-                                            },
-                                        },
-                                p = string.Join(" ", faces.SelectMany(f => new[]
-                                {
-                                    f.Vtx1, f.Vtx1, f.Vtx1,
-                                    f.Vtx2, f.Vtx2, f.Vtx2,
-                                    f.Vtx3, f.Vtx3, f.Vtx3,
-                                })),
-                                material = $"material{materialIdx}"
-                            };
-                        }).Cast<object>().ToArray()
-                    }
-                });
             }
 
             geometries.geometry = geometryList.ToArray();
@@ -675,71 +486,54 @@ namespace AssetDumper
 
             var sceneNodes = new List<node>();
 
-            for (int idx = 0; idx < scenerySection.Instances.Count; idx++)
+            for (int idx = 0; idx < scene.Nodes.Count; idx++)
             {
-                var instance = scenerySection.Instances[idx];
-                var info = scenerySection.Infos[instance.InfoIndex];
-
-                if (!objects.TryGetValue(info.SolidKey, out var solid))
-                {
-                    continue;
-                }
-                
-                // returns (axis_x, axis_y, axis_z, theta)
-                Vector4 ComputeAxisAngle(Quaternion q)
-                {
-                    if (Math.Abs(q.W - 1) < 0.000000001)
-                    {
-                        // If q_0 = 1, 2acos(q_0) = 0, so there is no rotation
-                        return Vector4.UnitX;
-                    }
-
-                    var theta = 2 * Math.Acos(q.W);
-                    var axis_x = q.X / Math.Sin(theta / 2);
-                    var axis_y = q.Y / Math.Sin(theta / 2);
-                    var axis_z = q.Z / Math.Sin(theta / 2);
-
-                    return new Vector4((float) axis_x, (float) axis_y, (float) axis_z, (float) theta);
-                }
-
-                var rot = ComputeAxisAngle(instance.Rotation);
-
+                var node = scene.Nodes[idx];
+                var instanceMatrix = node.Transform;
                 sceneNodes.Add(new node
                 {
-                    name = info.Name,
-                    id = $"scenery_instance_{scenerySection.SectionNumber}_{idx}",
+                    name = node.Name,
+                    id = $"scene_{scene.SceneName}_node_{idx}",
                     Items = new object[]
                         {
-                            new TargetableFloat3
+                            new matrix
                             {
-                                Values = new double[] { instance.Position.X, instance.Position.Y, instance.Position.Z },
-                                sid = "trans"
-                            },
-                            new rotate
-                            {
-                                Values = new[] { rot.X, rot.Y, rot.Z, rot.W * (180 / Math.PI) },
-                                sid = "rot"
-                            },
-                            new TargetableFloat3
-                            {
-                                Values = new double[] { instance.Scale.X, instance.Scale.Y, instance.Scale.Z },
-                                sid = "size"
+                                Values = new double[]
+                                {
+                                    instanceMatrix.M11,
+                                    instanceMatrix.M21,
+                                    instanceMatrix.M31,
+                                    instanceMatrix.M41,
+
+                                    instanceMatrix.M12,
+                                    instanceMatrix.M22,
+                                    instanceMatrix.M32,
+                                    instanceMatrix.M42,
+
+                                    instanceMatrix.M13,
+                                    instanceMatrix.M23,
+                                    instanceMatrix.M33,
+                                    instanceMatrix.M43,
+
+                                    instanceMatrix.M14,
+                                    instanceMatrix.M24,
+                                    instanceMatrix.M34,
+                                    instanceMatrix.M44,
+                                }
                             }
                         },
                     ItemsElementName = new[]
                         {
-                            ItemsChoiceType2.translate,
-                            ItemsChoiceType2.rotate,
-                            ItemsChoiceType2.scale,
+                            ItemsChoiceType2.matrix
                         },
                     instance_geometry = new[]
                         {
                             new instance_geometry
                             {
-                                url = $"#{geometryIds[info.SolidKey]}",
+                                url = $"#{geometryIds[node.SolidObject.Hash]}",
                                 bind_material = new bind_material
                                 {
-                                    technique_common = solid.Materials.Select((material, materialIdx) => new instance_material
+                                    technique_common = node.SolidObject.Materials.Select((material, materialIdx) => new instance_material
                                     {
                                         symbol = $"material{materialIdx}",
                                         target = $"#texture-0x{material.TextureHash:X8}",
@@ -759,13 +553,12 @@ namespace AssetDumper
                 });
             }
 
-            var sceneId = $"scenery_section_{scenerySection.SectionNumber}";
-            visualScenes.visual_scene = new visual_scene[]
+            visualScenes.visual_scene = new[]
             {
                 new visual_scene
                 {
-                    id = sceneId,
-                    name = scenerySection.SectionNumber.ToString(),
+                    id = scene.SceneName,
+                    name = scene.SceneName,
                     node = sceneNodes.ToArray()
                 }
             };
@@ -782,7 +575,7 @@ namespace AssetDumper
             {
                 instance_visual_scene = new InstanceWithExtra
                 {
-                    url = $"#{sceneId}"
+                    url = $"#{scene.SceneName}"
                 }
             };
             collada.asset = new asset
@@ -790,195 +583,347 @@ namespace AssetDumper
                 up_axis = UpAxisType.Z_UP
             };
 
-            collada.Save(Path.Combine(directory, filename));
+            collada.Save(outputPath);
         }
 
-        /// <summary>
-        /// Export multiple solid objects to a Wavefront .obj file.
-        /// </summary>
-        /// <param name="solidObjects"></param>
-        /// <param name="directory"></param>
-        /// <param name="filename"></param>
-        private static void ExportCombinedModelsAsObj(List<SolidObject> solidObjects, string directory, string filename)
+        private static geometry SolidToGeometry(SolidObject solidObject, string geometryId)
         {
-            var fullPath = Path.Combine(directory, filename);
-            var mtlPath = fullPath.Replace(".obj", ".mtl");
+            var verticesId = $"{geometryId}_vertices";
 
-            foreach (var solidObject in solidObjects)
+            var mesh = new mesh();
+            var sources = new List<source>();
+
+            var normalsSourceIds = new Dictionary<int, string>();
+            var colorsSourceIds = new Dictionary<int, string>();
+
+            var positionsSrcId = $"{geometryId}_positions";
+            var positionsDataId = $"{positionsSrcId}_array";
+
+            var uvsSrcId = $"{geometryId}_texcoords";
+            var uvsDataId = $"{uvsSrcId}_array";
+
+            var allVertices = solidObject.Materials.SelectMany(m => m.Vertices).ToList();
+
+            sources.Add(new source
             {
-                solidObject.Materials.ForEach(m => m.Name = $"{solidObject.Name}_{m.Name}");
-
-                foreach (var material in solidObject.Materials.ToList())
+                name = "position",
+                id = positionsSrcId,
+                Item = new float_array
                 {
-                    // Ensure every material has a unique name
-                    var repCount = 0;
-
-                    foreach (var t in solidObject.Materials)
+                    Values = allVertices
+                        .SelectMany(v => new double[] { v.Position.X, v.Position.Y, v.Position.Z }).ToArray(),
+                    id = positionsDataId,
+                    count = (ulong)(allVertices.Count * 3)
+                },
+                technique_common = new sourceTechnique_common
+                {
+                    accessor = new accessor
                     {
-                        if (!string.Equals(t.Name, material.Name)) continue;
-
-                        if (repCount > 0)
+                        count = (ulong)allVertices.Count,
+                        offset = 0,
+                        source = $"#{positionsDataId}",
+                        stride = 3,
+                        param = new[]
                         {
-                            t.Name += $"_{repCount + 1}";
-                        }
-
-                        repCount++;
+                                new param
+                                {
+                                    name = "X",
+                                    type = "float"
+                                },
+                                new param
+                                {
+                                    name = "Y",
+                                    type = "float"
+                                },
+                                new param
+                                {
+                                    name = "Z",
+                                    type = "float"
+                                },
+                                }
                     }
                 }
-            }
+            });
 
-            // Generate material library
-            using (var sw = new StreamWriter(File.OpenWrite(mtlPath)))
+            // TODO: Why can't we have multiple sources for texture coordinates?
+            sources.Add(new source
             {
-                sw.WriteLine("# Generated by AssetDumper - the toolkit that's not the toolkit.");
-
-                foreach (var solidObject in solidObjects)
+                name = $"texcoords",
+                id = uvsSrcId,
+                Item = new float_array
                 {
-                    foreach (var material in solidObject.Materials)
-                    {
-                        sw.WriteLine($"newmtl {material.Name.Replace(' ', '_')}");
-                        sw.WriteLine("Ka 255 255 255");
-                        sw.WriteLine("Kd 255 255 255");
-                        sw.WriteLine("Ks 255 255 255");
-
-                        var texPath = $"../textures/0x{material.TextureHash:X8}.dds";
-                        sw.WriteLine($"map_Ka {texPath}");
-                        sw.WriteLine($"map_Kd {texPath}");
-                        sw.WriteLine($"map_Ks {texPath}");
-                    }
-                }
-            }
-
-            using (var sw = new StreamWriter(File.OpenWrite(fullPath)))
-            {
-                sw.WriteLine("# Generated by AssetDumper - the toolkit that's not the toolkit.");
-                sw.WriteLine($"mtllib {Path.GetFileName(mtlPath)}");
-
-                sw.WriteLine($"obj COMBINED");
-
-                foreach (var solidObject in solidObjects)
+                    Values = allVertices
+                        .SelectMany(v => new double[] { v.TexCoords.X, v.TexCoords.Y }).ToArray(),
+                    id = uvsDataId,
+                    count = (ulong)(allVertices.Count * 2)
+                },
+                technique_common = new sourceTechnique_common
                 {
-                    sw.WriteLine($"g {solidObject.Name}");
-
-                    foreach (var vertex in solidObject.Vertices)
+                    accessor = new accessor
                     {
-                        sw.WriteLine(
-                            $"vt {BinaryUtil.FullPrecisionFloat(vertex.U)} {BinaryUtil.FullPrecisionFloat(vertex.V)}");
-                    }
-
-                    var transformX = solidObject.Transform.M41;
-                    var transformY = solidObject.Transform.M42;
-                    var transformZ = solidObject.Transform.M43;
-
-                    foreach (var vertex in solidObject.Vertices)
-                    {
-                        sw.WriteLine(
-                            $"v {BinaryUtil.FullPrecisionFloat(vertex.X + transformX)} {BinaryUtil.FullPrecisionFloat(vertex.Y + transformY)} {BinaryUtil.FullPrecisionFloat(vertex.Z + transformZ)}");
-                    }
-
-                    for (var i = 0; i < solidObject.Materials.Count; i++)
-                    {
-                        var material = solidObject.Materials[i];
-                        var faces = solidObject.Faces.Where(f => f.MaterialIndex == i).ToList();
-
-                        sw.WriteLine($"usemtl {material.Name.Replace(' ', '_')}");
-
-                        foreach (var face in faces)
+                        count = (ulong)allVertices.Count,
+                        offset = 0,
+                        source = $"#{uvsDataId}",
+                        stride = 2,
+                        param = new[]
                         {
-                            if (solidObject.MeshDescriptor.NumVerts > 0)
-                            {
-                                if (face.Vtx1 >= solidObject.MeshDescriptor.NumVerts
-                                    || face.Vtx2 >= solidObject.MeshDescriptor.NumVerts
-                                    || face.Vtx3 >= solidObject.MeshDescriptor.NumVerts) break;
+                                new param
+                                {
+                                    name = "S",
+                                    type = "float"
+                                },
+                                new param
+                                {
+                                    name = "T",
+                                    type = "float"
+                                },
                             }
-
-                            sw.WriteLine(
-                                $"f {face.Vtx1 + 1}/{face.Vtx1 + 1} {face.Vtx2 + 1}/{face.Vtx2 + 1} {face.Vtx3 + 1}/{face.Vtx3 + 1}");
-                        }
                     }
-
-                    sw.Flush();
                 }
-            }
-        }
+            });
 
-        /// <summary>
-        /// Export a solid object as a Wavefront .obj file.
-        /// </summary>
-        /// <param name="solidObject"></param>
-        /// <param name="filePath"></param>
-        /// <param name="options"></param>
-        private static void ExportModelAsObj(SolidObject solidObject, string filePath, Options options)
-        {
-            var mtlPath = filePath.Replace(".obj", ".mtl");
-
-            // Generate material library
-            using (var sw = new StreamWriter(File.OpenWrite(mtlPath)))
+            for (var i = 0; i < solidObject.Materials.Count; i++)
             {
-                sw.WriteLine("# Generated by AssetDumper - the toolkit that's not the toolkit.");
-                foreach (var material in solidObject.Materials)
+                var material = solidObject.Materials[i];
+
+                // Try to generate normals source
+
+                if (material.Vertices.All(v => v.Normal != null))
                 {
-                    sw.WriteLine($"newmtl {material.Name.Replace(' ', '_')}");
-                    sw.WriteLine("Ka 255 255 255");
-                    sw.WriteLine("Kd 255 255 255");
-                    sw.WriteLine("Ks 255 255 255");
+                    var normalsSrcId = $"{geometryId}_mat{i}_normals";
+                    var normalsDataId = $"{normalsSrcId}_array";
 
-                    var texPath = $"../textures/0x{material.TextureHash:X8}.dds";
-                    sw.WriteLine($"map_Ka {texPath}");
-                    sw.WriteLine($"map_Kd {texPath}");
-                    sw.WriteLine($"map_Ks {texPath}");
-                }
-            }
-
-            using (var fs = new FileStream(filePath, FileMode.Create))
-            using (var sw = new StreamWriter(fs))
-            {
-                sw.WriteLine("# Generated by AssetDumper - the toolkit that's not the toolkit.");
-                sw.WriteLine($"mtllib {Path.GetFileName(mtlPath)}");
-                sw.WriteLine($"obj {solidObject.Name}");
-
-                foreach (var vertex in solidObject.Vertices)
-                {
-                    sw.WriteLine(
-                        $"vt {BinaryUtil.FullPrecisionFloat(vertex.U)} {BinaryUtil.FullPrecisionFloat(vertex.V)}");
-                }
-
-                var transformX = options.BakePositions ? solidObject.Transform.M41 : 0.0f;
-                var transformY = options.BakePositions ? solidObject.Transform.M42 : 0.0f;
-                var transformZ = options.BakePositions ? solidObject.Transform.M43 : 0.0f;
-
-                foreach (var vertex in solidObject.Vertices)
-                {
-                    sw.WriteLine(
-                        $"v {BinaryUtil.FullPrecisionFloat(vertex.X + transformX)} {BinaryUtil.FullPrecisionFloat(vertex.Y + transformY)} {BinaryUtil.FullPrecisionFloat(vertex.Z + transformZ)}");
-                }
-
-                for (var i = 0; i < solidObject.Materials.Count; i++)
-                {
-                    var material = solidObject.Materials[i];
-                    var faces = solidObject.Faces.Where(f => f.MaterialIndex == i).ToList();
-
-                    sw.WriteLine($"usemtl {material.Name.Replace(' ', '_')}");
-
-                    foreach (var face in faces)
+                    sources.Add(new source
                     {
-                        if (solidObject.MeshDescriptor.NumVerts > 0)
+                        name = "normal",
+                        id = normalsSrcId,
+                        Item = new float_array
                         {
-                            if (face.Vtx1 >= solidObject.MeshDescriptor.NumVerts
-                                || face.Vtx2 >= solidObject.MeshDescriptor.NumVerts
-                                || face.Vtx3 >= solidObject.MeshDescriptor.NumVerts) break;
-                        }
+                            Values = material.Vertices
+                                .SelectMany(v =>
+                                {
+                                    Debug.Assert(v.Normal != null, "v.Normal != null");
+                                    var normal = v.Normal.Value;
 
-                        sw.WriteLine(
-                            $"f {face.Vtx1 + 1}/{face.Vtx1 + 1} {face.Vtx2 + 1}/{face.Vtx2 + 1} {face.Vtx3 + 1}/{face.Vtx3 + 1}");
-                    }
+                                    return new double[] { normal.X, normal.Y, normal.Z };
+                                }).ToArray(),
+                            id = normalsDataId,
+                            count = (ulong)(material.Vertices.Length * 3)
+                        },
+                        technique_common = new sourceTechnique_common
+                        {
+                            accessor = new accessor
+                            {
+                                count = (ulong)material.Vertices.Length,
+                                offset = 0,
+                                source = $"#{normalsDataId}",
+                                stride = 3,
+                                param = new[]
+                                {
+                                        new param
+                                        {
+                                            name = "X",
+                                            type = "float"
+                                        },
+                                        new param
+                                        {
+                                            name = "Y",
+                                            type = "float"
+                                        },
+                                        new param
+                                        {
+                                            name = "Z",
+                                            type = "float"
+                                        },
+                                    }
+                            }
+                        }
+                    });
+
+                    normalsSourceIds[i] = normalsSrcId;
+                }
+
+                // Try to generate colors source
+
+                if (material.Vertices.All(v => v.Color != null))
+                {
+                    var colorsSrcId = $"{geometryId}_mat{i}_colors";
+                    var colorsDataId = $"{colorsSrcId}_array";
+
+                    sources.Add(new source
+                    {
+                        name = "color",
+                        id = colorsSrcId,
+                        Item = new float_array
+                        {
+                            Values = material.Vertices
+                                .SelectMany(v =>
+                                {
+                                    Debug.Assert(v.Color != null, "v.Color != null");
+                                    var color = v.Color.Value;
+
+                                    var r = (color >> 16) & 0xFF;
+                                    var g = (color >> 8) & 0xFF;
+                                    var b = (color >> 0) & 0xFF;
+
+                                    return new double[] { r / 255f, g / 255f, b / 255f };
+
+                                    //return new double[] {normal.X, normal.Y, normal.Z};
+                                }).ToArray(),
+                            id = colorsDataId,
+                            count = (ulong)(material.Vertices.Length * 3)
+                        },
+                        technique_common = new sourceTechnique_common
+                        {
+                            accessor = new accessor
+                            {
+                                count = (ulong)material.Vertices.Length,
+                                offset = 0,
+                                source = $"#{colorsDataId}",
+                                stride = 3,
+                                param = new[]
+                                {
+                                        new param
+                                        {
+                                            name = "R",
+                                            type = "float"
+                                        },
+                                        new param
+                                        {
+                                            name = "G",
+                                            type = "float"
+                                        },
+                                        new param
+                                        {
+                                            name = "B",
+                                            type = "float"
+                                        },
+                                    }
+                            }
+                        }
+                    });
+
+                    colorsSourceIds[i] = colorsSrcId;
                 }
             }
+
+            mesh.source = sources.ToArray();
+            mesh.vertices = new vertices
+            {
+                input = new[]
+                {
+                        new InputLocal
+                        {
+                            semantic = "POSITION",
+                            source = $"#{positionsSrcId}",
+                        }
+                    },
+                id = verticesId
+            };
+
+            var items = new List<object>();
+            var vertexOffset = 0;
+
+            for (var materialIndex = 0; materialIndex < solidObject.Materials.Count; materialIndex++)
+            {
+                var material = solidObject.Materials[materialIndex];
+                var faces = new List<ushort[]>();
+
+                for (int i = 0; i < material.Indices.Length; i += 3)
+                {
+                    var idx1 = material.Indices[i];
+                    var idx2 = material.Indices[i + 1];
+                    var idx3 = material.Indices[i + 2];
+
+                    if (idx1 != idx2 && idx1 != idx3 && idx2 != idx3)
+                    {
+                        idx2 = idx3;
+                        idx3 = material.Indices[i + 1];
+                    }
+
+                    faces.Add(new[] { idx1, idx2, idx3 });
+                }
+
+                var curVertexOffset = vertexOffset;
+                var inputOffset = 0u;
+
+                var inputs = new List<InputLocalOffset>
+                    {
+                        new InputLocalOffset
+                        {
+                            offset = inputOffset++, semantic = "VERTEX", source = $"#{verticesId}",
+                        },
+                        new InputLocalOffset
+                        {
+                            offset = inputOffset++, semantic = "TEXCOORD", source = $"#{uvsSrcId}"
+                        }
+                    };
+
+                var hasNormals = false;
+                var hasColors = false;
+
+                if (normalsSourceIds.TryGetValue(materialIndex, out var normalsId))
+                {
+                    inputs.Add(new InputLocalOffset
+                    {
+                        semantic = "NORMAL",
+                        source = $"#{normalsId}",
+                        offset = inputOffset++,
+                    });
+                    hasNormals = true;
+                }
+
+                if (colorsSourceIds.TryGetValue(materialIndex, out var colorsId))
+                {
+                    inputs.Add(new InputLocalOffset
+                    {
+                        semantic = "COLOR",
+                        source = $"#{colorsId}",
+                        offset = inputOffset++,
+                    });
+                    hasColors = true;
+                }
+
+                items.Add(new triangles
+                {
+                    count = (ulong)faces.Count,
+                    input = inputs.ToArray(),
+                    material = $"material{materialIndex}",
+                    p = string.Join(" ", faces.SelectMany(f =>
+                    {
+                        var index_list = new List<int>();
+
+                        foreach (var idx in f)
+                        {
+                            index_list.Add(curVertexOffset + idx); // position
+                            index_list.Add(curVertexOffset + idx); // UV
+
+                            if (hasNormals)
+                                index_list.Add(idx);
+                            if (hasColors)
+                                index_list.Add(idx);
+                        }
+
+                        return index_list;
+                    }))
+                });
+
+                vertexOffset += material.Vertices.Length;
+            }
+
+            mesh.Items = items.ToArray();
+
+            return (new geometry
+            {
+                name = solidObject.Name,
+                id = geometryId,
+                Item = mesh
+            });
         }
 
         private static void LogInfo(string message)
         {
-            Console.WriteLine($"INFO:    {message}");
+            Console.WriteLine($"INFO: {message}");
         }
 
         private static void LogVerbose(string message)
