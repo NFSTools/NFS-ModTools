@@ -1054,18 +1054,25 @@ namespace Common.Geometry.Data
             foreach (var solidObjectMaterial in Materials)
             {
                 var vertexStreamIndex = solidObjectMaterial.VertexStreamIndex;
-                var maxReferencedVertex = solidObjectMaterial.Indices.Max();
-                solidObjectMaterial.Vertices = new SolidMeshVertex[maxReferencedVertex + 1];
 
-                for (var j = 0; j <= maxReferencedVertex; j++)
+                if (solidObjectMaterial.Indices.Any())
                 {
-                    var solidMeshVertex = vbArrays[vertexStreamIndex][j];
-                    Debug.Assert(solidMeshVertex != null, "solidMeshVertex != null");
-                    solidObjectMaterial.Vertices[j] = solidMeshVertex.Value;
-                }
+                    var maxReferencedVertex = solidObjectMaterial.Indices.Max();
+                    solidObjectMaterial.Vertices = new SolidMeshVertex[maxReferencedVertex + 1];
 
-                // Validate material indices
-                Debug.Assert(solidObjectMaterial.Indices.All(t => t < solidObjectMaterial.Vertices.Length));
+                    for (var j = 0; j <= maxReferencedVertex; j++)
+                    {
+                        var solidMeshVertex = vbArrays[vertexStreamIndex][j];
+                        solidObjectMaterial.Vertices[j] = solidMeshVertex ?? throw new NullReferenceException($"Object {Name}: vertex buffer {vertexStreamIndex} has no vertex at index {j}");
+                    }
+
+                    // Validate material indices
+                    Debug.Assert(solidObjectMaterial.Indices.All(t => t < solidObjectMaterial.Vertices.Length));
+                }
+                else
+                {
+                    solidObjectMaterial.Vertices = Array.Empty<SolidMeshVertex>();
+                }
             }
 
             // Clean up vertex buffers, which are no longer needed
