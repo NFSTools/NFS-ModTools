@@ -83,7 +83,8 @@ namespace Common.Geometry
             public readonly uint NumReducedTris;
             public readonly uint NumReducedTriIdx;
 
-            public readonly uint NumVerts;
+            public readonly ushort NumVerts;
+            public readonly ushort Unknown3;
 
             public readonly uint Zero3;
         }
