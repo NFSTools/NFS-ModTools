@@ -232,7 +232,7 @@
                                ZoomExtentsWhenLoaded="true" 
                                Grid.Row="1" 
                                Grid.Column="1">
-            <helix:DirectionalHeadLight></helix:DirectionalHeadLight>
+            <helix:DefaultLights />
             <ModelVisual3D x:Name="MainVisual"></ModelVisual3D>
             <helix:GridLinesVisual3D Width="{Binding ActualWidth}" Length="{Binding ActualWidth}"/>
         </helix:HelixViewport3D>

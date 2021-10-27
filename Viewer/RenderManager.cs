@@ -92,8 +92,9 @@ namespace Viewer
                 //{
                 //    return DevIL.DevIL.LoadBitmap(ms).BitmapToBitmapImage();
                 //}
-                using (var ms = new MemoryStream(texture.GenerateImage()))
+                using (var ms = new MemoryStream())
                 {
+                    texture.GenerateImage(ms);
                     _renderTextureDictionary[texture.TexHash] = DevIL.DevIL.LoadBitmap(ms).ToBitmapImage();
                 }
                 //_renderTextureDictionary[texture.TexHash] = new DDSImage(texture.GenerateImage())
@@ -140,49 +141,56 @@ namespace Viewer
         {
             var meshBuilders = new List<MeshBuilder>();
             var materials = new List<Material>();
-            var vertIdx = 0;
-            var totalVerts = 0u;
 
-            for (var i = 0; i < solidObject.Materials.Count; i++)
+            foreach (var material in solidObject.Materials)
             {
-                var material = solidObject.Materials[i];
-                var faces = solidObject.Faces.Where(f => f.MaterialIndex == i).ToList();
+                var faces = new List<ushort[]>();
 
-                var meshBuilder = new MeshBuilder(false);
+                for (var j = 0; j < material.Indices.Length; j += 3)
+                {
+                    var idx1 = material.Indices[j];
+                    var idx2 = material.Indices[j + 1];
+                    var idx3 = material.Indices[j + 2];
+
+                    if (idx1 != idx2 && idx1 != idx3 && idx2 != idx3)
+                    {
+                        idx2 = idx3;
+                        idx3 = material.Indices[j + 1];
+                    }
+
+                    faces.Add(new[] { idx1, idx2, idx3 });
+                }
+
+                var meshBuilder = new MeshBuilder(generateNormals: material.Vertices.Any(v => v.Normal.HasValue));
 
                 foreach (var face in faces)
                 {
-                    // Add faces to mesh. "- totalVerts" is necessary
-                    // because of WPF's stupid 3D rendering system.
-                    // Instead of throwing an error when a face index is out of bounds,
-                    // it chooses to simply ignore it. Not good at all.
                     meshBuilder.AddTriangle(new List<int> {
-                                    (int) (face.Vtx1 - totalVerts),
-                                    (int) (face.Vtx2 - totalVerts),
-                                    (int) (face.Vtx3 - totalVerts)
+                        face[0],
+                        face[1],
+                        face[2]
                     });
                 }
 
-                for (var j = 0; j < material.NumVerts; j++)
+                foreach (var vertex in material.Vertices)
                 {
-                    var vertex = solidObject.Vertices[vertIdx++];
-                    meshBuilder.Positions.Add(new Point3D(
-                        vertex.X, vertex.Y, vertex.Z
-                    ));
-
-                    meshBuilder.TextureCoordinates.Add(new System.Windows.Point(-vertex.U, -vertex.V));
+                    meshBuilder.Positions.Add(new Point3D(vertex.Position.X, vertex.Position.Y, vertex.Position.Z));
+                    if (vertex.Normal.HasValue)
+                        meshBuilder.Normals.Add(new Vector3D(vertex.Normal.Value.X, vertex.Normal.Value.Y, vertex.Normal.Value.Z));
+                    meshBuilder.TextureCoordinates.Add(new System.Windows.Point(vertex.TexCoords.X, -vertex.TexCoords.Y));
                 }
 
-                totalVerts += material.NumVerts;
+                if (!meshBuilder.HasNormals)
+                {
+                    meshBuilder.ComputeNormalsAndTangents(MeshFaces.Default);
+                }
 
                 meshBuilders.Add(meshBuilder);
 
                 if (_renderTextureDictionary.ContainsKey(material.TextureHash))
                 {
                     materials.Add(MaterialHelper.CreateMaterial(
-                        CreateTextureBrush(_renderTextureDictionary[material.TextureHash]), 
-                        specularPower: 0D, 
-                        ambient: 0));
+                        CreateTextureBrush(_renderTextureDictionary[material.TextureHash])));
                 }
                 else
                 {
@@ -201,22 +209,16 @@ namespace Viewer
                 {
                     Geometry = mesh,
                     Material = material,
-                    //BackMaterial = material,
+                    BackMaterial = material,
                     Transform = new Transform3DGroup
                     {
                         Children =
                         {
-                            new RotateTransform3D(
-                                new AxisAngleRotation3D(
-                                    new Vector3D(1, 0, 0),
-                                    solidObject.RotationAngle
-                                )
-                            ),
-                            solidObject.EnableTransform ? new TranslateTransform3D(
-                                solidObject.Transform.M41,
-                                solidObject.Transform.M42,
-                                solidObject.Transform.M43
-                            ) : new TranslateTransform3D()
+                            new MatrixTransform3D(new Matrix3D(
+                                solidObject.Transform.M11, solidObject.Transform.M12, solidObject.Transform.M13, solidObject.Transform.M14,
+                                solidObject.Transform.M21, solidObject.Transform.M22, solidObject.Transform.M23, solidObject.Transform.M24,
+                                solidObject.Transform.M31, solidObject.Transform.M32, solidObject.Transform.M33, solidObject.Transform.M34,
+                                solidObject.Transform.M41, solidObject.Transform.M42, solidObject.Transform.M43, solidObject.Transform.M44))
                         }
                     }
                 };
