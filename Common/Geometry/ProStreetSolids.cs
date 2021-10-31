@@ -193,13 +193,6 @@ namespace Common.Geometry
 
         private int _namedMaterials;
 
-        private readonly bool _testTrackMode; // for speedyheart
-
-        public ProStreetSolids(bool testTrackMode = false)
-        {
-            _testTrackMode = testTrackMode;
-        }
-
         public override SolidList ReadSolidList(BinaryReader br, uint containerSize)
         {
             _solidList = new SolidList();
@@ -354,15 +347,7 @@ namespace Common.Geometry
         private SolidObject ReadObject(BinaryReader br, long size, bool compressed, SolidObject solidObject)
         {
             if (solidObject == null)
-                solidObject = new ProStreetObject(_testTrackMode);
-
-            solidObject.IsCompressed = compressed;
-            solidObject.EnableTransform = !compressed;
-
-            if (_testTrackMode)
-            {
-                solidObject.RotationAngle = 0.0f;
-            }
+                solidObject = new ProStreetObject();
 
             var endPos = br.BaseStream.Position + size;
 
@@ -454,56 +439,28 @@ namespace Common.Geometry
                             }
                         case 0x00134b02:
                             {
-                                if (_testTrackMode)
+                                var shadingGroupSize = Marshal.SizeOf<SolidObjectShadingGroup>();
+                                Debug.Assert(chunkSize % shadingGroupSize == 0);
+                                var numMats = chunkSize / shadingGroupSize;
+
+                                for (var j = 0; j < numMats; j++)
                                 {
-                                    var shadingGroupSize = Marshal.SizeOf<TestTrackShadingGroup>();
-                                    Debug.Assert(chunkSize % shadingGroupSize == 0);
-                                    var numMats = chunkSize / shadingGroupSize;
+                                    var shadingGroup = br.GetStruct<SolidObjectShadingGroup>();
 
-                                    for (var j = 0; j < numMats; j++)
+                                    solidObject.Materials.Add(new ProStreetMaterial
                                     {
-                                        var shadingGroup = br.GetStruct<TestTrackShadingGroup>();
+                                        Flags = shadingGroup.Flags,
+                                        NumIndices = shadingGroup.IndicesUsed,
+                                        Name = $"Unnamed Material #{j + 1:00}",
+                                        NumVerts = shadingGroup.VertexBufferUsage / shadingGroup.Flags2[2],
+                                        VertexStreamIndex = j,
+                                        Hash = shadingGroup.UnknownId,
+                                        TextureHash = solidObject.TextureHashes[shadingGroup.TextureShaderUsage[4]],
+                                        EffectId = (ProStreetObject.EffectID)shadingGroup.EffectId
+                                    });
 
-                                        solidObject.Materials.Add(new ProStreetMaterial
-                                        {
-                                            Flags = shadingGroup.Flags,
-                                            NumIndices = shadingGroup.IndicesUsed,
-                                            Name = $"Unnamed Material #{j + 1:00}",
-                                            NumVerts = shadingGroup.VertexBufferUsage / shadingGroup.Flags2[2],
-                                            VertexStreamIndex = j,
-                                            Hash = shadingGroup.UnknownId,
-                                            TextureHash = solidObject.TextureHashes[shadingGroup.TextureShaderUsage[4]]
-                                        });
-
-                                        solidObject.MeshDescriptor.NumVerts +=
-                                            shadingGroup.VertexBufferUsage / shadingGroup.Flags2[2];
-                                    }
-                                }
-                                else
-                                {
-                                    var shadingGroupSize = Marshal.SizeOf<SolidObjectShadingGroup>();
-                                    Debug.Assert(chunkSize % shadingGroupSize == 0);
-                                    var numMats = chunkSize / shadingGroupSize;
-
-                                    for (var j = 0; j < numMats; j++)
-                                    {
-                                        var shadingGroup = br.GetStruct<SolidObjectShadingGroup>();
-
-                                        solidObject.Materials.Add(new ProStreetMaterial
-                                        {
-                                            Flags = shadingGroup.Flags,
-                                            NumIndices = shadingGroup.IndicesUsed,
-                                            Name = $"Unnamed Material #{j + 1:00}",
-                                            NumVerts = shadingGroup.VertexBufferUsage / shadingGroup.Flags2[2],
-                                            VertexStreamIndex = j,
-                                            Hash = shadingGroup.UnknownId,
-                                            TextureHash = solidObject.TextureHashes[shadingGroup.TextureShaderUsage[4]],
-                                            EffectId = (ProStreetObject.EffectID)shadingGroup.EffectId
-                                        });
-
-                                        solidObject.MeshDescriptor.NumVerts +=
-                                            shadingGroup.VertexBufferUsage / shadingGroup.Flags2[2];
-                                    }
+                                    solidObject.MeshDescriptor.NumVerts +=
+                                        shadingGroup.VertexBufferUsage / shadingGroup.Flags2[2];
                                 }
 
                                 break;

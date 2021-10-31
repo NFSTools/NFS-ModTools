@@ -462,9 +462,6 @@ namespace Common.Geometry
             if (solidObject == null)
                 solidObject = new UndercoverObject();
 
-            solidObject.IsCompressed = compressed;
-            solidObject.RotationAngle = 90.0f;
-
             var endPos = br.BaseStream.Position + size;
 
             while (br.BaseStream.Position < endPos)

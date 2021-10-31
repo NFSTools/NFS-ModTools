@@ -313,9 +313,6 @@ namespace Common.Geometry
             if (solidObject == null)
                 solidObject = new World15Object();
 
-            solidObject.EnableTransform = false;
-            solidObject.IsCompressed = unpackFloats;
-
             var endPos = br.BaseStream.Position + size;
 
             while (br.BaseStream.Position < endPos)
@@ -364,7 +361,6 @@ namespace Common.Geometry
                                 if (name.StartsWith("TRAF"))
                                 {
                                     unpackFloats = true;
-                                    solidObject.IsCompressed = true;
                                 }
 
                                 break;
