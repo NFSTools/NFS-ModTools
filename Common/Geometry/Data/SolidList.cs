@@ -351,8 +351,6 @@ namespace Common.Geometry.Data
 
     public class ProStreetObject : SolidObject
     {
-        private readonly bool _isTestObject;
-
         public enum EffectID
         {
             STANDARD,
@@ -387,12 +385,6 @@ namespace Common.Geometry.Data
             TUNNEL,
             WORLDENVIROMAP,
             ALWAYSFACING,
-        }
-
-        public ProStreetObject(bool isTestObject = false)
-        {
-            _isTestObject = isTestObject;
-            RotationAngle = 90.0f;
         }
 
         protected override SolidMeshVertex GetVertex(BinaryReader reader, SolidObjectMaterial material, int stride)
@@ -487,6 +479,15 @@ namespace Common.Geometry.Data
                     reader.BaseStream.Position += 8;
                     vertex.TexCoords = BinaryUtil.ReadUV(reader);
                     reader.BaseStream.Position += 8; // TODO: what is this second D3DDECLUSAGE_TEXCOORD element?
+                    break;
+                case EffectID.CAR:
+                case EffectID.CARNORMALMAP:
+                case EffectID.CARVINYL:
+                    vertex.Position = BinaryUtil.ReadNormal(reader, true);
+                    vertex.TexCoords = BinaryUtil.ReadUV(reader, true);
+                    vertex.Color = reader.ReadUInt32();
+                    vertex.Normal = BinaryUtil.ReadNormal(reader, true);
+                    vertex.Tangent = BinaryUtil.ReadNormal(reader, true);
                     break;
                 default:
                     throw new Exception($"Unsupported effect in object {Name}: {psm.EffectId}");
@@ -750,6 +751,24 @@ namespace Common.Geometry.Data
                     // todo: read packed tangent vector
                     reader.BaseStream.Position += 0x8;
                     break;
+                case EffectID.car:
+                case EffectID.car_a:
+                case EffectID.car_nm:
+                case EffectID.car_nm_a:
+                case EffectID.car_nm_v_s:
+                case EffectID.car_nm_v_s_a:
+                case EffectID.car_si:
+                case EffectID.car_si_a:
+                case EffectID.car_t:
+                case EffectID.car_t_a:
+                case EffectID.car_t_nm:
+                case EffectID.car_v:
+                    vertex.Position = BinaryUtil.ReadNormal(reader, true) * 10;
+                    vertex.TexCoords = BinaryUtil.ReadUV(reader, true);
+                    vertex.Color = reader.ReadUInt32();
+                    vertex.Normal = BinaryUtil.ReadNormal(reader, true);
+                    vertex.Tangent = BinaryUtil.ReadNormal(reader, true);
+                    break;
                 default:
                     throw new Exception($"Unsupported effect: {effectId}");
             }
@@ -793,7 +812,6 @@ namespace Common.Geometry.Data
 
         public World15Object()
         {
-            RotationAngle = 90.0f;
             MorphLists = new List<List<MorphInfo>>();
             MorphMatrices = new List<Matrix4x4>();
         }
@@ -913,19 +931,11 @@ namespace Common.Geometry.Data
 
         public string Name { get; set; }
 
-        public uint Flags { get; set; }
-
-        public bool IsCompressed { get; set; } = false;
-
-        public bool EnableTransform { get; set; } = true;
-
         public Matrix4x4 Transform { get; set; }
 
         public Vector3 MinPoint { get; set; }
 
         public Vector3 MaxPoint { get; set; }
-
-        public float RotationAngle { get; set; } = 0.0f;
 
         public uint Hash { get; set; }
 
