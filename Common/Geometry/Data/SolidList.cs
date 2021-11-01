@@ -863,8 +863,8 @@ namespace Common.Geometry.Data
                     break;
                 case InternalEffectID.CarShader:
                 case InternalEffectID.CARNORMALMAP:
-                    vertex.Position = BinaryUtil.ReadNormal(reader, true);
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader, true);
+                    vertex.Position = BinaryUtil.ReadNormal(reader, true) * 8;
+                    vertex.TexCoords = new Vector2(reader.ReadInt16() / 4096f, 1 - reader.ReadInt16() / 4096f);
                     vertex.Color = reader.ReadUInt32();
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     vertex.Tangent = BinaryUtil.ReadNormal(reader, true);
