@@ -753,6 +753,7 @@ namespace Common.Geometry.Data
                     break;
                 case EffectID.car:
                 case EffectID.car_a:
+                case EffectID.car_a_nzw:
                 case EffectID.car_nm:
                 case EffectID.car_nm_a:
                 case EffectID.car_nm_v_s:
