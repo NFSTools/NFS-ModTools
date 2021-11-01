@@ -11,6 +11,12 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry
 {
+    public class UndercoverMaterial : SolidObjectMaterial
+    {
+        public UndercoverObject.EffectID EffectId { get; set; }
+        public uint NumReducedIndices { get; set; }
+    }
+
     public class UndercoverSolids : SolidListManager
     {
         [StructLayout(LayoutKind.Sequential, Pack = 1)]

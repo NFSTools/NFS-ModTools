@@ -2,18 +2,17 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using System.Text;
 using Common.Geometry.Data;
 
 namespace Common.Geometry
 {
+    public class World15Material : EffectBasedMaterial
+    {
+    }
     public class World15Solids : SolidListManager
     {
-        public const float PackedFloatInv = 1 / (float)0x8000;
-
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         private struct SolidListInfo
         {
@@ -40,7 +39,7 @@ namespace Common.Geometry
         {
             public uint Flags;
             public uint TextureHash;
-            public int EffectID;
+            public uint EffectId;
             public int Unknown2;
 
             public Vector3 BoundsMin;
@@ -385,13 +384,13 @@ namespace Common.Geometry
                                 Debug.Assert(chunkSize % solidObject.MeshDescriptor.NumMats == 0);
 
                                 var streamIndex = 0;
-                                var lastEffectID = 0;
+                                var lastEffectId = 0u;
 
                                 for (var j = 0; j < solidObject.MeshDescriptor.NumMats; j++)
                                 {
                                     var shadingGroup = BinaryUtil.ReadStruct<Material>(br);
 
-                                    if (j > 0 && shadingGroup.EffectID != lastEffectID)
+                                    if (j > 0 && shadingGroup.EffectId != lastEffectId)
                                     {
                                         streamIndex++;
                                     }
@@ -405,7 +404,7 @@ namespace Common.Geometry
                                         Name = $"Unnamed Material #{j + 1:00}",
                                         NumVerts = shadingGroup.NumVerts,
                                         TextureHash = solidObject.TextureHashes[shadingGroup.TextureAssignments[0]],
-                                        EffectID = shadingGroup.EffectID,
+                                        EffectId = shadingGroup.EffectId,
                                         VertexStreamIndex = streamIndex
                                     };
 
@@ -413,7 +412,7 @@ namespace Common.Geometry
 
                                     solidObject.MeshDescriptor.NumVerts += shadingGroup.NumVerts;
 
-                                    lastEffectID = shadingGroup.EffectID;
+                                    lastEffectId = shadingGroup.EffectId;
                                 }
 
                                 break;

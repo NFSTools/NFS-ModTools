@@ -8,6 +8,9 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry
 {
+    public class UndergroundMaterial : SolidObjectMaterial
+    {
+    }
     public class UndergroundSolids : SolidListManager
     {
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -276,7 +279,7 @@ namespace Common.Geometry
                                 {
                                     var shadingGroup = br.GetStruct<SolidObjectShadingGroup>();
 
-                                    solidObject.Materials.Add(new Underground2Material
+                                    solidObject.Materials.Add(new UndergroundMaterial
                                     {
                                         Name = $"Unnamed Material #{j + 1:00}",
                                         Flags = shadingGroup.Flags,

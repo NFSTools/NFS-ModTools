@@ -8,6 +8,10 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry
 {
+    public class Underground2Material : SolidObjectMaterial
+    {
+    }
+    
     public class Underground2Solids : SolidListManager
     {
         [StructLayout(LayoutKind.Sequential, Pack = 1)]

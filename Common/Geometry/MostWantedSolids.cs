@@ -8,6 +8,8 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry
 {
+    public class MostWantedMaterial : EffectBasedMaterial {}
+    
     public class MostWantedSolids : SolidListManager
     {
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -86,7 +88,7 @@ namespace Common.Geometry
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 0x10)]
             public readonly byte[] Blank; // @0x20
 
-            public readonly uint EffectID; // @0x30
+            public readonly uint EffectId; // @0x30
             public readonly uint EffectPointer; // @0x34; always null
 
             public readonly uint Flags; // @0x38
@@ -295,7 +297,7 @@ namespace Common.Geometry
                                 {
                                     var shadingGroup = BinaryUtil.ReadStruct<SolidObjectShadingGroup>(br);
 
-                                    if (j > 0 && shadingGroup.EffectID != lastEffectID)
+                                    if (j > 0 && shadingGroup.EffectId != lastEffectID)
                                     {
                                         streamIndex++;
                                     }
@@ -309,14 +311,14 @@ namespace Common.Geometry
                                         Name = $"Unnamed Material #{j + 1:00}",
                                         NumVerts = shadingGroup.NumVerts,
                                         TextureHash = solidObject.TextureHashes[shadingGroup.TextureNumber[0]],
-                                        EffectID = shadingGroup.EffectID,
+                                        EffectId = shadingGroup.EffectId,
                                         VertexStreamIndex = streamIndex
                                     };
 
                                     solidObject.Materials.Add(solidObjectMaterial);
 
                                     solidObject.MeshDescriptor.NumVerts += shadingGroup.NumVerts;
-                                    lastEffectID = shadingGroup.EffectID;
+                                    lastEffectID = shadingGroup.EffectId;
                                 }
 
                                 break;

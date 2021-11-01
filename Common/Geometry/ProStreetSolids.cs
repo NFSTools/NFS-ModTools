@@ -9,6 +9,10 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry
 {
+    public class ProStreetMaterial : EffectBasedMaterial
+    {
+    }
+    
     public class ProStreetSolids : SolidListManager
     {
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -455,7 +459,7 @@ namespace Common.Geometry
                                         VertexStreamIndex = j,
                                         Hash = shadingGroup.UnknownId,
                                         TextureHash = solidObject.TextureHashes[shadingGroup.TextureShaderUsage[4]],
-                                        EffectId = (ProStreetObject.EffectID)shadingGroup.EffectId
+                                        EffectId = shadingGroup.EffectId
                                     });
 
                                     solidObject.MeshDescriptor.NumVerts +=
