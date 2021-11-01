@@ -1095,9 +1095,7 @@ namespace Common.Geometry.Data
     {
         public string PipelinePath { get; set; }
 
-        public string ClassType { get; set; }
-
-        public int ObjectCount { get; set; }
+        public string Filename { get; set; }
 
         public List<SolidObject> Objects { get; } = new List<SolidObject>();
     }

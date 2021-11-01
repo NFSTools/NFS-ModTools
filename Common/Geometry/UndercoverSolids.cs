@@ -352,9 +352,8 @@ namespace Common.Geometry
                         {
                             var info = BinaryUtil.ReadStruct<SolidListInfo>(br);
 
-                            _solidList.ClassType = info.ClassType;
+                            _solidList.Filename = info.ClassType;
                             _solidList.PipelinePath = info.PipelinePath;
-                            _solidList.ObjectCount = info.NumObjects;
 
                             break;
                         }

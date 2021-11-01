@@ -132,7 +132,7 @@
                         </TextBlock>
                         <TextBlock Text="["
                                    Foreground="#bbb" />
-                        <TextBlock Text="{Binding Resource.ClassType}"
+                        <TextBlock Text="{Binding Resource.Filename}"
                                    Foreground="#bbb"
                                    FontWeight="DemiBold" />
                         <TextBlock Text="]"
