@@ -157,7 +157,7 @@ namespace MapEd
                         var textureNode = subTree.Nodes.Add(texture.Name);
 
                         textureNode.Tag = texture;
-                        textureNode.ToolTipText = texture.Dimensions + $"- Mipmaps: {texture.MipMapCount} - Format: {texture.Format.ToString().ToUpper()}";
+                        textureNode.ToolTipText =  $"{texture.Width}x{texture.Height} - Mipmaps: {texture.MipMapCount} - Format: {texture.Format.ToString().ToUpper()}";
                     }
 
                     subTree.Visible = true;
@@ -168,7 +168,7 @@ namespace MapEd
                         var solidObjectNode = subTree.Nodes.Add(solidObject.Name);
 
                         solidObjectNode.Tag = solidObject;
-                        solidObjectNode.ToolTipText = $"Materials: {solidObject.Materials.Count} - Faces: {solidObject.Faces.Length}";
+                        solidObjectNode.ToolTipText = $"Materials: {solidObject.Materials.Count} - Faces: {solidObject.Materials.Sum(m => m.Indices.Length) / 3}";
 
                         foreach (var material in solidObject.Materials)
                         {
@@ -604,31 +604,33 @@ namespace MapEd
                         sw.WriteLine($"mtllib {mtlFileName}");
                         sw.WriteLine($"obj {_selectedSolidObject.Name}");
 
-                        foreach (var vertex in _selectedSolidObject.Vertices)
-                        {
-                            sw.WriteLine($"vt {BinaryUtil.FullPrecisionFloat(vertex.U)} {BinaryUtil.FullPrecisionFloat(vertex.V)}");
-                        }
+                        throw new NotImplementedException();
 
-                        foreach (var vertex in _selectedSolidObject.Vertices)
-                        {
-                            sw.WriteLine($"v {BinaryUtil.FullPrecisionFloat(vertex.X)} {BinaryUtil.FullPrecisionFloat(vertex.Y)} {BinaryUtil.FullPrecisionFloat(vertex.Z)}");
-                        }
-
-                        for (var i = 0; i < _selectedSolidObject.Materials.Count; i++)
-                        {
-                            var material = _selectedSolidObject.Materials[i];
-                            var faces = _selectedSolidObject.Faces.Where(f => f.MaterialIndex == i).ToList();
-
-                            sw.WriteLine($"usemtl {material.Name.Replace(' ', '_')}");
-
-                            foreach (var face in faces)
-                            {
-                                if (face.Vtx1 >= _selectedSolidObject.MeshDescriptor.NumVerts
-                                    || face.Vtx2 >= _selectedSolidObject.MeshDescriptor.NumVerts
-                                    || face.Vtx3 >= _selectedSolidObject.MeshDescriptor.NumVerts) break;
-                                sw.WriteLine($"f {face.Vtx1 + 1}/{face.Vtx1 + 1} {face.Vtx2 + 1}/{face.Vtx2 + 1} {face.Vtx3 + 1}/{face.Vtx3 + 1}");
-                            }
-                        }
+                        // foreach (var vertex in _selectedSolidObject.Vertices)
+                        // {
+                        //     sw.WriteLine($"vt {BinaryUtil.FullPrecisionFloat(vertex.U)} {BinaryUtil.FullPrecisionFloat(vertex.V)}");
+                        // }
+                        //
+                        // foreach (var vertex in _selectedSolidObject.Vertices)
+                        // {
+                        //     sw.WriteLine($"v {BinaryUtil.FullPrecisionFloat(vertex.X)} {BinaryUtil.FullPrecisionFloat(vertex.Y)} {BinaryUtil.FullPrecisionFloat(vertex.Z)}");
+                        // }
+                        //
+                        // for (var i = 0; i < _selectedSolidObject.Materials.Count; i++)
+                        // {
+                        //     var material = _selectedSolidObject.Materials[i];
+                        //     var faces = _selectedSolidObject.Faces.Where(f => f.MaterialIndex == i).ToList();
+                        //
+                        //     sw.WriteLine($"usemtl {material.Name.Replace(' ', '_')}");
+                        //
+                        //     foreach (var face in faces)
+                        //     {
+                        //         if (face.Vtx1 >= _selectedSolidObject.MeshDescriptor.NumVerts
+                        //             || face.Vtx2 >= _selectedSolidObject.MeshDescriptor.NumVerts
+                        //             || face.Vtx3 >= _selectedSolidObject.MeshDescriptor.NumVerts) break;
+                        //         sw.WriteLine($"f {face.Vtx1 + 1}/{face.Vtx1 + 1} {face.Vtx2 + 1}/{face.Vtx2 + 1} {face.Vtx3 + 1}/{face.Vtx3 + 1}");
+                        //     }
+                        // }
 
                         //var lastMaterial = -1;
 

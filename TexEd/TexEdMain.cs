@@ -80,7 +80,11 @@ namespace TexEd
 
                     try
                     {
-                        pictureBox1.Image = new DDSImage(texture.GenerateImage()).BitmapImage;
+                        using (var ms = new MemoryStream())
+                        {
+                            texture.GenerateImage(ms);
+                            pictureBox1.Image = new DDSImage(ms).BitmapImage;
+                        }
                     }
                     catch (Exception)
                     {
@@ -213,7 +217,7 @@ namespace TexEd
                     tpkDataGrid.Rows[0].Selected = true;
                 }
 
-                label1.Text = $"Packs: {_texturePacks.Count} - Textures: {_texturePacks.Sum(tpk => tpk.NumTextures)}";
+                label1.Text = $"Packs: {_texturePacks.Count} - Textures: {_texturePacks.Sum(tpk => tpk.Textures.Count)}";
 #if !DEBUG
             }
                 catch (Exception ex)
