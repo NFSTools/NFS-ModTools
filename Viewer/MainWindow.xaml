@@ -4,58 +4,58 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:helix="http://helix-toolkit.org/wpf"
         xmlns:local="clr-namespace:Viewer"
         xmlns:dxc="clr-namespace:SharpDX.WPF;assembly=SharpDX.WPF"
         xmlns:commonTextures="clr-namespace:Common.Textures.Data;assembly=Common"
         xmlns:commonGeometry="clr-namespace:Common.Geometry.Data;assembly=Common"
         xmlns:sharpGl="clr-namespace:SharpGL.WPF;assembly=SharpGL.WPF"
+        xmlns:hx="http://helix-toolkit.org/wpf/SharpDX"
         mc:Ignorable="d"
         Height="720" Width="1280" MinHeight="720" MinWidth="1280">
     <Grid DataContext="{Binding ElementName=MyMainWindow}">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width=".5*"></ColumnDefinition>
-            <ColumnDefinition Width="*"></ColumnDefinition>
+            <ColumnDefinition Width=".5*" />
+            <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"></RowDefinition>
-            <RowDefinition Height="150*" MinHeight="150"></RowDefinition>
-            <RowDefinition Height="5" MinHeight="5" MaxHeight="5"></RowDefinition>
-            <RowDefinition Height="100" MinHeight="100"></RowDefinition>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="150*" MinHeight="150" />
+            <RowDefinition Height="5" MinHeight="5" MaxHeight="5" />
+            <RowDefinition Height="100" MinHeight="100" />
         </Grid.RowDefinitions>
 
         <Menu Grid.ColumnSpan="2"
               Padding="5,6,0,6">
             <Menu.Resources>
                 <Style x:Key="CustomMenuItem" TargetType="{x:Type MenuItem}">
-                    <Setter Property="FontSize" Value="12"></Setter>
-                    <Setter Property="Margin" Value="0,0,0,0"/>
+                    <Setter Property="FontSize" Value="12" />
+                    <Setter Property="Margin" Value="0,0,0,0" />
                 </Style>
             </Menu.Resources>
             <MenuItem Header="File" Style="{StaticResource CustomMenuItem}">
                 <MenuItem Header="Open"
-                          x:Name="OpenItem" 
+                          x:Name="OpenItem"
                           Click="OpenItem_OnClick"
-                          Style="{StaticResource CustomMenuItem}"></MenuItem>
-                <MenuItem Header="Open Map" 
+                          Style="{StaticResource CustomMenuItem}" />
+                <MenuItem Header="Open Map"
                           x:Name="OpenMapItem"
                           Click="OpenMapItem_OnClick"
-                          Style="{StaticResource CustomMenuItem}"></MenuItem>
+                          Style="{StaticResource CustomMenuItem}" />
             </MenuItem>
-            <MenuItem Header="Geometry" Style="{StaticResource CustomMenuItem}"></MenuItem>
+            <MenuItem Header="Geometry" Style="{StaticResource CustomMenuItem}" />
             <MenuItem Header="Camera" Style="{StaticResource CustomMenuItem}">
-                <MenuItem Header="Reset" 
-                          x:Name="ResetCameraItem" 
+                <MenuItem Header="Reset"
+                          x:Name="ResetCameraItem"
                           Click="ResetCameraItem_OnClick"
-                          Style="{StaticResource CustomMenuItem}"></MenuItem>
+                          Style="{StaticResource CustomMenuItem}" />
             </MenuItem>
         </Menu>
 
         <TreeView x:Name="AssetTree"
                   Padding="0,0,0,0"
                   Background="#232323"
-                  Grid.Row="1" 
-                  Grid.Column="0" 
+                  Grid.Row="1"
+                  Grid.Column="0"
                   ItemsSource="{Binding Containers, ElementName=MyMainWindow}"
                   VirtualizingStackPanel.IsVirtualizing="True"
                   VirtualizingStackPanel.VirtualizationMode="Recycling"
@@ -70,52 +70,52 @@
                 <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}"
                                  Color="Black" />
                 <HierarchicalDataTemplate DataType="{x:Type local:FileContainer}" ItemsSource="{Binding Assets}">
-                    <TextBlock Text="{Binding FileName}" 
+                    <TextBlock Text="{Binding FileName}"
                                Foreground="#dedede" />
                 </HierarchicalDataTemplate>
 
                 <HierarchicalDataTemplate DataType="{x:Type local:SimpleAssetGroup}" ItemsSource="{Binding SubAssets}">
-                    <TextBlock Text="{Binding Name}" 
+                    <TextBlock Text="{Binding Name}"
                                Foreground="#dedede" />
                 </HierarchicalDataTemplate>
 
                 <HierarchicalDataTemplate DataType="{x:Type local:SectionContainer}" ItemsSource="{Binding SubAssets}">
                     <StackPanel Orientation="Horizontal"
                                 Margin="0,0,6,0">
-                        <CheckBox IsChecked="{Binding IsSelected}" 
+                        <CheckBox IsChecked="{Binding IsSelected}"
                                   Margin="0,0,3,0"
                                   Command="{Binding ElementName=MyMainWindow,Path=SectionCheckCommand}"
-                                  CommandParameter="{Binding}"></CheckBox>
-                        <TextBlock Text="{Binding Path=Section.Name}" 
+                                  CommandParameter="{Binding}" />
+                        <TextBlock Text="{Binding Path=Section.Name}"
                                    Foreground="Gold"
                                    Margin="0,0,4,0">
                             <TextBlock.Style>
                                 <Style TargetType="{x:Type TextBlock}">
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                            <Setter Property="FontWeight" Value="Bold"></Setter>
+                                            <Setter Property="FontWeight" Value="Bold" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
                         <TextBlock Text="["
-                                   Foreground="#bbb"></TextBlock>
+                                   Foreground="#bbb" />
                         <TextBlock Text="{Binding Section.Number}"
                                    Foreground="#bbb"
-                                   FontWeight="DemiBold"></TextBlock>
+                                   FontWeight="DemiBold" />
                         <TextBlock Text="]"
-                                   Foreground="#bbb"></TextBlock>
+                                   Foreground="#bbb" />
                     </StackPanel>
                 </HierarchicalDataTemplate>
 
                 <HierarchicalDataTemplate DataType="{x:Type local:SolidListAsset}" ItemsSource="{Binding SubAssets}">
                     <StackPanel Orientation="Horizontal"
                                 Margin="0,0,6,0">
-                        <CheckBox IsChecked="{Binding IsSelected}" 
+                        <CheckBox IsChecked="{Binding IsSelected}"
                                   Margin="0,0,3,0"
                                   Command="{Binding ElementName=MyMainWindow,Path=ModelPackCheckCommand}"
-                                  CommandParameter="{Binding}"></CheckBox>
+                                  CommandParameter="{Binding}" />
                         <TextBlock Text="{Binding Resource.PipelinePath}"
                                    Foreground="#bbb"
                                    FontWeight="DemiBold"
@@ -124,19 +124,19 @@
                                 <Style TargetType="{x:Type TextBlock}">
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                            <Setter Property="Foreground" Value="Gold"></Setter>
+                                            <Setter Property="Foreground" Value="Gold" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
                         <TextBlock Text="["
-                                   Foreground="#bbb"></TextBlock>
+                                   Foreground="#bbb" />
                         <TextBlock Text="{Binding Resource.ClassType}"
                                    Foreground="#bbb"
-                                   FontWeight="DemiBold"></TextBlock>
+                                   FontWeight="DemiBold" />
                         <TextBlock Text="]"
-                                   Foreground="#bbb"></TextBlock>
+                                   Foreground="#bbb" />
                     </StackPanel>
                 </HierarchicalDataTemplate>
 
@@ -145,28 +145,28 @@
                         <CheckBox IsChecked="{Binding IsSelected}"
                                   Margin="0,0,3,0"
                                   Command="{Binding ElementName=MyMainWindow,Path=TexturePackCheckCommand}"
-                                  CommandParameter="{Binding}"></CheckBox>
+                                  CommandParameter="{Binding}" />
                         <TextBlock Text="{Binding Resource.PipelinePath}"
                                    FontWeight="DemiBold"
-                                   Margin="0,0,4,0" 
+                                   Margin="0,0,4,0"
                                    Foreground="LightGreen">
                             <TextBlock.Style>
                                 <Style TargetType="{x:Type TextBlock}">
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                            <Setter Property="FontWeight" Value="Bold"></Setter>
+                                            <Setter Property="FontWeight" Value="Bold" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
                         <TextBlock Text="["
-                                   Foreground="#bbb"></TextBlock>
+                                   Foreground="#bbb" />
                         <TextBlock Text="{Binding Resource.Name}"
                                    Foreground="#bbb"
-                                   FontWeight="DemiBold"></TextBlock>
+                                   FontWeight="DemiBold" />
                         <TextBlock Text="]"
-                                   Foreground="#bbb"></TextBlock>
+                                   Foreground="#bbb" />
                     </StackPanel>
                 </HierarchicalDataTemplate>
 
@@ -175,13 +175,13 @@
                         <CheckBox IsChecked="{Binding IsSelected}"
                                   Margin="0,0,3,0"
                                   Command="{Binding ElementName=MyMainWindow,Path=TextureCheckCommand}"
-                                  CommandParameter="{Binding}"></CheckBox>
+                                  CommandParameter="{Binding}" />
                         <TextBlock Text="{Binding Resource.Name}" Foreground="LawnGreen">
                             <TextBlock.Style>
                                 <Style TargetType="{x:Type TextBlock}">
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                            <Setter Property="FontWeight" Value="Bold"></Setter>
+                                            <Setter Property="FontWeight" Value="Bold" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -195,13 +195,13 @@
                         <CheckBox IsChecked="{Binding IsSelected}"
                                   Margin="0,0,3,0"
                                   Command="{Binding ElementName=MyMainWindow,Path=ModelCheckCommand}"
-                                  CommandParameter="{Binding}"></CheckBox>
+                                  CommandParameter="{Binding}" />
                         <TextBlock Text="{Binding Resource.Name}" Foreground="#bbb">
                             <TextBlock.Style>
                                 <Style TargetType="{x:Type TextBlock}">
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                            <Setter Property="FontWeight" Value="Bold"></Setter>
+                                            <Setter Property="FontWeight" Value="Bold" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -218,9 +218,8 @@
                     </StackPanel>
                 </HierarchicalDataTemplate>
 
-                <HierarchicalDataTemplate DataType="{x:Type local:FileAssetContainer}" ItemsSource="{Binding SubAssets}" >
-
-                </HierarchicalDataTemplate>
+                <HierarchicalDataTemplate DataType="{x:Type local:FileAssetContainer}"
+                                          ItemsSource="{Binding SubAssets}" />
             </TreeView.Resources>
         </TreeView>
         <!--<sharpGl:OpenGLControl Grid.Row="1" 
@@ -228,20 +227,69 @@
                                DrawFPS="True"
                                OpenGLInitialized="OpenGLControl_OnOpenGLInitialized"
                                OpenGLDraw="OpenGLControl_OpenGLDraw"></sharpGl:OpenGLControl>-->
-        <helix:HelixViewport3D x:Name="Viewport" 
-                               ZoomExtentsWhenLoaded="true" 
-                               Grid.Row="1" 
-                               Grid.Column="1">
-            <helix:DefaultLights />
-            <ModelVisual3D x:Name="MainVisual"></ModelVisual3D>
-            <helix:GridLinesVisual3D Width="{Binding ActualWidth}" Length="{Binding ActualWidth}"/>
-        </helix:HelixViewport3D>
+        <hx:Viewport3DX x:Name="view1"
+                        Title="view1"
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Camera="{Binding Camera}"
+                        BackgroundColor="White"
+                        CoordinateSystemLabelForeground="White"
+                        EnableSwapChainRendering="True"
+                        FXAALevel="None"
+                        IsShadowMappingEnabled="False"
+                        MSAA="Disable"
+                        ShowCoordinateSystem="True"
+                        ShowFrameDetails="True"
+                        ShowFrameRate="True"
+                        SubTitle="test"
+                        TextBrush="Black"
+                        UseDefaultGestures="False">
+            <hx:Viewport3DX.EffectsManager>
+                <hx:DefaultEffectsManager />
+            </hx:Viewport3DX.EffectsManager>
+            <hx:Viewport3DX.InputBindings>
+                <KeyBinding Key="B" Command="hx:ViewportCommands.BackView" />
+                <KeyBinding Key="F" Command="hx:ViewportCommands.FrontView" />
+                <KeyBinding Key="U" Command="hx:ViewportCommands.TopView" />
+                <KeyBinding Key="D" Command="hx:ViewportCommands.BottomView" />
+                <KeyBinding Key="L" Command="hx:ViewportCommands.LeftView" />
+                <KeyBinding Key="R" Command="hx:ViewportCommands.RightView" />
+                <KeyBinding Command="hx:ViewportCommands.ZoomExtents" Gesture="Control+E" />
+                <MouseBinding Command="hx:ViewportCommands.Rotate" Gesture="RightClick" />
+                <MouseBinding Command="hx:ViewportCommands.Zoom" Gesture="MiddleClick" />
+                <MouseBinding Command="hx:ViewportCommands.Pan" Gesture="LeftClick" />
+            </hx:Viewport3DX.InputBindings>
+            <hx:DirectionalLight3D
+                Direction="{Binding Camera.LookDirection, RelativeSource={RelativeSource AncestorType=hx:Viewport3DX}}"
+                Color="White" />
+            <hx:GroupModel3D
+                ItemsSource="{Binding RenderManager.CurrentElements.Values}" />
+            <!-- <hx:ItemsModel3D -->
+            <!--     x:Name="itemsModel1" -->
+            <!--     ItemsSource="{Binding RenderObjects}"> -->
+            <!--     <hx:ItemsModel3D.ItemTemplate> -->
+            <!--         <DataTemplate> -->
+            <!--             <hx:ItemsModel3D ItemsSource="{Binding Meshes}" Transform="{Binding Transform}"> -->
+            <!--                 <hx:ItemsModel3D.ItemTemplate> -->
+            <!--                     <DataTemplate> -->
+            <!--                         <hx:MeshGeometryModel3D -->
+            <!--                             CullMode="Back" -->
+            <!--                             Geometry="{Binding Geometry}" -->
+            <!--                             Material="{Binding Material}" /> -->
+            <!--                     </DataTemplate> -->
+            <!--                 </hx:ItemsModel3D.ItemTemplate> -->
+            <!--             </hx:ItemsModel3D> -->
+            <!--         </DataTemplate> -->
+            <!--     </hx:ItemsModel3D.ItemTemplate> -->
+            <!-- </hx:ItemsModel3D> -->
+            <!-- <ModelVisual3D x:Name="MainVisual"></ModelVisual3D> -->
+        </hx:Viewport3DX>
         <GridSplitter Grid.Row="2"
                       Grid.Column="0"
                       Grid.ColumnSpan="2"
-                      HorizontalAlignment="Stretch"></GridSplitter>
-        <StackPanel Grid.Row="3" 
-                    Grid.Column="0" 
+                      HorizontalAlignment="Stretch" />
+        <StackPanel Grid.Row="3"
+                    Grid.Column="0"
                     Grid.ColumnSpan="2"
                     Background="#232323"
                     DataContext="{Binding ElementName=MyMainWindow, Path=Log}"
@@ -253,17 +301,17 @@
                         <DataTemplate DataType="{x:Type local:MainWindow+LogModel+LogEntry}">
                             <Grid Margin="10,10,0,5">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"></ColumnDefinition>
-                                    <ColumnDefinition Width="10"></ColumnDefinition>
-                                    <ColumnDefinition Width="*"></ColumnDefinition>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="{Binding Path=Timestamp}"
                                            Grid.Column="0"
-                                           Foreground="LightGray"></TextBlock>
+                                           Foreground="LightGray" />
                                 <ItemsControl ItemsSource="{Binding Path=Message}" Grid.Column="2">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal"></StackPanel>
+                                            <StackPanel Orientation="Horizontal" />
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
                                 </ItemsControl>

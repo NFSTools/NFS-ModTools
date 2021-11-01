@@ -8,15 +8,18 @@ using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Media3D;
 using Common;
 using Common.Geometry.Data;
 using Common.Textures.Data;
 using Common.TrackStream;
 using Common.TrackStream.Data;
+using HelixToolkit.Wpf.SharpDX;
 using Microsoft.WindowsAPICodePack.Dialogs;
 using SharpDX;
 using SharpGL;
 using SharpGL.SceneGraph;
+using PerspectiveCamera = HelixToolkit.Wpf.SharpDX.PerspectiveCamera;
 
 namespace Viewer
 {
@@ -25,14 +28,7 @@ namespace Viewer
     /// </summary>
     public partial class MainWindow
     {
-        public class ObjectRenderInfo
-        {
-            public SolidObject SolidObject { get; set; }
-
-            public bool EnableTransform { get; set; }
-        }
-
-        public class LogModel : PropertyNotifier
+        public class LogModel
         {
             public enum LogLevel
             {
@@ -87,77 +83,73 @@ namespace Viewer
         }
 
         private GameDetector.Game _game;
-
         private ICommand _modelCheckCommand;
+        public RenderManager RenderManager { get; }
+
         public ICommand ModelCheckCommand
         {
             get
             {
                 return _modelCheckCommand ?? (_modelCheckCommand = new CommandHandler<SolidObjectAsset>(asset =>
-                           {
-                               if (asset.IsSelected != null && (bool) asset.IsSelected)
-                               {
-                                   RenderManager.Instance.AddRenderObject(asset.Resource);
-                                   RenderManager.Instance.UpdateScene();
-                               }
-                               else
-                               {
-                                   RenderManager.Instance.RemoveRenderObject(asset.Resource);
-                                   RenderManager.Instance.UpdateScene();
-                               }
-                           }, true));
+                {
+                    if (asset.IsSelected != null && (bool)asset.IsSelected)
+                    {
+                        RenderManager.EnableSolid(asset.Resource);
+                    }
+                    else
+                    {
+                        RenderManager.DisableSolid(asset.Resource);
+                    }
+                }, true));
             }
         }
 
         private ICommand _textureCheckCommand;
+
         public ICommand TextureCheckCommand
         {
             get
             {
                 return _textureCheckCommand ?? (_textureCheckCommand = new CommandHandler<TextureAsset>(asset =>
                 {
-                    if (asset.IsSelected != null && (bool) asset.IsSelected)
+                    if (asset.IsSelected != null && (bool)asset.IsSelected)
                     {
-                        RenderManager.Instance.AddRenderTexture(asset.Resource);
-                        RenderManager.Instance.UpdateScene();
+                        RenderManager.EnableTexture(asset.Resource);
                     }
                     else
                     {
-                        RenderManager.Instance.RemoveRenderTexture(asset.Resource);
-                        RenderManager.Instance.UpdateScene();
+                        RenderManager.DisableTexture(asset.Resource);
                     }
                 }, true));
             }
         }
 
         private ICommand _texturePackCheckCommand;
+
         public ICommand TexturePackCheckCommand
         {
             get
             {
-                return _texturePackCheckCommand ?? (_texturePackCheckCommand = new CommandHandler<TexturePackAsset>(asset =>
-                {
-                    if (asset.IsSelected != null && (bool) asset.IsSelected)
+                return _texturePackCheckCommand ?? (_texturePackCheckCommand = new CommandHandler<TexturePackAsset>(
+                    asset =>
                     {
-                        foreach (var fileAssetContainer in asset.SubAssets)
+                        if (asset.IsSelected != null && (bool)asset.IsSelected)
                         {
-                            fileAssetContainer.IsSelected = true;
-                            RenderManager.Instance.AddRenderTexture(((TextureAsset)fileAssetContainer).Resource);
+                            foreach (var fileAssetContainer in asset.SubAssets)
+                            {
+                                fileAssetContainer.IsSelected = true;
+                                RenderManager.EnableTexture(((TextureAsset)fileAssetContainer).Resource);
+                            }
                         }
-
-                        RenderManager.Instance.UpdateScene();
-                    }
-                    else
-                    {
-                        foreach (var fileAssetContainer in asset.SubAssets)
+                        else
                         {
-                            fileAssetContainer.IsSelected = false;
-                            RenderManager.Instance.RemoveRenderTexture(((TextureAsset)fileAssetContainer).Resource);
+                            foreach (var fileAssetContainer in asset.SubAssets)
+                            {
+                                fileAssetContainer.IsSelected = false;
+                                RenderManager.DisableTexture(((TextureAsset)fileAssetContainer).Resource);
+                            }
                         }
-
-                        RenderManager.Instance.UpdateScene();
-                    }
-                }, true));
+                    }, true));
             }
         }
 
@@ -169,72 +161,23 @@ namespace Viewer
             {
                 return _modelPackCheckCommand ?? (_modelPackCheckCommand = new CommandHandler<SolidListAsset>(asset =>
                 {
-                    if (asset.IsSelected != null && (bool) asset.IsSelected)
+                    if (asset.IsSelected != null && (bool)asset.IsSelected)
                     {
                         foreach (var fileAssetContainer in asset.SubAssets)
                         {
                             var solidObject = ((SolidObjectAsset)fileAssetContainer).Resource;
-                            //var nameSplit = solidObject.Name.Split('_');
-
-                            //// check for LOD
-                            //if (nameSplit.Length >= 3)
-                            //{
-                            //    var lodMatch = false;
-                            //    var lod = "";
-
-                            //    for (var j = nameSplit.Length - 1; j >= 0; j--)
-                            //    {
-                            //        var part = nameSplit[j].ToLower().Trim();
-
-                            //        if (part.Length == 0)
-                            //            continue;
-
-                            //        if (part.Length == 1)
-                            //        {
-                            //            if (part[0] >= 'a' && part[0] <= 'z')
-                            //            {
-                            //                if (part[0] == 'a')
-                            //                {
-                            //                    lodMatch = true;
-                            //                }
-                            //            }
-                            //        } else if (part.Length == 2)
-                            //        {
-                            //            if (uint.TryParse(part.Substring(0, 1), out _))
-                            //            {
-                            //                if (part[1] >= 'a' && part[1] <= 'z')
-                            //                {
-                            //                    if (part[1] == 'a')
-                            //                    {
-                            //                        lodMatch = true;
-                            //                    }
-                            //                }
-                            //            }
-                            //        }
-                            //    }
-
-                            //    if (!lodMatch)
-                            //    {
-                            //        continue;
-                            //    }
-                            //}
-
-                            RenderManager.Instance.AddRenderObject(solidObject);
                             fileAssetContainer.IsSelected = true;
+                            RenderManager.EnableSolid(solidObject);
                         }
-
-                        RenderManager.Instance.UpdateScene();
                     }
                     else
                     {
                         foreach (var fileAssetContainer in asset.SubAssets)
                         {
+                            var solidObject = ((SolidObjectAsset)fileAssetContainer).Resource;
                             fileAssetContainer.IsSelected = false;
-
-                            RenderManager.Instance.RemoveRenderObject(((SolidObjectAsset)fileAssetContainer).Resource);
+                            RenderManager.DisableSolid(solidObject);
                         }
-
-                        RenderManager.Instance.UpdateScene();
                     }
                 }, true));
             }
@@ -248,7 +191,7 @@ namespace Viewer
             {
                 return _sectionCheckCommand ?? (_sectionCheckCommand = new CommandHandler<SectionContainer>(asset =>
                 {
-                    if (asset.IsSelected != null && (bool) asset.IsSelected)
+                    if (asset.IsSelected != null && (bool)asset.IsSelected)
                     {
                         foreach (var subAsset in asset.SubAssets)
                         {
@@ -257,7 +200,8 @@ namespace Viewer
                             if (subAsset is SolidListAsset solidList)
                             {
                                 ModelPackCheckCommand.Execute(solidList);
-                            } else if (subAsset is TexturePackAsset tpk)
+                            }
+                            else if (subAsset is TexturePackAsset tpk)
                             {
                                 TexturePackCheckCommand.Execute(tpk);
                             }
@@ -283,8 +227,6 @@ namespace Viewer
                             }
                         }
                     }
-
-                    RenderManager.Instance.UpdateScene();
                 }, true));
             }
         }
@@ -312,17 +254,21 @@ namespace Viewer
 
         public LogModel Log { get; } = new LogModel();
 
+        public PerspectiveCamera Camera { get; } = new PerspectiveCamera();
+
         public MainWindow()
         {
             InitializeComponent();
 
             MessageUtil.SetAppName("NFS Viewer");
 
-            RenderManager.Instance.SetViewport(Viewport);
-            RenderManager.Instance.SetModelVisualManager(MainVisual);
+            // RenderManager.Instance.SetModelVisualManager(MainVisual);
 
             Title = $"NFS Viewer v{Assembly.GetExecutingAssembly().GetName().Version}";
             Log.PushSimple(LogModel.LogLevel.Info, "Waiting...");
+            RenderManager = new RenderManager();
+            
+            view1.ModelUpDirection = new Vector3D(0, 0, 1);
         }
 
         private void OpenMapItem_OnClick(object sender, RoutedEventArgs e)
@@ -371,38 +317,38 @@ namespace Viewer
                     switch (game)
                     {
                         case GameDetector.Game.MostWanted:
-                            {
-                                gbm = new MostWantedManager();
-                                break;
-                            }
+                        {
+                            gbm = new MostWantedManager();
+                            break;
+                        }
                         case GameDetector.Game.Carbon:
-                            {
-                                gbm = new CarbonManager();
-                                break;
-                            }
+                        {
+                            gbm = new CarbonManager();
+                            break;
+                        }
                         case GameDetector.Game.ProStreet:
                         case GameDetector.Game.ProStreetTest:
-                            {
-                                gbm = new ProStreetManager();
-                                break;
-                            }
+                        {
+                            gbm = new ProStreetManager();
+                            break;
+                        }
                         case GameDetector.Game.Undercover:
-                            {
-                                gbm = new UndercoverManager();
-                                break;
-                            }
+                        {
+                            gbm = new UndercoverManager();
+                            break;
+                        }
                         case GameDetector.Game.World:
-                            {
-                                gbm = new World15Manager();
-                                break;
-                            }
+                        {
+                            gbm = new World15Manager();
+                            break;
+                        }
                         default:
                             throw new ArgumentOutOfRangeException(nameof(game), game, "Invalid game!");
                     }
 
                     Containers.Clear();
                     //MainVisual.Children.Clear();
-                    RenderManager.Instance.Reset();
+                    // RenderManager.Instance.Reset();
                     AssetRegistry.Instance.Reset();
 
                     LocationBundle bundle;
@@ -444,13 +390,14 @@ namespace Viewer
 
                     var stopwatch = new Stopwatch();
                     var cm = new ChunkManager(game,
-                        ChunkManager.ChunkManagerOptions.IgnoreUnknownChunks | ChunkManager.ChunkManagerOptions.SkipNull);
+                        ChunkManager.ChunkManagerOptions.IgnoreUnknownChunks |
+                        ChunkManager.ChunkManagerOptions.SkipNull);
                     stopwatch.Start();
 
                     foreach (var section in bundle.Sections.OrderBy(s => s.Number))
                     {
                         cm.Reset();
-                        
+
                         var sectionContainer = new SectionContainer
                         {
                             Section = section,
@@ -540,6 +487,8 @@ namespace Viewer
                     masterStream?.Dispose();
 
                     Title = $"NFS Viewer v{Assembly.GetExecutingAssembly().GetName().Version} - [{fileName} ({game})]";
+                    
+                    RenderManager.Reset();
                 }
             }
         }
@@ -629,13 +578,16 @@ namespace Viewer
 
                 // Data cleanup
                 Containers.Clear();
-                RenderManager.Instance.Reset();
+                RenderManager.Reset();
+                // RenderManager.Instance.Reset();
                 AssetRegistry.Instance.Reset();
 
                 foreach (var file in fileList)
                 {
                     var stopwatch = new Stopwatch();
-                    var cm = new ChunkManager(_game, ChunkManager.ChunkManagerOptions.IgnoreUnknownChunks | ChunkManager.ChunkManagerOptions.SkipNull);
+                    var cm = new ChunkManager(_game,
+                        ChunkManager.ChunkManagerOptions.IgnoreUnknownChunks |
+                        ChunkManager.ChunkManagerOptions.SkipNull);
 
                     stopwatch.Start();
                     cm.Read(file);
@@ -679,60 +631,13 @@ namespace Viewer
                                         SubAssets = new ObservableCollection<FileAssetContainer>()
                                     };
 
-                                    // DEFAULT + compression = car
-                                    if (solidList.ClassType == "DEFAULT" 
-                                        && solidList.Objects.Any(o => o.IsCompressed)
-                                        && solidList.Objects.Any(o => o.Name.Contains("KIT")))
+                                    foreach (var solidObject in solidList.Objects.OrderBy(o => o.Name))
                                     {
-                                        foreach (var grouping in solidList.Objects.GroupBy(o =>
+                                        fac.SubAssets.Add(new SolidObjectAsset
                                         {
-                                            if (o.Name.Contains("_KIT"))
-                                            {
-                                                var stripped = o.Name
-                                                    .Substring(o.Name.IndexOf("KIT", StringComparison.Ordinal) + 3)
-                                                    .Substring(0, o.Name.Contains("KITW") ? 3 : 2);
-
-                                                return $"Kit {stripped.ToUpper()}";
-                                            }
-
-                                            return "Root";
-                                        }))
-                                        {
-                                            var sfac = new SolidListAsset
-                                            {
-                                                IsSelected = false,
-                                                SubAssets = new ObservableCollection<FileAssetContainer>(),
-                                                Resource = new SolidList
-                                                {
-                                                    PipelinePath = grouping.Key,
-                                                    ClassType = "KIT"
-                                                }
-                                            };
-
-                                            sfac.Resource.Objects.AddRange(grouping);
-
-                                            foreach (var solidObject in grouping.OrderBy(o => o.Name))
-                                            {
-                                                sfac.SubAssets.Add(new SolidObjectAsset
-                                                {
-                                                    Resource = solidObject,
-                                                    IsSelected = false
-                                                });
-                                            }
-
-                                            fac.SubAssets.Add(sfac);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        foreach (var solidObject in solidList.Objects.OrderBy(o => o.Name))
-                                        {
-                                            fac.SubAssets.Add(new SolidObjectAsset
-                                            {
-                                                Resource = solidObject,
-                                                IsSelected = false
-                                            });
-                                        }
+                                            Resource = solidObject,
+                                            IsSelected = false
+                                        });
                                     }
 
 
@@ -769,10 +674,10 @@ namespace Viewer
             args.OpenGL.BindBuffer(OpenGL.GL_ARRAY_BUFFER, _vertexBuffers[0]);
             args.OpenGL.BufferData(OpenGL.GL_ARRAY_BUFFER, new float[]
             {
-                -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, // Top-left
-                0.5f,  0.5f, 0.0f, 1.0f, 0.0f, // Top-right
+                -0.5f, 0.5f, 1.0f, 0.0f, 0.0f, // Top-left
+                0.5f, 0.5f, 0.0f, 1.0f, 0.0f, // Top-right
                 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, // Bottom-right
-                -0.5f, -0.5f, 1.0f, 1.0f, 1.0f  // Bottom-left
+                -0.5f, -0.5f, 1.0f, 1.0f, 1.0f // Bottom-left
             }, OpenGL.GL_STATIC_DRAW);
 
             args.OpenGL.GenBuffers(1, _elementArrays);
@@ -785,8 +690,6 @@ namespace Viewer
 
             args.OpenGL.BindBuffer(OpenGL.GL_ELEMENT_ARRAY_BUFFER, _elementArrays[0]);
             args.OpenGL.BufferData(OpenGL.GL_ELEMENT_ARRAY_BUFFER, elements, OpenGL.GL_STATIC_DRAW);
-
-
         }
 
         private readonly uint[] _vertexArrays = new uint[1];
@@ -798,6 +701,7 @@ namespace Viewer
     {
         private Action<T> _action;
         private bool _canExecute;
+
         public CommandHandler(Action<T> action, bool canExecute)
         {
             _action = action;
