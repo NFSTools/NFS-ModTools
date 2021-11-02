@@ -46,7 +46,7 @@ namespace Common.Geometry.Data
             ProStreetMaterial psm = (ProStreetMaterial)material;
             SolidMeshVertex vertex = new SolidMeshVertex();
 
-            switch ((EffectID) psm.EffectId)
+            switch ((EffectID)psm.EffectId)
             {
                 case EffectID.WORLDBAKEDLIGHTING:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
@@ -71,7 +71,8 @@ namespace Common.Geometry.Data
                     reader.BaseStream.Position += 8; // TODO: what is this second D3DDECLUSAGE_TEXCOORD element?
                     // TODO: read tangent
                     reader.BaseStream.Position += 16;
-                    reader.BaseStream.Position += 8; // TODO: what are these other D3DDECLUSAGE_TEXCOORD elements? (2x D3DDECLTYPE_UBYTE4)
+                    reader.BaseStream.Position +=
+                        8; // TODO: what are these other D3DDECLUSAGE_TEXCOORD elements? (2x D3DDECLTYPE_UBYTE4)
                     break;
                 case EffectID.WorldDepthShader:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
@@ -107,7 +108,8 @@ namespace Common.Geometry.Data
                     // TODO: read packed tangent vector (4 short-components)
                     reader.BaseStream.Position += 8;
                     vertex.Color = reader.ReadUInt32();
-                    reader.BaseStream.Position += 8; // TODO: what are these other D3DDECLUSAGE_TEXCOORD elements? (2x D3DDECLTYPE_UBYTE4)
+                    reader.BaseStream.Position +=
+                        8; // TODO: what are these other D3DDECLUSAGE_TEXCOORD elements? (2x D3DDECLTYPE_UBYTE4)
                     break;
                 case EffectID.GRASSTERRAIN:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
@@ -138,7 +140,7 @@ namespace Common.Geometry.Data
                 case EffectID.CARNORMALMAP:
                 case EffectID.CARVINYL:
                     vertex.Position = BinaryUtil.ReadNormal(reader, true);
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader, true);
+                    vertex.TexCoords = BinaryUtil.ReadPackedUV(reader);
                     vertex.Color = reader.ReadUInt32();
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     vertex.Tangent = BinaryUtil.ReadNormal(reader, true);

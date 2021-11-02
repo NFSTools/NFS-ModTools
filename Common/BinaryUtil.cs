@@ -359,9 +359,14 @@ namespace Common
                 negateW ? -w : w);
         }
 
-        public static Vector2 ReadUV(BinaryReader binaryReader, bool packed = false)
+        public static Vector2 ReadUV(BinaryReader binaryReader)
         {
-            return packed ? ReadShort2N(binaryReader, negateY: true) * 32 : ReadVector2(binaryReader, negateY: true);
+            return ReadVector2(binaryReader, negateY: true);
+        }
+
+        public static Vector2 ReadPackedUV(BinaryReader binaryReader)
+        {
+            return ReadShort2N(binaryReader, negateY: true);
         }
 
         public static Vector3 ReadNormal(BinaryReader binaryReader, bool packed = false)
