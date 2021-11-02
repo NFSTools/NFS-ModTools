@@ -69,6 +69,7 @@ namespace Common.Geometry.Data
                 case InternalEffectID.WorldShader:
                 case InternalEffectID.GlossyWindow:
                 case InternalEffectID.billboardshader:
+                case InternalEffectID.CarShader:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Normal = BinaryUtil.ReadVector3(reader);
                     vertex.Color = reader.ReadUInt32();
