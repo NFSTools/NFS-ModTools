@@ -27,11 +27,15 @@ namespace Viewer
                 CurrentElements.Remove(keyValuePair.Key);
             }
         }
-        
+
         public void EnableTexture(Texture texture)
         {
             var stream = new MemoryStream();
             texture.GenerateImage(stream);
+
+#if DEBUG
+            File.WriteAllBytes($"RenderTexDebug_{texture.Name}_0x{texture.TexHash:X8}.dds", stream.ToArray());
+#endif
 
             if (!_textureMaterials.TryGetValue(texture.TexHash, out var material))
             {
@@ -84,7 +88,7 @@ namespace Viewer
         {
             var model = new MeshGeometryModel3D();
             model.Geometry = CreateMeshGeometry(material);
-            
+
             // If we already have a material for the texture, use it
             if (_textureMaterials.TryGetValue(material.TextureHash, out var textureMaterial))
             {
