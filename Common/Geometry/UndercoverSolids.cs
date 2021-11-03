@@ -387,20 +387,20 @@ namespace Common.Geometry
                                 }
                                 else
                                 {
-                                    var bytesRead = 0u;
+                                    var bytesRead = 0;
                                     var blocks = new List<byte[]>();
 
                                     while (bytesRead < och.CompressedSize)
                                     {
                                         var compHeader = BinaryUtil.ReadStruct<Compression.CompressBlockHead>(br);
-                                        var compressedData = br.ReadBytes((int)(compHeader.TotalBlockSize - 24));
-                                        var outData = new byte[compHeader.OutSize];
+                                        var compressedData = br.ReadBytes((int)(compHeader.CSize - 24));
+                                        var outData = new byte[compHeader.USize];
 
                                         Compression.Decompress(compressedData, outData);
 
                                         blocks.Add(outData);
 
-                                        bytesRead += compHeader.TotalBlockSize;
+                                        bytesRead += compHeader.CSize;
                                     }
 
                                     if (blocks.Count == 1)

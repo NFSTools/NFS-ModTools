@@ -268,10 +268,10 @@ namespace Common
         public struct CompressBlockHead
         {
             public uint CompressBlockMagic; // = 0x55441122
-            public uint OutSize; // =0x8000
-            public uint TotalBlockSize; // Skip back to before CompressBlockMagic, then jump TotalBlockSize to get to the next block (or, subtract 24)
-            public uint Unknown2; // += OutSize
-            public uint Unknown3; // += TotalBlockSize
+            public int USize; // =0x8000
+            public int CSize; // Skip back to before CompressBlockMagic, then jump TotalBlockSize to get to the next block (or, subtract 24)
+            public int UPos; // += OutSize
+            public int CPos; // += TotalBlockSize
             public uint Unknown4;
         }
 

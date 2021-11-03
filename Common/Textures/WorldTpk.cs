@@ -57,7 +57,8 @@ namespace Common.Textures
             public short Pad;
             public uint DataSize0;
             public uint DataOffset0;
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1 + 3*4 + 2)]
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1 + 3 * 4 + 2)]
             public uint[] Padding;
 
             public byte DebugNameSize;
@@ -117,149 +118,118 @@ namespace Common.Textures
                     switch (chunkId)
                     {
                         case InfoChunkId:
-                            {
-                                _texturePack.Version = br.ReadUInt32();
-                                _texturePack.Name = new string(br.ReadChars(28)).Trim('\0');
-                                _texturePack.PipelinePath = new string(br.ReadChars(64)).Trim('\0');
-                                _texturePack.Hash = br.ReadUInt32();
+                        {
+                            _texturePack.Version = br.ReadUInt32();
+                            _texturePack.Name = new string(br.ReadChars(28)).Trim('\0');
+                            _texturePack.PipelinePath = new string(br.ReadChars(64)).Trim('\0');
+                            _texturePack.Hash = br.ReadUInt32();
 
-                                break;
-                            }
+                            break;
+                        }
                         case HashChunkId:
-                            {
-                                _texturePack.Textures = new List<Texture>((int)(chunkSize / 8));
-                                break;
-                            }
+                        {
+                            _texturePack.Textures = new List<Texture>((int)(chunkSize / 8));
+                            break;
+                        }
                         case 0x33310003:
                         {
                             _compressed = true;
-                                while (br.BaseStream.Position < chunkEndPos)
+                            while (br.BaseStream.Position < chunkEndPos)
+                            {
+                                var tch = br.GetStruct<DataOffsetStruct>();
+                                var curPos = br.BaseStream.Position;
+
+                                br.BaseStream.Position = tch.Offset;
+
+                                var bytesRead = 0;
+                                var decompressedData = new byte[tch.Length];
+
+                                while (bytesRead < tch.LengthCompressed)
                                 {
-                                    var tch = br.GetStruct<DataOffsetStruct>();
-                                    var curPos = br.BaseStream.Position;
-
-                                    br.BaseStream.Position = tch.Offset;
-
-                                    var bytesRead = 0u;
-                                    var blocks = new List<byte[]>();
-
-                                    while (bytesRead < tch.LengthCompressed)
-                                    {
-                                        var compHeader = BinaryUtil.ReadStruct<Compression.CompressBlockHead>(br);
-                                        var compressedData = br.ReadBytes((int)(compHeader.TotalBlockSize - 24));
-                                        var outData = new byte[compHeader.OutSize];
-
-                                        Array.Clear(outData, 0, outData.Length);
-
-                                        if (BitConverter.ToUInt32(compressedData, 0) == 0x5a4c444a)
-                                        {
-                                            outData = JDLZ.Decompress(compressedData);
-                                        }
-                                        else
-                                        {
-                                            Compression.Decompress(compressedData, outData);
-                                        }
-
-                                        blocks.Add(outData);
-
-                                        bytesRead += compHeader.TotalBlockSize;
-                                    }
-
-                                    // 1 block = end - 212
-                                    // 2+ blocks = blocks[count - 2] -> end - 212
-
-                                    if (blocks.Count == 1)
-                                    {
-                                        using (var mbr = new BinaryReader(new MemoryStream(blocks[0])))
-                                        {
-                                            mbr.BaseStream.Seek(-212, SeekOrigin.End);
-                                            ReadTexture(mbr);
-                                            mbr.BaseStream.Seek(-20, SeekOrigin.End);
-
-                                            _texturePack.Textures[_texturePack.Textures.Count - 1].Format = mbr.ReadUInt32();
-                                            Array.Clear(_texturePack.Textures[_texturePack.Textures.Count - 1].Data, 0, _texturePack.Textures[_texturePack.Textures.Count - 1].Data.Length);
-                                            mbr.BaseStream.Position = 0;
-
-                                            _texturePack.Textures[_texturePack.Textures.Count - 1].Data = mbr.ReadBytes((uint)(mbr.BaseStream.Length - 212));
-                                        }
-                                    }
-                                    else
-                                    {
-                                        var infoBlock = blocks[blocks.Count - 2];
-
-                                        using (var mbr = new BinaryReader(new MemoryStream(infoBlock)))
-                                        {
-                                            ReadTexture(mbr);
-                                            mbr.BaseStream.Seek(-20, SeekOrigin.End);
-
-                                            _texturePack.Textures[_texturePack.Textures.Count - 1].Format = mbr.ReadUInt32();
-                                        }
-
-                                        _texturePack.Textures[_texturePack.Textures.Count - 1].DataSize = 0;
-
-                                        blocks.RemoveAt(blocks.Count - 2);
-
-                                        _texturePack.Textures[_texturePack.Textures.Count - 1].Data =
-                                            blocks.SelectMany(b => b).ToArray();
-                                        _texturePack.Textures[_texturePack.Textures.Count - 1].DataSize =
-                                            (uint) blocks.SelectMany(b => b).Count();
-                                    }
-
-                                    br.BaseStream.Position = curPos;
+                                    var compHeader = BinaryUtil.ReadStruct<Compression.CompressBlockHead>(br);
+                                    var compressedData = br.ReadBytes(compHeader.CSize - 24);
+                                    var outData = new byte[compHeader.USize];
+                                    Compression.Decompress(compressedData, outData);
+                                    bytesRead += compHeader.CSize;
+                                    Array.ConstrainedCopy(outData, 0, decompressedData, compHeader.UPos,
+                                        outData.Length);
                                 }
 
-                                break;
+                                // Load decompressed texture
+                                using (var dcr = new BinaryReader(new MemoryStream(decompressedData)))
+                                {
+                                    // Seek to TextureInfo
+                                    dcr.BaseStream.Seek(-0xD4, SeekOrigin.End);
+                                    var texture = ReadTexture(dcr);
+                                    // Seek to D3DFormat
+                                    dcr.BaseStream.Seek(-0x14, SeekOrigin.End);
+                                    texture.Format = dcr.ReadUInt32();
+                                    // Read texture data
+                                    dcr.BaseStream.Seek(0, SeekOrigin.Begin);
+                                    if (dcr.BaseStream.Read(texture.Data, 0, texture.Data.Length) !=
+                                        texture.Data.Length)
+                                    {
+                                        throw new Exception(
+                                            $"Failed to read data for texture 0x{texture.TexHash:X8} ({texture.Name})");
+                                    }
+                                }
+
+                                br.BaseStream.Position = curPos;
                             }
+
+                            break;
+                        }
                         case TexChunkId:
+                        {
+                            for (var j = 0; j < _texturePack.Textures.Capacity; j++)
                             {
-                                for (var j = 0; j < _texturePack.Textures.Capacity; j++)
-                                {
-                                    ReadTexture(br);
-                                }
-
-                                break;
+                                ReadTexture(br);
                             }
+
+                            break;
+                        }
                         case TexDataChunkId:
+                        {
+                            if (!_compressed)
                             {
-                                if (!_compressed)
-                                {
-                                    br.BaseStream.Position += 0x78;
+                                br.BaseStream.Position += 0x78;
 
-                                    var basePos = br.BaseStream.Position;
+                                var basePos = br.BaseStream.Position;
 
-                                    foreach (var t in _texturePack.Textures)
-                                    {
-                                        br.BaseStream.Position = basePos + t.DataOffset;
-                                        br.Read(t.Data, 0, t.Data.Length);
-                                    }
-                                }
-
-                                break;
-                            }
-                        case DDSChunkId:
-                            {
                                 foreach (var t in _texturePack.Textures)
                                 {
-                                    // BC4 = 42 43 34 
-                                    // BC5 = 42 43 35
-
-                                    br.BaseStream.Seek(12, SeekOrigin.Current);
-
-                                    var compType = br.ReadUInt32();
-
-                                    //if (compType == 0x31495441)
-                                    //{
-                                    //    compType = 0x0034
-                                    //}
-
-                                    t.Format = compType;
-
-                                    //t.Format = (TextureFormat)br.ReadUInt32();
-                                    //Console.WriteLine($"{t.Name} = 0x{((int)t.Format):X8}");
-                                    br.BaseStream.Seek(16, SeekOrigin.Current);
+                                    br.BaseStream.Position = basePos + t.DataOffset;
+                                    br.Read(t.Data, 0, t.Data.Length);
                                 }
-                                break;
                             }
+
+                            break;
+                        }
+                        case DDSChunkId:
+                        {
+                            foreach (var t in _texturePack.Textures)
+                            {
+                                // BC4 = 42 43 34 
+                                // BC5 = 42 43 35
+
+                                br.BaseStream.Seek(12, SeekOrigin.Current);
+
+                                var compType = br.ReadUInt32();
+
+                                //if (compType == 0x31495441)
+                                //{
+                                //    compType = 0x0034
+                                //}
+
+                                t.Format = compType;
+
+                                //t.Format = (TextureFormat)br.ReadUInt32();
+                                //Console.WriteLine($"{t.Name} = 0x{((int)t.Format):X8}");
+                                br.BaseStream.Seek(16, SeekOrigin.Current);
+                            }
+
+                            break;
+                        }
                     }
                 }
 

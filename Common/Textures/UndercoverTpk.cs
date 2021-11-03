@@ -138,106 +138,35 @@ namespace Common.Textures
 
                                     br.BaseStream.Position = tch.Offset;
 
-                                    var bytesRead = 0u;
-                                    var blocks = new List<byte[]>();
+                                    var bytesRead = 0;
+                                    var decompressedData = new byte[tch.Length];
 
                                     while (bytesRead < tch.LengthCompressed)
                                     {
                                         var compHeader = BinaryUtil.ReadStruct<Compression.CompressBlockHead>(br);
-                                        var compressedData = br.ReadBytes((int)(compHeader.TotalBlockSize - 24));
-                                        var outData = new byte[compHeader.OutSize];
-
+                                        var compressedData = br.ReadBytes(compHeader.CSize - 24);
+                                        var outData = new byte[compHeader.USize];
                                         Compression.Decompress(compressedData, outData);
-
-                                        blocks.Add(outData);
-
-                                        bytesRead += compHeader.TotalBlockSize;
+                                        bytesRead += compHeader.CSize;
+                                        Array.ConstrainedCopy(outData, 0, decompressedData, compHeader.UPos, outData.Length);
                                     }
-
-                                    using (var fs = File.OpenWrite($"debugtex_{tch.Hash:X8}.bin"))
+                                    
+                                    // Load decompressed texture
+                                    using (var dcr = new BinaryReader(new MemoryStream(decompressedData)))
                                     {
-                                        for (var index = 0; index < blocks.Count; index++)
+                                        var texture = ReadTexture(dcr);
+                                        // Seek to D3DFormat
+                                        dcr.BaseStream.Seek(0x88, SeekOrigin.Begin);
+                                        texture.Format = dcr.ReadUInt32();
+                                        // Read texture data
+                                        dcr.BaseStream.Seek(0x100, SeekOrigin.Begin);
+                                        if (dcr.BaseStream.Read(texture.Data, 0, texture.Data.Length) !=
+                                            texture.Data.Length)
                                         {
-                                            var block = blocks[index];
-                                            var blockHeader = $"BEGIN BLOCK #{index + 1}/{blocks.Count}";
-                                            fs.Write(Encoding.ASCII.GetBytes(blockHeader), 0, blockHeader.Length);
-
-                                            var align = (int)(0x10 - fs.Position % 0x10);
-
-                                            if (align != 0x10)
-                                            {
-                                                fs.Write(new byte[align], 0, align);
-                                            }
-
-                                            fs.Write(block, 0, block.Length);
-
-                                            blockHeader = $"END BLOCK #{index + 1}/{blocks.Count}";
-                                            fs.Write(Encoding.ASCII.GetBytes(blockHeader), 0, blockHeader.Length);
-
-                                            align = (int)(0x10 - fs.Position % 0x10);
-
-                                            if (align != 0x10)
-                                            {
-                                                fs.Write(new byte[align], 0, align);
-                                            }
+                                            throw new Exception(
+                                                $"Failed to read data for texture 0x{texture.TexHash:X8} ({texture.Name})");
                                         }
                                     }
-
-                                    if (blocks.Count == 1)
-                                    {
-                                        using (var ms = new MemoryStream(blocks[0]))
-                                        using (var mbr = new BinaryReader(ms))
-                                        {
-                                            var texture = ReadTexture(mbr);
-                                            Console.WriteLine($"{texture.Name} ({texture.TexHash:X8}) -> 1 block");
-                                            var realEnd = Marshal.SizeOf<TextureStruct>() + 1;
-
-                                            mbr.BaseStream.Position = realEnd;
-                                            mbr.BaseStream.Position += 0x2F;
-
-                                            texture.Format = mbr.ReadUInt32();
- 
-                                            Array.ConstrainedCopy(blocks[0], 0x100, texture.Data, 0, texture.Data.Length);
-                                        }
-                                    }
-                                    else if (blocks.Count > 1)
-                                    {
-                                        // Sort the blocks into their proper order.
-                                        Texture texture;
-
-                                        using (var mbr = new BinaryReader(new MemoryStream(blocks[blocks.Count - 1])))
-                                        {
-                                            texture = ReadTexture(mbr);
-
-                                            Console.WriteLine($"{texture.Name} ({texture.TexHash:X8}) -> {blocks.Count} blocks");
-
-                                            var realEnd = Marshal.SizeOf<TextureStruct>() + 1;
-
-                                            mbr.BaseStream.Position = realEnd;
-                                            mbr.BaseStream.Position += 0x2F;
-
-                                            texture.Format = mbr.ReadUInt32();
-                                        }
-
-                                        var copiedDataBytes = 0;
-
-                                        Array.ConstrainedCopy(blocks[blocks.Count - 1], 0x100, texture.Data, copiedDataBytes, blocks[blocks.Count - 1].Length - 0x100);
-
-                                        copiedDataBytes += blocks[blocks.Count - 1].Length - 0x100;
-
-                                        for (var j = 0; j < blocks.Count; j++)
-                                        {
-                                            if (j != blocks.Count - 1)
-                                            {
-                                                Array.ConstrainedCopy(blocks[j], 0, texture.Data, copiedDataBytes, (int) Math.Min(blocks[j].Length, texture.DataSize - copiedDataBytes));
-
-                                                copiedDataBytes += blocks[j].Length;
-                                            }
-                                        }
-
-                                    }
-
-                                    blocks.Clear();
 
                                     br.BaseStream.Position = curPos;
                                 }
