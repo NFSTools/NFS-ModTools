@@ -68,8 +68,8 @@ namespace Common.Textures
         {
             public uint Hash;
             public uint Offset;
-            public uint LengthCompressed;
-            public uint Length;
+            public int LengthCompressed;
+            public int Length;
             public uint Flags;
             private uint blank;
         }
@@ -137,35 +137,27 @@ namespace Common.Textures
                                     var curPos = br.BaseStream.Position;
                                     br.BaseStream.Position = tch.Offset;
                                     
-                                    var bytesRead = 0;
-                                    var decompressedData = new byte[tch.Length];
-
-                                    while (bytesRead < tch.LengthCompressed)
-                                    {
-                                        var compHeader = BinaryUtil.ReadStruct<Compression.CompressBlockHead>(br);
-                                        var compressedData = br.ReadBytes(compHeader.CSize - 24);
-                                        var outData = new byte[compHeader.USize];
-                                        Compression.Decompress(compressedData, outData);
-                                        bytesRead += compHeader.CSize;
-                                        Array.ConstrainedCopy(outData, 0, decompressedData, compHeader.UPos, outData.Length);
-                                    }
-                                    
                                     // Load decompressed texture
-                                    using (var dcr = new BinaryReader(new MemoryStream(decompressedData)))
+                                    using (var ms = new MemoryStream())
                                     {
-                                        // Seek to TextureInfo
-                                        dcr.BaseStream.Seek(-0x94, SeekOrigin.End);
-                                        var texture = ReadTexture(dcr);
-                                        // Seek to D3DFormat
-                                        dcr.BaseStream.Seek(-0xC, SeekOrigin.End);
-                                        texture.Format = dcr.ReadUInt32();
-                                        // Read texture data
-                                        dcr.BaseStream.Seek(0, SeekOrigin.Begin);
-                                        if (dcr.BaseStream.Read(texture.Data, 0, texture.Data.Length) !=
-                                            texture.Data.Length)
+                                        Compression.DecompressCip(br.BaseStream, ms, tch.LengthCompressed, out _);
+                                        
+                                        using (var dcr = new BinaryReader(ms))
                                         {
-                                            throw new Exception(
-                                                $"Failed to read data for texture 0x{texture.TexHash:X8} ({texture.Name})");
+                                            // Seek to TextureInfo
+                                            dcr.BaseStream.Seek(-0x94, SeekOrigin.End);
+                                            var texture = ReadTexture(dcr);
+                                            // Seek to D3DFormat
+                                            dcr.BaseStream.Seek(-0xC, SeekOrigin.End);
+                                            texture.Format = dcr.ReadUInt32();
+                                            // Read texture data
+                                            dcr.BaseStream.Seek(0, SeekOrigin.Begin);
+                                            if (dcr.BaseStream.Read(texture.Data, 0, texture.Data.Length) !=
+                                                texture.Data.Length)
+                                            {
+                                                throw new Exception(
+                                                    $"Failed to read data for texture 0x{texture.TexHash:X8} ({texture.Name})");
+                                            }
                                         }
                                     }
 
