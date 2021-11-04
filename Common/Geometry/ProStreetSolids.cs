@@ -416,7 +416,6 @@ namespace Common.Geometry
                                     {
                                         Flags = shadingGroup.Flags,
                                         NumIndices = shadingGroup.IndicesUsed,
-                                        Name = $"Unnamed Material #{j + 1:00}",
                                         NumVerts = shadingGroup.VertexBufferUsage / shadingGroup.Flags2[2],
                                         VertexStreamIndex = j,
                                         Hash = shadingGroup.UnknownId,

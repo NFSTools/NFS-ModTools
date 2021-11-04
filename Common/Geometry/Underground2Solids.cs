@@ -283,7 +283,6 @@ namespace Common.Geometry
 
                                     solidObject.Materials.Add(new Underground2Material
                                     {
-                                        Name = $"Unnamed Material #{j + 1:00}",
                                         Flags = shadingGroup.Flags,
                                         MinPoint = shadingGroup.BoundsMin,
                                         MaxPoint = shadingGroup.BoundsMax,

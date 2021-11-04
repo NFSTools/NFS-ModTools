@@ -334,7 +334,6 @@ namespace Common.Geometry
                                         NumIndices = shadingGroup.NumIndices == 0 ? shadingGroup.NumTris * 3 : shadingGroup.NumIndices,
                                         MinPoint = shadingGroup.BoundsMin,
                                         MaxPoint = shadingGroup.BoundsMax,
-                                        Name = $"Unnamed Material #{j + 1:00}",
                                         NumVerts = shadingGroup.NumVerts,
                                         TextureHash = solidObject.TextureHashes[shadingGroup.TextureAssignments[0]],
                                         EffectId = shadingGroup.EffectId,

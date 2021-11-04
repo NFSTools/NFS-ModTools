@@ -521,7 +521,6 @@ namespace Common.Geometry
                                 {
                                     Flags = shadingGroup.MeshFlags,
                                     NumIndices = (uint)shadingGroup.IdxUsed,
-                                    Name = $"Unnamed Material #{j + 1:00}",
                                     NumVerts = (uint)numVertices,
                                     VertexStreamIndex = j,
                                     //VertexStreamIndex = shadingGroup.VertexStream.LoadStreamIndex,
