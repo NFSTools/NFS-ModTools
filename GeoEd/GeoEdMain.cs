@@ -1,16 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
-using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 using Common;
 using Common.Geometry;
 using Common.Geometry.Data;
-using ObjLoader.Loader.Loaders;
+using Common.Windows;
 
 namespace GeoEd
 {

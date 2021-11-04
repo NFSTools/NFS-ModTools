@@ -1,18 +1,13 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Windows.Forms;
 using Common;
-using Common.Geometry;
-using Common.Geometry.Data;
-using Common.Textures;
 using Common.Textures.Data;
-using Pfim;
+using Common.Windows;
 using SysPixelFormat = System.Drawing.Imaging.PixelFormat;
 
 namespace TexEd

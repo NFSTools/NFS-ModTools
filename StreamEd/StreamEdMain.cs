@@ -8,6 +8,7 @@ using System.Windows.Forms;
 using Common;
 using Common.TrackStream;
 using Common.TrackStream.Data;
+using Common.Windows;
 
 namespace StreamEd
 {

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 using Common;
+using Common.Windows;
 
 namespace VltEd
 {

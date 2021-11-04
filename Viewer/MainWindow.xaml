@@ -5,11 +5,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Viewer"
-        xmlns:dxc="clr-namespace:SharpDX.WPF;assembly=SharpDX.WPF"
-        xmlns:commonTextures="clr-namespace:Common.Textures.Data;assembly=Common"
-        xmlns:commonGeometry="clr-namespace:Common.Geometry.Data;assembly=Common"
-        xmlns:sharpGl="clr-namespace:SharpGL.WPF;assembly=SharpGL.WPF"
         xmlns:hx="http://helix-toolkit.org/wpf/SharpDX"
+        xmlns:core="clr-namespace:HelixToolkit.SharpDX.Core;assembly=HelixToolkit.SharpDX.Core"
         mc:Ignorable="d"
         Height="720" Width="1280" MinHeight="720" MinWidth="1280">
     <Grid DataContext="{Binding ElementName=MyMainWindow}">
@@ -245,7 +242,7 @@
                         TextBrush="Black"
                         UseDefaultGestures="False">
             <hx:Viewport3DX.EffectsManager>
-                <hx:DefaultEffectsManager />
+                <core:DefaultEffectsManager />
             </hx:Viewport3DX.EffectsManager>
             <hx:Viewport3DX.InputBindings>
                 <KeyBinding Key="B" Command="hx:ViewportCommands.BackView" />

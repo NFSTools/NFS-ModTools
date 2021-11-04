@@ -4,20 +4,21 @@ using System.Linq;
 using System.Windows.Media.Media3D;
 using Common.Geometry.Data;
 using Common.Textures.Data;
+using HelixToolkit.SharpDX.Core;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
 using DiffuseMaterial = HelixToolkit.Wpf.SharpDX.DiffuseMaterial;
-using Geometry3D = HelixToolkit.Wpf.SharpDX.Geometry3D;
+using Geometry3D = HelixToolkit.SharpDX.Core.Geometry3D;
 
 namespace Viewer
 {
     public class RenderManager
     {
-        private readonly Dictionary<uint, DiffuseMaterial> _textureMaterials = new Dictionary<uint, DiffuseMaterial>();
-        private readonly Color4 _missingTextureColor = new Color4(0xffff03e6);
+        private readonly Dictionary<uint, DiffuseMaterial> _textureMaterials = new();
+        private readonly Color4 _missingTextureColor = new(0xffff03e6);
 
         public ObservableConcurrentDictionary<SolidObject, Element3D> CurrentElements { get; } =
-            new ObservableConcurrentDictionary<SolidObject, Element3D>();
+            new();
 
         public void Reset()
         {
