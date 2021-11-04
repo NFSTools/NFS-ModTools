@@ -121,10 +121,10 @@ namespace Common.Geometry
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         internal struct ObjectCompressionHeader
         {
-            public readonly uint ObjectHash;
-            public readonly uint AbsoluteOffset;
-            public readonly uint Size;
-            public readonly uint OutSize;
+            public readonly uint Hash;
+            public readonly uint Offset;
+            public readonly int LengthCompressed;
+            public readonly int Length;
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
             private readonly uint[] unknown;
@@ -168,16 +168,6 @@ namespace Common.Geometry
                 }
                 else
                 {
-                    //var padding = 0u;
-
-                    //while (br.ReadUInt32() == 0x11111111)
-                    //{
-                    //    padding += 4;
-                    //}
-
-                    //br.BaseStream.Position -= 4;
-                    //chunkSize -= padding;
-
                     switch (chunkId)
                     {
                         case SolidListInfoChunk:
@@ -197,88 +187,36 @@ namespace Common.Geometry
                                 {
                                     var och = BinaryUtil.ReadStruct<ObjectCompressionHeader>(br);
                                     var curPos = br.BaseStream.Position;
-                                    br.BaseStream.Position = och.AbsoluteOffset;
+                                    br.BaseStream.Position = och.Offset;
 
-                                    if (och.Size == och.OutSize)
+                                    if (och.Length == och.LengthCompressed)
                                     {
-                                        var data = br.ReadBytes(och.OutSize);
-
-                                        using (var ms = new MemoryStream(data))
-                                        using (var mbr = new BinaryReader(ms))
-                                        {
-                                            var solidObject = ReadObject(mbr, och.OutSize, true, null);
-                                            solidObject.PostProcessing();
-
-                                            _solidList.Objects.Add(solidObject);
-                                        }
+                                        // Assume that the object is uncompressed.
+                                        // If this ever turns out to be false, I don't know what I'll do.
+                                        ReadChunks(br, (uint) och.Length);
                                     }
                                     else
                                     {
-                                        var bytesRead = 0;
-                                        var blocks = new List<byte[]>();
-
-                                        while (bytesRead < och.Size)
+                                        // Load decompressed object
+                                        using (var ms = new MemoryStream())
                                         {
-                                            var compHeader = BinaryUtil.ReadStruct<Compression.CompressBlockHead>(br);
-                                            var compressedData = br.ReadBytes((int)(compHeader.CSize - 24));
-                                            var outData = new byte[compHeader.USize];
+                                            Compression.DecompressCip(br.BaseStream, ms, och.LengthCompressed, out _);
 
-                                            Compression.Decompress(compressedData, outData);
-
-                                            blocks.Add(outData);
-
-                                            bytesRead += compHeader.CSize;
-                                        }
-
-                                        if (blocks.Count == 1)
-                                        {
-                                            using (var ms = new MemoryStream(blocks[0]))
-                                            using (var mbr = new BinaryReader(ms))
+                                            using (var dcr = new BinaryReader(ms))
                                             {
-                                                var solidObject = ReadObject(mbr, blocks[0].Length, true, null);
-                                                solidObject.PostProcessing();
-
-                                                _solidList.Objects.Add(solidObject);
+                                                ReadChunks(dcr, (uint) ms.Length);
                                             }
                                         }
-                                        else if (blocks.Count > 1)
-                                        {
-                                            // Sort the blocks into their proper order.
-                                            var sorted = new List<byte>();
-
-                                            sorted.AddRange(blocks[blocks.Count - 1]);
-
-                                            for (var j = 0; j < blocks.Count; j++)
-                                            {
-                                                if (j != blocks.Count - 1)
-                                                {
-                                                    sorted.AddRange(blocks[j]);
-                                                }
-                                            }
-
-                                            using (var ms = new MemoryStream(sorted.ToArray()))
-                                            using (var mbr = new BinaryReader(ms))
-                                            {
-                                                var solidObject = ReadObject(mbr, sorted.Count, true, null);
-                                                solidObject.PostProcessing();
-
-                                                _solidList.Objects.Add(solidObject);
-                                            }
-
-                                            sorted.Clear();
-                                        }
-
-                                        blocks.Clear();
                                     }
 
                                     br.BaseStream.Position = curPos;
                                 }
-
-                                break;
+                                
+                                return;
                             }
                         case 0x80134010:
                             {
-                                var solidObject = ReadObject(br, chunkSize, false, null);
+                                var solidObject = ReadObject(br, chunkSize);
                                 solidObject.PostProcessing();
 
                                 _solidList.Objects.Add(solidObject);
@@ -306,7 +244,7 @@ namespace Common.Geometry
             throw new NotImplementedException();
         }
 
-        private World15Object ReadObject(BinaryReader br, long size, bool unpackFloats, World15Object solidObject)
+        private World15Object ReadObject(BinaryReader br, long size, World15Object solidObject = null)
         {
             if (solidObject == null)
                 solidObject = new World15Object();
@@ -323,7 +261,7 @@ namespace Common.Geometry
 
                 if ((chunkId & 0x80000000) == 0x80000000)
                 {
-                    solidObject = ReadObject(br, chunkSize, unpackFloats, solidObject);
+                    solidObject = ReadObject(br, chunkSize, solidObject);
                 }
                 else
                 {
@@ -355,11 +293,6 @@ namespace Common.Geometry
                                 solidObject.NumShaders = 0;
                                 solidObject.NumTextures = 0;
                                 solidObject.Transform = header.Transform;
-
-                                if (name.StartsWith("TRAF"))
-                                {
-                                    unpackFloats = true;
-                                }
 
                                 break;
                             }
