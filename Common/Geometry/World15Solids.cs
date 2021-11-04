@@ -289,9 +289,6 @@ namespace Common.Geometry
                                 solidObject.MinPoint = header.BoundsMin;
                                 solidObject.MaxPoint = header.BoundsMax;
 
-                                solidObject.NumTris = header.NumTris;
-                                solidObject.NumShaders = 0;
-                                solidObject.NumTextures = 0;
                                 solidObject.Transform = header.Transform;
 
                                 break;
@@ -361,7 +358,8 @@ namespace Common.Geometry
                         case 0x134b01:
                             {
                                 var vb = new byte[chunkSize];
-                                Debug.Assert(br.Read(vb, 0, vb.Length) == chunkSize);
+                                var readSize = br.Read(vb, 0, vb.Length);
+                                Debug.Assert(readSize == chunkSize);
 
                                 solidObject.VertexBuffers.Add(vb);
 
