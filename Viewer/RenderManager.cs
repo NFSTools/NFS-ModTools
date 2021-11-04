@@ -106,7 +106,7 @@ namespace Viewer
             return model;
         }
 
-        private Geometry3D CreateMeshGeometry(SolidObjectMaterial material)
+        private static Geometry3D CreateMeshGeometry(SolidObjectMaterial material)
         {
             var faces = new List<int[]>();
 
