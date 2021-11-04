@@ -38,12 +38,6 @@ namespace Common.Geometry.Data
 
         public uint Hash { get; set; }
 
-        public uint NumTextures { get; set; }
-
-        public uint NumShaders { get; set; }
-
-        public uint NumTris { get; set; }
-
         public SolidMeshDescriptor MeshDescriptor { get; set; }
 
         public List<SolidObjectMaterial> Materials { get; } = new List<SolidObjectMaterial>();

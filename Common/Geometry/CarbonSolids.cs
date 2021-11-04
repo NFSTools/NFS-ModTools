@@ -305,9 +305,6 @@ namespace Common.Geometry
                                 solidObject.Hash = header.Hash;
                                 solidObject.MinPoint = header.BoundsMin;
                                 solidObject.MaxPoint = header.BoundsMax;
-                                solidObject.NumTris = header.NumTris;
-                                solidObject.NumShaders = header.ShaderCount;
-                                solidObject.NumTextures = header.TextureCount;
                                 solidObject.Transform = header.Transform;
 
                                 break;

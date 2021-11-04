@@ -468,7 +468,6 @@ namespace Common.Geometry
                             solidObject.MinPoint = header.BoundsMin;
                             solidObject.MaxPoint = header.BoundsMax;
 
-                            solidObject.NumTris = header.NumTris;
                             solidObject.Transform = header.Transform;
 
                             break;

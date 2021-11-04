@@ -44,10 +44,12 @@ namespace Common.Geometry
 
             public uint Hash;
 
-            public uint NumTris;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            public byte[] Unknown2;
+            public ushort NumTris;
+            public ushort NumVerts;
+            public byte NumBones;
+            public byte NumTextureTableEntries;
+            public byte NumLightMaterials;
+            public byte NumPositionMarkerTableEntries;
 
             public uint Blank2;
 
@@ -357,9 +359,6 @@ namespace Common.Geometry
                                 solidObject.MinPoint = header.BoundsMin;
                                 solidObject.MaxPoint = header.BoundsMax;
 
-                                solidObject.NumTris = header.NumTris;
-                                solidObject.NumShaders = 0;
-                                solidObject.NumTextures = 0;
                                 solidObject.Transform = header.Transform;
 
                                 //Debug.Assert(header.Transform == Matrix4x4.Identity);
