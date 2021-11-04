@@ -22,7 +22,7 @@ namespace Common.Geometry.Data
 
             public int GetHashCode(SolidObject obj)
             {
-                return (int) obj.Hash;
+                return (int)obj.Hash;
             }
         }
 
@@ -125,24 +125,24 @@ namespace Common.Geometry.Data
             foreach (var solidObjectMaterial in Materials)
             {
                 var vertexBuffer = vbStreams[solidObjectMaterial.VertexStreamIndex];
-                var numVerts = solidObjectMaterial.NumVerts == 0 ? vbCounts[solidObjectMaterial.VertexStreamIndex] : solidObjectMaterial.NumVerts;
+                var numVerts = solidObjectMaterial.NumVerts == 0
+                    ? vbCounts[solidObjectMaterial.VertexStreamIndex]
+                    : solidObjectMaterial.NumVerts;
                 var stride = (int)(vertexBuffer.BaseStream.Length / vbCounts[solidObjectMaterial.VertexStreamIndex]);
-                var vbStartPos = vertexBuffer.BaseStream.Position;
                 var vbOffset = vbOffsets[solidObjectMaterial.VertexStreamIndex];
-
+#if DEBUG
+                var vbStartPos = vertexBuffer.BaseStream.Position;
+#endif
+                var meshVertices = vbArrays[solidObjectMaterial.VertexStreamIndex];
+                
                 for (var j = 0; j < numVerts; j++)
                 {
-                    // Make sure we don't end up reading more than we need to
-                    if (vertexBuffer.BaseStream.Position >= vertexBuffer.BaseStream.Length
-                        || vbArrays[solidObjectMaterial.VertexStreamIndex][vbOffset + j] != null)
-                    {
-                        break;
-                    }
-
-                    vbArrays[solidObjectMaterial.VertexStreamIndex][vbOffset + j] =
+                    meshVertices[vbOffset + j] =
                         GetVertex(vertexBuffer, solidObjectMaterial, stride);
                     // Ensure we read exactly one vertex
+#if DEBUG
                     Debug.Assert(vertexBuffer.BaseStream.Position - (vbStartPos + j * stride) == stride);
+#endif
                 }
 
                 vbOffsets[solidObjectMaterial.VertexStreamIndex] += numVerts;
@@ -160,13 +160,16 @@ namespace Common.Geometry.Data
 
                 if (solidObjectMaterial.Indices.Any())
                 {
+                    var meshVertices = vbArrays[vertexStreamIndex];
                     var maxReferencedVertex = solidObjectMaterial.Indices.Max();
                     solidObjectMaterial.Vertices = new SolidMeshVertex[maxReferencedVertex + 1];
 
                     for (var j = 0; j <= maxReferencedVertex; j++)
                     {
-                        var solidMeshVertex = vbArrays[vertexStreamIndex][j];
-                        solidObjectMaterial.Vertices[j] = solidMeshVertex ?? throw new NullReferenceException($"Object {Name}: vertex buffer {vertexStreamIndex} has no vertex at index {j}");
+                        var solidMeshVertex = meshVertices[j];
+                        solidObjectMaterial.Vertices[j] = solidMeshVertex ??
+                                                          throw new NullReferenceException(
+                                                              $"Object {Name}: vertex buffer {vertexStreamIndex} has no vertex at index {j}");
                     }
 
                     // Validate material indices
