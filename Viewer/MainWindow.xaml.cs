@@ -265,7 +265,7 @@ namespace Viewer
             Log.PushSimple(LogModel.LogLevel.Info, "Waiting...");
             RenderManager = new RenderManager();
             
-            view1.ModelUpDirection = new Vector3D(0, 0, 1);
+            ModelViewport.ModelUpDirection = new Vector3D(0, 0, 1);
         }
 
         private void OpenMapItem_OnClick(object sender, RoutedEventArgs e)

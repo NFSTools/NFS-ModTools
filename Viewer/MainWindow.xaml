@@ -204,14 +204,6 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                        <!--<StackPanel.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="Header" 
-                                          Command="{Binding ElementName=MyMainWindow, Path=GotoModelCommand}"
-                                          CommandParameter="{Binding}"
-                                          IsEnabled="{Binding Path=IsSelected}"/>
-                            </ContextMenu>
-                        </StackPanel.ContextMenu>-->
                     </StackPanel>
                 </HierarchicalDataTemplate>
 
@@ -219,26 +211,19 @@
                                           ItemsSource="{Binding SubAssets}" />
             </TreeView.Resources>
         </TreeView>
-        <!--<sharpGl:OpenGLControl Grid.Row="1" 
-                               Grid.Column="1"
-                               DrawFPS="True"
-                               OpenGLInitialized="OpenGLControl_OnOpenGLInitialized"
-                               OpenGLDraw="OpenGLControl_OpenGLDraw"></sharpGl:OpenGLControl>-->
-        <hx:Viewport3DX x:Name="view1"
-                        Title="view1"
+        <hx:Viewport3DX x:Name="ModelViewport"
                         Grid.Row="1"
                         Grid.Column="1"
                         Camera="{Binding Camera}"
                         BackgroundColor="White"
                         CoordinateSystemLabelForeground="White"
                         EnableSwapChainRendering="True"
+                        EnableDeferredRendering="True"
                         FXAALevel="None"
                         IsShadowMappingEnabled="False"
                         MSAA="Disable"
                         ShowCoordinateSystem="True"
-                        ShowFrameDetails="True"
                         ShowFrameRate="True"
-                        SubTitle="test"
                         TextBrush="Black"
                         UseDefaultGestures="False">
             <hx:Viewport3DX.EffectsManager>
@@ -261,25 +246,6 @@
                 Color="White" />
             <hx:GroupModel3D
                 ItemsSource="{Binding RenderManager.CurrentElements.Values}" />
-            <!-- <hx:ItemsModel3D -->
-            <!--     x:Name="itemsModel1" -->
-            <!--     ItemsSource="{Binding RenderObjects}"> -->
-            <!--     <hx:ItemsModel3D.ItemTemplate> -->
-            <!--         <DataTemplate> -->
-            <!--             <hx:ItemsModel3D ItemsSource="{Binding Meshes}" Transform="{Binding Transform}"> -->
-            <!--                 <hx:ItemsModel3D.ItemTemplate> -->
-            <!--                     <DataTemplate> -->
-            <!--                         <hx:MeshGeometryModel3D -->
-            <!--                             CullMode="Back" -->
-            <!--                             Geometry="{Binding Geometry}" -->
-            <!--                             Material="{Binding Material}" /> -->
-            <!--                     </DataTemplate> -->
-            <!--                 </hx:ItemsModel3D.ItemTemplate> -->
-            <!--             </hx:ItemsModel3D> -->
-            <!--         </DataTemplate> -->
-            <!--     </hx:ItemsModel3D.ItemTemplate> -->
-            <!-- </hx:ItemsModel3D> -->
-            <!-- <ModelVisual3D x:Name="MainVisual"></ModelVisual3D> -->
         </hx:Viewport3DX>
         <GridSplitter Grid.Row="2"
                       Grid.Column="0"
