@@ -2,6 +2,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
+using CompLib;
 
 namespace Common
 {
@@ -48,9 +49,14 @@ namespace Common
 
                 dst.Seek(cipHeader.UPos, SeekOrigin.Begin);
 
-                var decompressedBytes = new byte[cipHeader.USize];
-                Decompress(compressedBytes, decompressedBytes);
-                dst.Write(decompressedBytes, 0, decompressedBytes.Length);
+                var decompressedBytes = Decompressor.Decompress(compressedBytes);
+
+                if (decompressedBytes.Length != cipHeader.USize)
+                {
+                    throw new ManagedCompressionException($"Expected decompressed data to be {cipHeader.USize} bytes, but got {decompressedBytes.Length}");
+                }
+                
+                dst.Write(decompressedBytes);
 
                 decompressedSize += decompressedBytes.Length;
             }
