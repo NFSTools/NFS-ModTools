@@ -24,6 +24,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Serialization;
+// ReSharper disable All
 
 namespace AssetDumper
 {

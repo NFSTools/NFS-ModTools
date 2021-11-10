@@ -11,7 +11,6 @@ using Common.Scenery.Data;
 using Common.Textures.Data;
 using Common.TrackStream;
 using Common.TrackStream.Data;
-using Vector3 = System.Numerics.Vector3;
 
 namespace AssetDumper
 {
