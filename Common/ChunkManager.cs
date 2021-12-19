@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Common.Entity.Collision;
 using Common.Geometry;
 using Common.Scenery;
 using Common.Textures;
@@ -46,7 +45,7 @@ namespace Common
         {
             var chunk = new RealChunk
             {
-                Offset = (int)_stream.Position,
+                Offset = _stream.Position,
                 Type = type
             };
 
@@ -110,25 +109,13 @@ namespace Common
 
     public partial class ChunkManager : RealFile
     {
-        [Flags]
-        public enum ChunkManagerOptions
-        {
-            Nothing = 0,
-            IgnoreUnknownChunks = 1,
-            AutoPadding = 2,
-            SkipNull = 4
-        }
-
-        public List<ChunkManager.Chunk> Chunks { get; } = new List<ChunkManager.Chunk>();
+        public List<Chunk> Chunks { get; } = new();
 
         private readonly GameDetector.Game _game;
-        private readonly ChunkManagerOptions _options;
 
-        public ChunkManager(GameDetector.Game game,
-            ChunkManagerOptions options = ChunkManagerOptions.Nothing)
+        public ChunkManager(GameDetector.Game game)
         {
             _game = game;
-            _options = options;
         }
 
         protected override void ProcessOpen()
@@ -142,9 +129,9 @@ namespace Common
 
                 if (Chunks.Count > 0)
                 {
-                    if (Chunks[Chunks.Count - 1].Id == 0)
+                    if (Chunks[^1].Id == 0)
                     {
-                        cd.PrePadding = Chunks[Chunks.Count - 1].Size;
+                        cd.PrePadding = Chunks[^1].Size;
                     }
                 }
 
@@ -158,9 +145,9 @@ namespace Common
                 cd.Padding = padding;
 
                 cd.Id = chunk.Type;
-                cd.Size = (uint)(chunk.Length - padding);
-                cd.Data = new byte[0];
-                cd.Offset = (uint)chunk.Offset;
+                cd.Size = chunk.Length - padding;
+                cd.Data = Array.Empty<byte>();
+                cd.Offset = chunk.Offset;
                 cd.SubChunks = new List<Chunk>();
 
                 switch (chunk.Type)
@@ -170,37 +157,37 @@ namespace Common
                         {
                             case GameDetector.Game.Underground:
                                 {
-                                    cd.Resource = new UndergroundSolids().ReadSolidList(_br, (uint)chunk.Length);
+                                    cd.Resource = new UndergroundSolids().ReadSolidList(_br, chunk.Length);
                                     break;
                                 }
                             case GameDetector.Game.Underground2:
                                 {
-                                    cd.Resource = new Underground2Solids().ReadSolidList(_br, (uint)chunk.Length);
+                                    cd.Resource = new Underground2Solids().ReadSolidList(_br, chunk.Length);
                                     break;
                                 }
                             case GameDetector.Game.MostWanted:
                                 {
-                                    cd.Resource = new MostWantedSolids().ReadSolidList(_br, (uint)chunk.Length);
+                                    cd.Resource = new MostWantedSolids().ReadSolidList(_br, chunk.Length);
                                     break;
                                 }
                             case GameDetector.Game.Carbon:
                                 {
-                                    cd.Resource = new CarbonSolids().ReadSolidList(_br, (uint)chunk.Length);
+                                    cd.Resource = new CarbonSolids().ReadSolidList(_br, chunk.Length);
                                     break;
                                 }
                             case GameDetector.Game.ProStreet:
                                 {
-                                    cd.Resource = new ProStreetSolids().ReadSolidList(_br, (uint)chunk.Length);
+                                    cd.Resource = new ProStreetSolids().ReadSolidList(_br, chunk.Length);
                                     break;
                                 }
                             case GameDetector.Game.Undercover:
                                 {
-                                    cd.Resource = new UndercoverSolids().ReadSolidList(_br, (uint)chunk.Length);
+                                    cd.Resource = new UndercoverSolids().ReadSolidList(_br, chunk.Length);
                                     break;
                                 }
                             case GameDetector.Game.World:
                                 {
-                                    cd.Resource = new World15Solids().ReadSolidList(_br, (uint)chunk.Length);
+                                    cd.Resource = new World15Solids().ReadSolidList(_br, chunk.Length);
                                     break;
                                 }
                         }
@@ -212,18 +199,18 @@ namespace Common
                                 case GameDetector.Game.Underground:
                                 case GameDetector.Game.Underground2:
                                 case GameDetector.Game.MostWanted:
-                                    cd.Resource = new MostWantedTpk().ReadTexturePack(_br, (uint)chunk.Length);
+                                    cd.Resource = new MostWantedTpk().ReadTexturePack(_br, chunk.Length);
                                     break;
                                 case GameDetector.Game.Carbon:
                                 case GameDetector.Game.ProStreet:
                                 case GameDetector.Game.ProStreetTest:
-                                    cd.Resource = new CarbonTpk().ReadTexturePack(_br, (uint)chunk.Length);
+                                    cd.Resource = new CarbonTpk().ReadTexturePack(_br, chunk.Length);
                                     break;
                                 case GameDetector.Game.Undercover:
-                                    cd.Resource = new UndercoverTpk().ReadTexturePack(_br, (uint)chunk.Length);
+                                    cd.Resource = new UndercoverTpk().ReadTexturePack(_br, chunk.Length);
                                     break;
                                 case GameDetector.Game.World:
-                                    cd.Resource = new WorldTpk().ReadTexturePack(_br, (uint)chunk.Length);
+                                    cd.Resource = new WorldTpk().ReadTexturePack(_br, chunk.Length);
                                     break;
                                 default:
                                     throw new Exception($"Cannot process TPK chunk for game: {_game}");
@@ -236,25 +223,25 @@ namespace Common
                             switch (_game)
                             {
                                 case GameDetector.Game.Underground:
-                                    cd.Resource = new UndergroundScenery().ReadScenery(_br, (uint)chunk.Length);
+                                    cd.Resource = new UndergroundScenery().ReadScenery(_br, chunk.Length);
                                     break;
                                 case GameDetector.Game.Underground2:
-                                    cd.Resource = new Underground2Scenery().ReadScenery(_br, (uint)chunk.Length);
+                                    cd.Resource = new Underground2Scenery().ReadScenery(_br, chunk.Length);
                                     break;
                                 case GameDetector.Game.MostWanted:
-                                    cd.Resource = new MostWantedScenery().ReadScenery(_br, (uint)chunk.Length);
+                                    cd.Resource = new MostWantedScenery().ReadScenery(_br, chunk.Length);
                                     break;
                                 case GameDetector.Game.Carbon:
-                                    cd.Resource = new CarbonScenery().ReadScenery(_br, (uint)chunk.Length);
+                                    cd.Resource = new CarbonScenery().ReadScenery(_br, chunk.Length);
                                     break;
                                 case GameDetector.Game.ProStreet:
-                                    cd.Resource = new ProStreetScenery().ReadScenery(_br, (uint)chunk.Length);
+                                    cd.Resource = new ProStreetScenery().ReadScenery(_br, chunk.Length);
                                     break;
                                 case GameDetector.Game.Undercover:
-                                    cd.Resource = new UndercoverScenery().ReadScenery(_br, (uint)chunk.Length);
+                                    cd.Resource = new UndercoverScenery().ReadScenery(_br, chunk.Length);
                                     break;
                                 case GameDetector.Game.World:
-                                    cd.Resource = new WorldScenery().ReadScenery(_br, (uint)chunk.Length);
+                                    cd.Resource = new WorldScenery().ReadScenery(_br, chunk.Length);
                                     break;
                             }
 
@@ -278,209 +265,6 @@ namespace Common
                 Chunks.Add(cd);
 
                 SkipChunk(chunk);
-                //if ((_options & ChunkManagerOptions.AutoPadding) == ChunkManagerOptions.AutoPadding)
-                //{
-                //    while (_br.ReadUInt32() == 0x11111111)
-                //    {
-                //        padding += 4;
-                //    }
-                //}
-
-                //if (chunk.Type == 0x3b801)
-                //{
-                //    if (_game == GameDetector.Game.MostWanted)
-                //    {
-                //        Chunks.Add(new Chunk
-                //        {
-                //            Id = 0x3b801,
-                //            Offset = (uint)chunk.Offset,
-                //            Resource = new MostWantedCollision().ReadCollisionPack(_br),
-                //            SubChunks = new List<Chunk>()
-                //        });
-                //    }
-                //}
-                //else if (chunk.Type == ObjectPackChunk)
-                //{
-                //    if (_game == GameDetector.Game.World)
-                //    {
-                //        _br.BaseStream.Position = chunk.Offset;
-
-                //        Chunks.Add(new Chunk
-                //        {
-                //            Id = ObjectPackChunk,
-                //            Offset = (uint)chunk.Offset,
-                //            Resource = new World15Solids().ReadSolidList(_br, (uint)chunk.Length),
-                //            SubChunks = new List<Chunk>()
-                //        });
-                //    }
-                //    else if (_game == GameDetector.Game.MostWanted)
-                //    {
-                //        _br.BaseStream.Position = chunk.Offset;
-
-                //        Chunks.Add(new Chunk
-                //        {
-                //            Id = ObjectPackChunk,
-                //            Offset = (uint)chunk.Offset,
-                //            Resource = new MostWantedSolids().ReadSolidList(_br, (uint)chunk.Length),
-                //            SubChunks = new List<Chunk>()
-                //        });
-                //    }
-                //    else if (_game == GameDetector.Game.Carbon)
-                //    {
-                //        _br.BaseStream.Position = chunk.Offset;
-
-                //        Chunks.Add(new Chunk
-                //        {
-                //            Id = ObjectPackChunk,
-                //            Offset = (uint)chunk.Offset,
-                //            Resource = new CarbonSolids().ReadSolidList(_br, (uint)chunk.Length),
-                //            SubChunks = new List<Chunk>()
-                //        });
-                //    }
-                //    else if (_game == GameDetector.Game.ProStreet || _game == GameDetector.Game.ProStreetTest)
-                //    {
-                //        _br.BaseStream.Position = chunk.Offset;
-
-                //        Chunks.Add(new Chunk
-                //        {
-                //            Id = ObjectPackChunk,
-                //            Offset = (uint)chunk.Offset,
-                //            Resource = new ProStreetSolids(_game == GameDetector.Game.ProStreetTest)
-                //                .ReadSolidList(_br, (uint)chunk.Length),
-                //            SubChunks = new List<Chunk>()
-                //        });
-                //    }
-                //    else if (_game == GameDetector.Game.Undercover)
-                //    {
-                //        _br.BaseStream.Position = chunk.Offset;
-
-                //        Chunks.Add(new Chunk
-                //        {
-                //            Id = ObjectPackChunk,
-                //            Offset = (uint)chunk.Offset,
-                //            Resource = new UndercoverSolids().ReadSolidList(_br, (uint)chunk.Length),
-                //            SubChunks = new List<Chunk>()
-                //        });
-                //    }
-                //    else if (_game == GameDetector.Game.Underground2)
-                //    {
-                //        _br.BaseStream.Position = chunk.Offset;
-
-                //        Chunks.Add(new Chunk
-                //        {
-                //            Id = ObjectPackChunk,
-                //            Offset = (uint)chunk.Offset,
-                //            Resource = new Underground2Solids().ReadSolidList(_br, (uint)chunk.Length),
-                //            SubChunks = new List<Chunk>()
-                //        });
-                //    }
-                //    else if (_game == GameDetector.Game.Underground)
-                //    {
-                //        _br.BaseStream.Position = chunk.Offset;
-
-                //        Chunks.Add(new Chunk
-                //        {
-                //            Id = ObjectPackChunk,
-                //            Offset = (uint)chunk.Offset,
-                //            Resource = new UndergroundSolids().ReadSolidList(_br, (uint)chunk.Length),
-                //            SubChunks = new List<Chunk>()
-                //        });
-                //    }
-                //}
-                //else if (chunk.Type == TexturePackChunk)
-                //{
-                //    if (_game == GameDetector.Game.Undercover)
-                //    {
-                //        Chunks.Add(new Chunk
-                //        {
-                //            Id = TexturePackChunk,
-                //            Offset = (uint)chunk.Offset,
-                //            Resource = new UndercoverTpk().ReadTexturePack(_br, (uint)chunk.Length),
-                //            SubChunks = new List<Chunk>()
-                //        });
-                //    }
-                //    else
-                //    {
-                //        Chunks.Add(new Chunk
-                //        {
-                //            Id = TexturePackChunk,
-                //            Offset = (uint)chunk.Offset,
-                //            Resource = new DelegateTpk().ReadTexturePack(_br, (uint)chunk.Length),
-                //            SubChunks = new List<Chunk>()
-                //        });
-                //    }
-                //}
-                //else
-                //{
-                //    if (chunk.IsParent)
-                //    {
-                //        if ((_options & ChunkManagerOptions.IgnoreUnknownChunks)
-                //            != ChunkManagerOptions.IgnoreUnknownChunks)
-                //        {
-                //            var master = new Chunk
-                //            {
-                //                Id = chunk.Type,
-                //                Offset = (uint)chunk.Offset,
-                //                Size = (uint)chunk.Length,
-                //                SubChunks = new List<Chunk>()
-                //            };
-
-                //            _br.BaseStream.Position = chunk.Offset + 8;
-                //            ReadSubChunks(master.SubChunks, (uint)chunk.Length);
-
-                //            Chunks.Add(master);
-                //        }
-                //    }
-                //    else
-                //    {
-                //        if (chunk.Type == 0
-                //        && (_options & ChunkManagerOptions.SkipNull) != ChunkManagerOptions.SkipNull)
-                //        {
-                //            Chunks.Add(new Chunk
-                //            {
-                //                Id = 0,
-                //                Data = _br.ReadBytes(chunk.Length).Skip(padding).ToArray(),
-                //                Size = (uint)(chunk.Length - padding),
-                //                Offset = (uint)chunk.Offset,
-                //                SubChunks = new List<Chunk>()
-                //            });
-                //        }
-                //        else
-                //        {
-                //            if ((_options & ChunkManagerOptions.IgnoreUnknownChunks)
-                //                != ChunkManagerOptions.IgnoreUnknownChunks)
-                //            {
-                //                if ((_options & ChunkManagerOptions.SkipNull) == ChunkManagerOptions.SkipNull)
-                //                {
-                //                    if (chunk.Type != 0)
-                //                    {
-                //                        Chunks.Add(new Chunk
-                //                        {
-                //                            Id = chunk.Type,
-                //                            Data = _br.ReadBytes(chunk.Length).Skip(padding).ToArray(),
-                //                            Size = (uint)(chunk.Length - padding),
-                //                            Offset = (uint)chunk.Offset,
-                //                            SubChunks = new List<Chunk>()
-                //                        });
-                //                    }
-                //                }
-                //                else
-                //                {
-                //                    Chunks.Add(new Chunk
-                //                    {
-                //                        Id = chunk.Type,
-                //                        Data = _br.ReadBytes(chunk.Length).Skip(padding).ToArray(),
-                //                        Size = (uint)(chunk.Length - padding),
-                //                        Offset = (uint)chunk.Offset,
-                //                        SubChunks = new List<Chunk>()
-                //                    });
-                //                }
-                //            }
-                //        }
-                //    }
-                //}
-
-                //SkipChunk(chunk);
             }
         }
 
@@ -494,11 +278,13 @@ namespace Common
 
                 if (chunk.IsParent)
                 {
-                    var master = new Chunk();
-                    master.Id = chunk.Type;
-                    master.Offset = (uint)chunk.Offset;
-                    master.Size = (uint)chunk.Length;
-                    master.SubChunks = new List<Chunk>();
+                    var master = new Chunk
+                    {
+                        Id = chunk.Type,
+                        Offset = chunk.Offset,
+                        Size = chunk.Length,
+                        SubChunks = new List<Chunk>()
+                    };
 
                     var padding = 0u;
 
@@ -527,13 +313,15 @@ namespace Common
 
                     _br.BaseStream.Position -= 4;
 
-                    var child = new Chunk();
-                    child.Padding = padding;
-                    child.Id = chunk.Type;
-                    child.Offset = (uint)chunk.Offset;
-                    child.Size = (uint)(chunk.Length - padding);
-                    child.SubChunks = new List<Chunk>();
-                    child.Data = _br.ReadBytes(chunk.Length).ToArray();
+                    var child = new Chunk
+                    {
+                        Padding = padding,
+                        Id = chunk.Type,
+                        Offset = chunk.Offset,
+                        Size = chunk.Length - padding,
+                        SubChunks = new List<Chunk>(),
+                        Data = _br.ReadBytes(chunk.Length).ToArray()
+                    };
 
                     chunkList.Add(child);
                 }

@@ -97,8 +97,7 @@ namespace AssetDumper
         private static void ReadInputFile(string file, string outDirectory, Options options)
         {
             var cm = new ChunkManager(
-                options.Game,
-                ChunkManager.ChunkManagerOptions.IgnoreUnknownChunks | ChunkManager.ChunkManagerOptions.SkipNull);
+                options.Game);
 
             var stopwatch = new Stopwatch();
             stopwatch.Start();
@@ -151,8 +150,7 @@ namespace AssetDumper
             }
 
             var bundle = gbm.ReadLocationBundle(file);
-            var cm = new ChunkManager(options.Game,
-                ChunkManager.ChunkManagerOptions.IgnoreUnknownChunks | ChunkManager.ChunkManagerOptions.SkipNull);
+            var cm = new ChunkManager(options.Game);
             BinaryReader masterStream = null;
 
             if (options.Game != GameDetector.Game.World)

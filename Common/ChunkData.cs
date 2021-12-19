@@ -14,7 +14,7 @@ namespace Common
 
             public uint Size { get; set; }
 
-            public uint Offset { get; set; }
+            public long Offset { get; set; }
 
             public byte[] Data { get; set; }
 

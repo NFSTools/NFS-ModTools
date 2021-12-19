@@ -179,7 +179,7 @@ namespace TexEd
                     return;
                 }
 
-                _chunkManager = new ChunkManager(_currentGame, ChunkManager.ChunkManagerOptions.IgnoreUnknownChunks | ChunkManager.ChunkManagerOptions.SkipNull);
+                _chunkManager = new ChunkManager(_currentGame);
 
                 messageLabel.Text = $"Loading: {_fileName}";
 

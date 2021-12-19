@@ -149,7 +149,7 @@ namespace Common.TrackStream
                 }
             }
 
-            var cm = new ChunkManager(GameDetector.Game.World, ChunkManager.ChunkManagerOptions.SkipNull);
+            var cm = new ChunkManager(GameDetector.Game.World);
             cm.Read(bundlePath);
             locationBundle.Chunks = cm.Chunks;
 

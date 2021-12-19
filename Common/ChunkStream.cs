@@ -84,23 +84,21 @@ namespace Common
 
         public uint Type { get; set; }
 
-        public int EndOffset
+        public long EndOffset
         {
             get => Offset + Length + 0x8;
-            set => Length = value - Offset - 0x8;
+            set => Length = (uint)(value - Offset - 0x8);
         }
 
-        public int Offset { get; set; }
+        public long Offset { get; set; }
 
-        public int Length { get; set; }
-
-        public int RawLength => Length + 0x8;
-
+        public uint Length { get; set; }
+        
         public void Read(BinaryReader br)
         {
             Offset = (int)br.BaseStream.Position;
             Type = br.ReadUInt32();
-            Length = br.ReadInt32();
+            Length = br.ReadUInt32();
         }
 
         public void Write(BinaryWriter bw)
@@ -244,7 +242,7 @@ namespace Common
         {
             var chunk = new RealChunk
             {
-                Offset = (int)_stream.Position,
+                Offset = _stream.Position,
                 Type = type
             };
             _chunkStack.Push(chunk);

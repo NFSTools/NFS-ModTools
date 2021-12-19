@@ -134,7 +134,7 @@ namespace Common.TrackStream
 
             masterStream.Dispose();
 
-            var cm = new ChunkManager(GameDetector.Game.MostWanted, ChunkManager.ChunkManagerOptions.SkipNull);
+            var cm = new ChunkManager(GameDetector.Game.MostWanted);
             cm.Read(bundlePath);
             locationBundle.Chunks = cm.Chunks;
 

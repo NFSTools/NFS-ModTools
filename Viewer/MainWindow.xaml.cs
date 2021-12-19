@@ -381,9 +381,7 @@ namespace Viewer
                     }
 
                     var stopwatch = new Stopwatch();
-                    var cm = new ChunkManager(game,
-                        ChunkManager.ChunkManagerOptions.IgnoreUnknownChunks |
-                        ChunkManager.ChunkManagerOptions.SkipNull);
+                    var cm = new ChunkManager(game);
                     stopwatch.Start();
 
                     foreach (var section in bundle.Sections.OrderBy(s => s.Number))
@@ -573,9 +571,7 @@ namespace Viewer
                 foreach (var file in fileList)
                 {
                     var stopwatch = new Stopwatch();
-                    var cm = new ChunkManager(_game,
-                        ChunkManager.ChunkManagerOptions.IgnoreUnknownChunks |
-                        ChunkManager.ChunkManagerOptions.SkipNull);
+                    var cm = new ChunkManager(_game);
 
                     stopwatch.Start();
                     cm.Read(file);
