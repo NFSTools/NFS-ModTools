@@ -157,12 +157,10 @@ namespace ChunkView
 
                     var outSize = br.ReadUInt32();
                     var compSize = br.ReadUInt32();
-                    var outData = new byte[outSize];
 
                     br.BaseStream.Position = 0;
                     var inData = br.ReadBytes((int)compSize);
-
-                    Compression.Decompress(inData, outData);
+                    var outData = Compression.Decompress(inData).ToArray();
 
                     using (var br2 = new BinaryReader(new MemoryStream(outData)))
                     {
@@ -289,9 +287,7 @@ namespace ChunkView
 
                     br.BaseStream.Position = chunkOffset + 4;
                     var compData = br.ReadBytes((int)(chunkSize - 4));
-                    var outData = new byte[outSize];
-
-                    Compression.Decompress(compData, outData);
+                    var outData = Compression.Decompress(compData).ToArray();
 
                     var ms = new MemoryStream();
 

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -238,14 +237,13 @@ namespace Common.Textures
         private void ReadCompressedData(BinaryReader br, DataOffsetStruct dos)
         {
             var inData = new byte[dos.LengthCompressed];
-            var outData = new byte[dos.Length];
 
             if (br.Read(inData, 0, inData.Length) != inData.Length)
             {
                 throw new Exception($"Failed to read compressed data for texture: 0x{dos.Hash:X8}");
             }
 
-            Compression.Decompress(inData, outData);
+            var outData = Compression.Decompress(inData).ToArray();
 
             using (var dcr = new BinaryReader(new MemoryStream(outData)))
             {

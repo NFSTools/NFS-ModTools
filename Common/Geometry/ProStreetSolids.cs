@@ -278,7 +278,7 @@ namespace Common.Geometry
                                         // Load decompressed object
                                         using (var ms = new MemoryStream())
                                         {
-                                            Compression.DecompressCip(br.BaseStream, ms, och.LengthCompressed, out _);
+                                            Compression.DecompressCip(br.BaseStream, ms, och.LengthCompressed);
 
                                             using (var dcr = new BinaryReader(ms))
                                             {

@@ -140,7 +140,7 @@ namespace Common.Textures
                                     // Load decompressed texture
                                     using (var ms = new MemoryStream())
                                     {
-                                        Compression.DecompressCip(br.BaseStream, ms, tch.LengthCompressed, out _);
+                                        Compression.DecompressCip(br.BaseStream, ms, tch.LengthCompressed);
                                         
                                         using (var dcr = new BinaryReader(ms))
                                         {
