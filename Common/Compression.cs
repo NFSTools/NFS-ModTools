@@ -11,7 +11,7 @@ namespace Common
     {
         public static Span<byte> Decompress(ReadOnlySpan<byte> input)
         {
-            return Decompressor.Decompress(input);
+            return BlobDecompressor.Decompress(input);
         }
 
         public static long DecompressCip(Stream src, Stream dst, long srcSize)
