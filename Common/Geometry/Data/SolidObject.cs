@@ -124,28 +124,31 @@ namespace Common.Geometry.Data
             // Reading vertices from buffers...
             foreach (var solidObjectMaterial in Materials)
             {
-                var vertexBuffer = vbStreams[solidObjectMaterial.VertexStreamIndex];
-                var numVerts = solidObjectMaterial.NumVerts == 0
-                    ? vbCounts[solidObjectMaterial.VertexStreamIndex]
-                    : solidObjectMaterial.NumVerts;
-                var stride = (int)(vertexBuffer.BaseStream.Length / vbCounts[solidObjectMaterial.VertexStreamIndex]);
-                var vbOffset = vbOffsets[solidObjectMaterial.VertexStreamIndex];
-#if DEBUG
-                var vbStartPos = vertexBuffer.BaseStream.Position;
-#endif
-                var meshVertices = vbArrays[solidObjectMaterial.VertexStreamIndex];
-                
-                for (var j = 0; j < numVerts; j++)
-                {
-                    meshVertices[vbOffset + j] =
-                        GetVertex(vertexBuffer, solidObjectMaterial, stride);
-                    // Ensure we read exactly one vertex
-#if DEBUG
-                    Debug.Assert(vertexBuffer.BaseStream.Position - (vbStartPos + j * stride) == stride);
-#endif
-                }
+                var vbIndex = solidObjectMaterial.VertexStreamIndex;
+                var vbStream = vbStreams[vbIndex];
+                var vbVertexCount = vbCounts[vbIndex];
+                var vbOffset = vbOffsets[vbIndex];
+                var vbStride = (int)(vbStream.BaseStream.Length / vbVertexCount);
 
-                vbOffsets[solidObjectMaterial.VertexStreamIndex] += numVerts;
+                var numVerts = solidObjectMaterial.NumVerts == 0
+                    ? vbVertexCount
+                    : solidObjectMaterial.NumVerts;
+
+                if (vbOffset < vbVertexCount)
+                {
+                    var vbStartPos = vbStream.BaseStream.Position;
+                    
+                    for (var i = 0; i < numVerts; i++)
+                    {
+                        Debug.Assert(vbStream.BaseStream.Position - vbStartPos == vbStride * i, "vbStream.BaseStream.Position - vbStartPos == vbStride * i");
+                        vbArrays[vbIndex][vbOffset + i] = GetVertex(vbStream, solidObjectMaterial, vbStride);
+                    }
+
+                    vbOffsets[vbIndex] += numVerts;
+                } else if (vbOffset != vbVertexCount)
+                {
+                    throw new Exception($"Vertex buffer read is in a weird state. vbOffset={vbOffset} vbVertexCount={vbVertexCount}");
+                }
             }
 
             for (var i = 0; i < vbArrays.Length; i++)
