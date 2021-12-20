@@ -150,45 +150,14 @@ namespace Common.Scenery
                 var internalInstance = BinaryUtil.ReadStruct<SceneryInstanceInternal>(br);
 
                 instance.InfoIndex = internalInstance.SceneryInfoNumber;
-                instance.Position = new Vector3(internalInstance.Position.X, internalInstance.Position.Y, internalInstance.Position.Z);
-
+                
                 var vRight = internalInstance.Rotation0;
                 var vForward = internalInstance.Rotation1;
                 var vUpwards = internalInstance.Rotation2;
 
-                instance.Scale = new Vector3(vRight.Length(), vUpwards.Length(), vForward.Length());
-
-                vRight = Vector3.Normalize(vRight);
-                vUpwards = Vector3.Normalize(vUpwards);
-                vForward = Vector3.Normalize(vForward);
-
-                if (Vector3.Dot(Vector3.Cross(vForward, vUpwards), vRight) < 0)
-                {
-                    vRight = -vRight;
-                    instance.Scale = new Vector3(-instance.Scale.X, instance.Scale.Y, instance.Scale.Z);
-                }
-
-                instance.Rotation = Quaternion.CreateFromRotationMatrix(new Matrix4x4(
-                    vRight.X,
-                    vRight.Y,
-                    vRight.Z,
-                    0,
-
-                    vForward.X,
-                    vForward.Y,
-                    vForward.Z,
-                    0,
-
-                    vUpwards.X,
-                    vUpwards.Y,
-                    vUpwards.Z,
-                    0,
-
-                    0,
-                    0,
-                    0,
-                    0
-                ));
+                instance.Transform = new Matrix4x4(vRight.X, vRight.Y, vRight.Z, 0, vForward.X, vForward.Y, vForward.Z,
+                    0, vUpwards.X, vUpwards.Y, vUpwards.Z, 0, internalInstance.Position.X, internalInstance.Position.Y,
+                    internalInstance.Position.Z, 1);
 
                 _scenerySection.Instances.Add(instance);
             }

@@ -13,9 +13,7 @@ namespace Common.Scenery.Data
     public class SceneryInstance
     {
         public int InfoIndex { get; set; }
-        public Vector3 Position { get; set; }
-        public Vector3 Scale { get; set; }
-        public Quaternion Rotation { get; set; }
+        public Matrix4x4 Transform { get; set; }
     }
     
     public class ScenerySection : ChunkManager.BasicResource
