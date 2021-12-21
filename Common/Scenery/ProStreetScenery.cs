@@ -5,6 +5,7 @@ using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Common.Scenery.Data;
+using Common.Scenery.Structures;
 
 namespace Common.Scenery
 {
@@ -92,20 +93,20 @@ namespace Common.Scenery
                 switch (chunkId)
                 {
                     case 0x00034101:
-                        {
-                            ReadScenerySectionHeader(br);
-                            break;
-                        }
+                    {
+                        ReadScenerySectionHeader(br);
+                        break;
+                    }
                     case 0x00034102:
-                        {
-                            ReadSceneryInfos(br, chunkSize);
-                            break;
-                        }
+                    {
+                        ReadSceneryInfos(br, chunkSize);
+                        break;
+                    }
                     case 0x00034103:
-                        {
-                            ReadSceneryInstances(br, chunkSize);
-                            break;
-                        }
+                    {
+                        ReadSceneryInstances(br, chunkSize);
+                        break;
+                    }
                     default:
                         //Console.WriteLine($"0x{chunkId:X8} [{chunkSize}] @{br.BaseStream.Position}");
                         break;
@@ -114,12 +115,14 @@ namespace Common.Scenery
                 br.BaseStream.Position = chunkEndPos;
             }
         }
+
         private void ReadScenerySectionHeader(BinaryReader br)
         {
             var header = BinaryUtil.ReadStruct<ScenerySectionHeader>(br);
             _scenerySection.SectionNumber = header.SectionNumber;
             //Debug.Log($"ScenerySection number is {_scenerySection.SectionNumber}");
         }
+
         private void ReadSceneryInfos(BinaryReader br, uint size)
         {
             Debug.Assert(size % 0x4C == 0);
@@ -152,13 +155,10 @@ namespace Common.Scenery
                 var internalInstance = BinaryUtil.ReadStruct<SceneryInstanceInternal>(br);
 
                 instance.InfoIndex = internalInstance.SceneryInfoNumber;
-                var vRight = internalInstance.Rotation0;
-                var vForward = internalInstance.Rotation1;
-                var vUpwards = internalInstance.Rotation2;
-
-                instance.Transform = new Matrix4x4(vRight.X, vRight.Y, vRight.Z, 0, vForward.X, vForward.Y, vForward.Z,
-                    0, vUpwards.X, vUpwards.Y, vUpwards.Z, 0, internalInstance.Position.X, internalInstance.Position.Y,
-                    internalInstance.Position.Z, 1);
+                instance.Transform = Matrix4x4.Multiply(
+                    new RotationMatrix(internalInstance.Rotation0, internalInstance.Rotation1,
+                        internalInstance.Rotation2),
+                    Matrix4x4.CreateTranslation(internalInstance.Position));
 
                 _scenerySection.Instances.Add(instance);
             }

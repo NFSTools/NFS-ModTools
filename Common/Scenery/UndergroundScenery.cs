@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Common.Scenery.Data;
+using Common.Scenery.Structures;
 
 namespace Common.Scenery
 {
@@ -29,12 +29,16 @@ namespace Common.Scenery
         {
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
             public uint[] NameHash;
+
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
             public short[] FarClipSize;
+
             public short Dummy;
             public short Dummy2;
+
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
             public uint[] ModelPointers;
+
             [MarshalAs(UnmanagedType.ByValArray, ArraySubType = UnmanagedType.I1, SizeConst = 6)]
             public bool[] IsFacadeFlag;
 
@@ -71,7 +75,7 @@ namespace Common.Scenery
             public ushort SceneryInfoNumber;
             public ushort ExcludeFlags;
             public Vector3 Position;
-            public Matrix3x3Packed Rotation;
+            public PackedRotationMatrix Rotation;
             public ushort Padding;
         }
 
@@ -116,20 +120,20 @@ namespace Common.Scenery
                 switch (chunkId)
                 {
                     case 0x00034101:
-                        {
-                            ReadScenerySectionHeader(br);
-                            break;
-                        }
+                    {
+                        ReadScenerySectionHeader(br);
+                        break;
+                    }
                     case 0x00034102:
-                        {
-                            ReadSceneryInfos(br, chunkSize);
-                            break;
-                        }
+                    {
+                        ReadSceneryInfos(br, chunkSize);
+                        break;
+                    }
                     case 0x00034103:
-                        {
-                            ReadSceneryInstances(br, chunkSize);
-                            break;
-                        }
+                    {
+                        ReadSceneryInstances(br, chunkSize);
+                        break;
+                    }
                     default:
                         //Console.WriteLine($"0x{chunkId:X8} [{chunkSize}] @{br.BaseStream.Position}");
                         break;
@@ -138,15 +142,17 @@ namespace Common.Scenery
                 br.BaseStream.Position = chunkEndPos;
             }
         }
+
         private void ReadScenerySectionHeader(BinaryReader br)
         {
             var header = BinaryUtil.ReadStruct<ScenerySectionHeader>(br);
             _scenerySection.SectionNumber = header.SectionNumber;
             //Debug.Log($"ScenerySection number is {_scenerySection.SectionNumber}");
         }
+
         private void ReadSceneryInfos(BinaryReader br, uint size)
         {
-            Debug.Assert(Marshal.SizeOf<SceneryInfoStruct>()==0x48);
+            Debug.Assert(Marshal.SizeOf<SceneryInfoStruct>() == 0x48);
             Debug.Assert(size % 0x48 == 0);
             var count = (int)size / 0x48;
             _scenerySection.Infos = new List<SceneryInfo>(count);
@@ -175,19 +181,8 @@ namespace Common.Scenery
                 var internalInstance = BinaryUtil.ReadStruct<SceneryInstanceInternal>(br);
 
                 instance.InfoIndex = internalInstance.SceneryInfoNumber;
-                var vRight = new Vector3(internalInstance.Rotation.Value11, internalInstance.Rotation.Value12,
-                    internalInstance.Rotation.Value13);
-                var vForward = new Vector3(internalInstance.Rotation.Value21, internalInstance.Rotation.Value22,
-                    internalInstance.Rotation.Value23);
-                var vUpwards = new Vector3(internalInstance.Rotation.Value31, internalInstance.Rotation.Value32,
-                    internalInstance.Rotation.Value33);
-                vRight *= 0.0001220703125f; // vRight /= 0x2000
-                vUpwards *= 0.0001220703125f; // vUpwards /= 0x2000
-                vForward *= 0.0001220703125f; // vForward /= 0x2000
-
-                instance.Transform = new Matrix4x4(vRight.X, vRight.Y, vRight.Z, 0, vForward.X, vForward.Y, vForward.Z,
-                    0, vUpwards.X, vUpwards.Y, vUpwards.Z, 0, internalInstance.Position.X, internalInstance.Position.Y,
-                    internalInstance.Position.Z, 1);
+                instance.Transform = Matrix4x4.Multiply(internalInstance.Rotation,
+                    Matrix4x4.CreateTranslation(internalInstance.Position));
 
                 _scenerySection.Instances.Add(instance);
             }

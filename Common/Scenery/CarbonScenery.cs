@@ -5,6 +5,7 @@ using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Common.Scenery.Data;
+using Common.Scenery.Structures;
 
 namespace Common.Scenery
 {
@@ -55,9 +56,7 @@ namespace Common.Scenery
             public short PrecullerInfoIndex;
             public short LightingContextNumber;
             public Vector3 Position;
-            public Vector3 Rotation0;
-            public Vector3 Rotation1;
-            public Vector3 Rotation2;
+            public RotationMatrix Rotation;
             public uint SceneryGuid;
             public short SceneryInfoNumber;
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
@@ -144,13 +143,8 @@ namespace Common.Scenery
                 var internalInstance = BinaryUtil.ReadStruct<SceneryInstanceInternal>(br);
 
                 instance.InfoIndex = internalInstance.SceneryInfoNumber;
-                var vRight = internalInstance.Rotation0;
-                var vForward = internalInstance.Rotation1;
-                var vUpwards = internalInstance.Rotation2;
-
-                instance.Transform = new Matrix4x4(vRight.X, vRight.Y, vRight.Z, 0, vForward.X, vForward.Y, vForward.Z,
-                    0, vUpwards.X, vUpwards.Y, vUpwards.Z, 0, internalInstance.Position.X, internalInstance.Position.Y,
-                    internalInstance.Position.Z, 1);
+                instance.Transform = Matrix4x4.Multiply(internalInstance.Rotation,
+                    Matrix4x4.CreateTranslation(internalInstance.Position));
 
                 _scenerySection.Instances.Add(instance);
             }

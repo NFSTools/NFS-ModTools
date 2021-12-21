@@ -5,6 +5,7 @@ using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Common.Scenery.Data;
+using Common.Scenery.Structures;
 
 namespace Common.Scenery
 {
@@ -150,14 +151,10 @@ namespace Common.Scenery
                 var internalInstance = BinaryUtil.ReadStruct<SceneryInstanceInternal>(br);
 
                 instance.InfoIndex = internalInstance.SceneryInfoNumber;
-                
-                var vRight = internalInstance.Rotation0;
-                var vForward = internalInstance.Rotation1;
-                var vUpwards = internalInstance.Rotation2;
-
-                instance.Transform = new Matrix4x4(vRight.X, vRight.Y, vRight.Z, 0, vForward.X, vForward.Y, vForward.Z,
-                    0, vUpwards.X, vUpwards.Y, vUpwards.Z, 0, internalInstance.Position.X, internalInstance.Position.Y,
-                    internalInstance.Position.Z, 1);
+                instance.Transform = Matrix4x4.Multiply(
+                    new RotationMatrix(internalInstance.Rotation0, internalInstance.Rotation1,
+                        internalInstance.Rotation2),
+                    Matrix4x4.CreateTranslation(internalInstance.Position));
 
                 _scenerySection.Instances.Add(instance);
             }

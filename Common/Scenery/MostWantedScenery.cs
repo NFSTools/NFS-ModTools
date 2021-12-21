@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Common.Scenery.Data;
+using Common.Scenery.Structures;
 
 namespace Common.Scenery
 {
@@ -47,20 +47,6 @@ namespace Common.Scenery
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public struct Matrix3x3Packed
-        {
-            public short Value11;
-            public short Value12;
-            public short Value13;
-            public short Value21;
-            public short Value22;
-            public short Value23;
-            public short Value31;
-            public short Value32;
-            public short Value33;
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public struct SceneryInstanceInternal // 0x00034103
         {
             public Vector3 BBoxMin;
@@ -69,7 +55,7 @@ namespace Common.Scenery
             public short PrecullerInfoIndex;
             public short LightingContextNumber;
             public Vector3 Position;
-            public Matrix3x3Packed Rotation;
+            public PackedRotationMatrix Rotation;
             public short SceneryInfoNumber;
         }
 
@@ -153,19 +139,8 @@ namespace Common.Scenery
                 var internalInstance = BinaryUtil.ReadStruct<SceneryInstanceInternal>(br);
 
                 instance.InfoIndex = internalInstance.SceneryInfoNumber;
-                var vRight = new Vector3(internalInstance.Rotation.Value11, internalInstance.Rotation.Value12,
-                    internalInstance.Rotation.Value13);
-                var vForward = new Vector3(internalInstance.Rotation.Value21, internalInstance.Rotation.Value22,
-                    internalInstance.Rotation.Value23);
-                var vUpwards = new Vector3(internalInstance.Rotation.Value31, internalInstance.Rotation.Value32,
-                    internalInstance.Rotation.Value33);
-                vRight *= 0.0001220703125f; // vRight /= 0x2000
-                vUpwards *= 0.0001220703125f; // vUpwards /= 0x2000
-                vForward *= 0.0001220703125f; // vForward /= 0x2000
-
-                instance.Transform = new Matrix4x4(vRight.X, vRight.Y, vRight.Z, 0, vForward.X, vForward.Y, vForward.Z,
-                    0, vUpwards.X, vUpwards.Y, vUpwards.Z, 0, internalInstance.Position.X, internalInstance.Position.Y,
-                    internalInstance.Position.Z, 1);
+                instance.Transform = Matrix4x4.Multiply(internalInstance.Rotation,
+                    Matrix4x4.CreateTranslation(internalInstance.Position));
 
                 _scenerySection.Instances.Add(instance);
             }

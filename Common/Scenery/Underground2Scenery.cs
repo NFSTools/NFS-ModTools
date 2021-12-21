@@ -5,6 +5,7 @@ using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Common.Scenery.Data;
+using Common.Scenery.Structures;
 
 namespace Common.Scenery
 {
@@ -43,20 +44,6 @@ namespace Common.Scenery
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public struct Matrix3x3Packed
-        {
-            public short Value11;
-            public short Value12;
-            public short Value13;
-            public short Value21;
-            public short Value22;
-            public short Value23;
-            public short Value31;
-            public short Value32;
-            public short Value33;
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public struct SceneryInstanceInternal // 0x00034103
         {
             public Vector3 BBoxMin;
@@ -65,7 +52,7 @@ namespace Common.Scenery
             public ushort InstanceFlags;
             public int PrecullerInfoIndex;
             public Vector3 Position;
-            public Matrix3x3Packed Rotation;
+            public PackedRotationMatrix Rotation;
             public ushort Padding;
         }
 
@@ -110,20 +97,20 @@ namespace Common.Scenery
                 switch (chunkId)
                 {
                     case 0x00034101:
-                        {
-                            ReadScenerySectionHeader(br);
-                            break;
-                        }
+                    {
+                        ReadScenerySectionHeader(br);
+                        break;
+                    }
                     case 0x00034102:
-                        {
-                            ReadSceneryInfos(br, chunkSize);
-                            break;
-                        }
+                    {
+                        ReadSceneryInfos(br, chunkSize);
+                        break;
+                    }
                     case 0x00034103:
-                        {
-                            ReadSceneryInstances(br, chunkSize);
-                            break;
-                        }
+                    {
+                        ReadSceneryInstances(br, chunkSize);
+                        break;
+                    }
                     default:
                         //Console.WriteLine($"0x{chunkId:X8} [{chunkSize}] @{br.BaseStream.Position}");
                         break;
@@ -132,12 +119,14 @@ namespace Common.Scenery
                 br.BaseStream.Position = chunkEndPos;
             }
         }
+
         private void ReadScenerySectionHeader(BinaryReader br)
         {
             var header = BinaryUtil.ReadStruct<ScenerySectionHeader>(br);
             _scenerySection.SectionNumber = header.SectionNumber;
             //Debug.Log($"ScenerySection number is {_scenerySection.SectionNumber}");
         }
+
         private void ReadSceneryInfos(BinaryReader br, uint size)
         {
             Debug.Assert(size % 0x44 == 0);
@@ -168,19 +157,8 @@ namespace Common.Scenery
                 var internalInstance = BinaryUtil.ReadStruct<SceneryInstanceInternal>(br);
 
                 instance.InfoIndex = internalInstance.SceneryInfoNumber;
-                var vRight = new Vector3(internalInstance.Rotation.Value11, internalInstance.Rotation.Value12,
-                    internalInstance.Rotation.Value13);
-                var vForward = new Vector3(internalInstance.Rotation.Value21, internalInstance.Rotation.Value22,
-                    internalInstance.Rotation.Value23);
-                var vUpwards = new Vector3(internalInstance.Rotation.Value31, internalInstance.Rotation.Value32,
-                    internalInstance.Rotation.Value33);
-                vRight *= 0.0001220703125f; // vRight /= 0x2000
-                vUpwards *= 0.0001220703125f; // vUpwards /= 0x2000
-                vForward *= 0.0001220703125f; // vForward /= 0x2000
-
-                instance.Transform = new Matrix4x4(vRight.X, vRight.Y, vRight.Z, 0, vForward.X, vForward.Y, vForward.Z,
-                    0, vUpwards.X, vUpwards.Y, vUpwards.Z, 0, internalInstance.Position.X, internalInstance.Position.Y,
-                    internalInstance.Position.Z, 1);
+                instance.Transform = Matrix4x4.Multiply(internalInstance.Rotation,
+                    Matrix4x4.CreateTranslation(internalInstance.Position));
 
                 _scenerySection.Instances.Add(instance);
             }
