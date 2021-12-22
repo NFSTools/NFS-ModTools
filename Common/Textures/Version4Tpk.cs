@@ -1,15 +1,18 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using Common.Textures.Data;
 
 namespace Common.Textures
 {
     /// <summary>
-    /// TPK support for NFS:MW.
+    /// TPK support for NFS:W.
     /// </summary>
-    public class MostWantedTpk : TpkManager
+    public class Version4Tpk : TpkManager
     {
         private const uint InfoChunkId = 0x33310001;
         private const uint HashChunkId = 0x33310002;
@@ -17,30 +20,22 @@ namespace Common.Textures
         private const uint DDSChunkId = 0x33310005;
         private const uint TexDataChunkId = 0x33320002;
 
-        [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 124)]
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
         private struct TextureStruct
         {
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 12)]
-            public byte[] Padding1;
-
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 24)]
-            public string DebugName;
+            private byte[] blank;
 
             public uint NameHash;
             public uint ClassNameHash;
-            public uint ImageParentHash;
-            public uint ImagePlacement;
-            public uint PalettePlacement;
+            public uint SurfaceNameHash;
             public uint ImageSize;
-            public uint PaletteSize;
             public uint BaseImageSize;
-            public ushort Width;
-            public ushort Height;
-            public byte ShiftWidth;
-            public byte ShiftHeight;
+            public uint Width;
+            public uint Height;
+            public uint ShiftWidth;
+            public uint ShiftHeight;
             public TextureCompressionType ImageCompressionType;
-            public byte PaletteCompressionType;
-            public ushort NumPaletteEntries;
             public byte NumMipMapLevels;
             public byte TilableUV;
             public byte BiasLevel;
@@ -51,6 +46,7 @@ namespace Common.Textures
             public byte AlphaUsageType;
             public byte AlphaBlendType;
             public byte Flags;
+            public byte MipmapBiasType;
             public short ScrollTimeStep;
             public short ScrollSpeedS;
             public short ScrollSpeedT;
@@ -58,9 +54,14 @@ namespace Common.Textures
             public short OffsetT;
             public short ScaleS;
             public short ScaleT;
+            public short Pad;
+            public uint DataSize0;
+            public uint DataOffset0;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 20)]
-            public byte[] Padding2;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1 + 3 * 4 + 2)]
+            public uint[] Padding;
+
+            public byte DebugNameSize;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -68,10 +69,13 @@ namespace Common.Textures
         {
             public uint Hash;
             public uint Offset;
-            public uint LengthCompressed;
-            public uint Length;
+            public int LengthCompressed;
+            public int Length;
             public uint Flags;
             private uint blank;
+            private uint blank2;
+            private uint blank3;
+            private uint blank4;
         }
 
         private TexturePack _texturePack;
@@ -82,17 +86,7 @@ namespace Common.Textures
         public override TexturePack ReadTexturePack(BinaryReader br, uint containerSize)
         {
             _texturePack = new TexturePack();
-            //_offset = (uint)(br.BaseStream.Position - 8);
-
-            if (br.BaseStream.Position < 8)
-            {
-                _offset = 0;
-            }
-            else
-            {
-                _offset = (uint)(br.BaseStream.Position - 8);
-            }
-
+            _offset = (uint)(br.BaseStream.Position - 8);
             _size = containerSize + 8;
 
             ReadChunks(br, containerSize);
@@ -132,20 +126,44 @@ namespace Common.Textures
 
                             break;
                         }
+                        case HashChunkId:
+                        {
+                            _texturePack.Textures = new List<Texture>((int)(chunkSize / 8));
+                            break;
+                        }
                         case 0x33310003:
                         {
                             _compressed = true;
-                            Debug.Assert(chunkSize % Marshal.SizeOf<DataOffsetStruct>() == 0,
-                                "chunkSize % Marshal.SizeOf<DataOffsetStruct>() == 0");
-
                             while (br.BaseStream.Position < chunkEndPos)
                             {
-                                var dos = br.GetStruct<DataOffsetStruct>();
+                                var tch = br.GetStruct<DataOffsetStruct>();
                                 var curPos = br.BaseStream.Position;
 
-                                br.BaseStream.Position = dos.Offset;
+                                br.BaseStream.Position = tch.Offset;
+                                    
+                                // Load decompressed texture
+                                using (var ms = new MemoryStream())
+                                {
+                                    Compression.DecompressCip(br.BaseStream, ms, tch.LengthCompressed);
 
-                                ReadCompressedData(br, dos);
+                                    using (var dcr = new BinaryReader(ms))
+                                    {
+                                        // Seek to TextureInfo
+                                        dcr.BaseStream.Seek(-0xD4, SeekOrigin.End);
+                                        var texture = ReadTexture(dcr);
+                                        // Seek to D3DFormat
+                                        dcr.BaseStream.Seek(-0x14, SeekOrigin.End);
+                                        texture.Format = dcr.ReadUInt32();
+                                        // Read texture data
+                                        dcr.BaseStream.Seek(0, SeekOrigin.Begin);
+                                        if (dcr.BaseStream.Read(texture.Data, 0, texture.Data.Length) !=
+                                            texture.Data.Length)
+                                        {
+                                            throw new Exception(
+                                                $"Failed to read data for texture 0x{texture.TexHash:X8} ({texture.Name})");
+                                        }
+                                    }
+                                }
 
                                 br.BaseStream.Position = curPos;
                             }
@@ -154,12 +172,7 @@ namespace Common.Textures
                         }
                         case TexChunkId:
                         {
-                            var textureStructSize = Marshal.SizeOf<TextureStruct>();
-                            Debug.Assert(chunkSize % textureStructSize == 0);
-
-                            var numTextures = chunkSize / textureStructSize;
-
-                            for (var j = 0; j < numTextures; j++)
+                            for (var j = 0; j < _texturePack.Textures.Capacity; j++)
                             {
                                 ReadTexture(br);
                             }
@@ -170,21 +183,14 @@ namespace Common.Textures
                         {
                             if (!_compressed)
                             {
-                                BinaryUtil.AutoAlign(br, 0x80);
+                                br.BaseStream.Position += 0x78;
 
                                 var basePos = br.BaseStream.Position;
 
                                 foreach (var t in _texturePack.Textures)
                                 {
                                     br.BaseStream.Position = basePos + t.DataOffset;
-                                    t.Data = new byte[t.DataSize];
                                     br.Read(t.Data, 0, t.Data.Length);
-                                    if (t.PaletteSize > 0)
-                                    {
-                                        br.BaseStream.Position = basePos + t.PaletteOffset;
-                                        t.Palette = new byte[t.PaletteSize];
-                                        br.Read(t.Palette, 0, t.Palette.Length);
-                                    }
                                 }
                             }
 
@@ -194,10 +200,23 @@ namespace Common.Textures
                         {
                             foreach (var t in _texturePack.Textures)
                             {
-                                br.BaseStream.Seek(20, SeekOrigin.Current);
-                                t.Format = br.ReadUInt32();
+                                // BC4 = 42 43 34 
+                                // BC5 = 42 43 35
+
+                                br.BaseStream.Seek(12, SeekOrigin.Current);
+
+                                var compType = br.ReadUInt32();
+
+                                //if (compType == 0x31495441)
+                                //{
+                                //    compType = 0x0034
+                                //}
+
+                                t.Format = compType;
+
+                                //t.Format = (TextureFormat)br.ReadUInt32();
                                 //Console.WriteLine($"{t.Name} = 0x{((int)t.Format):X8}");
-                                br.BaseStream.Seek(0x08, SeekOrigin.Current);
+                                br.BaseStream.Seek(16, SeekOrigin.Current);
                             }
 
                             break;
@@ -211,59 +230,30 @@ namespace Common.Textures
 
         private Texture ReadTexture(BinaryReader br)
         {
-            var textureInfo = BinaryUtil.ReadStruct<TextureStruct>(br);
+            var texture = BinaryUtil.ReadStruct<TextureStruct>(br);
+            var name = new string(br.ReadChars(texture.DebugNameSize)).TrimEnd('\0');
 
-            var texture = new Texture
+            var realTexture = new Texture
             {
-                Width = textureInfo.Width,
-                Height = textureInfo.Height,
-                Name = textureInfo.DebugName,
-                DataSize = textureInfo.ImageSize,
-                DataOffset = textureInfo.ImagePlacement,
-                PaletteSize = textureInfo.PaletteSize,
-                PaletteOffset = textureInfo.PalettePlacement,
-                MipMapCount = textureInfo.NumMipMapLevels,
-                TexHash = textureInfo.NameHash,
-                TypeHash = textureInfo.ClassNameHash,
+                Width = texture.Width,
+                Height = texture.Height,
+                Name = name,
+                Data = new byte[texture.ImageSize],
+                DataSize = texture.DataSize0,
+                DataOffset = texture.DataOffset0,
+                MipMapCount = texture.NumMipMapLevels,
+                TexHash = texture.NameHash,
+                TypeHash = texture.ClassNameHash,
                 Format = 0,
-                PitchOrLinearSize = textureInfo.BaseImageSize,
-                CompressionType = textureInfo.ImageCompressionType,
-                Data = new byte[textureInfo.ImageSize]
+                PitchOrLinearSize = texture.BaseImageSize,
+                CompressionType = texture.ImageCompressionType
             };
-            _texturePack.Textures.Add(texture);
-            return texture;
-        }
 
-        private void ReadCompressedData(BinaryReader br, DataOffsetStruct dos)
-        {
-            var inData = new byte[dos.LengthCompressed];
+            _texturePack.Textures.Add(realTexture);
 
-            if (br.Read(inData, 0, inData.Length) != inData.Length)
-            {
-                throw new Exception($"Failed to read compressed data for texture: 0x{dos.Hash:X8}");
-            }
+            Array.Clear(realTexture.Data, 0, realTexture.Data.Length);
 
-            var outData = Compression.Decompress(inData).ToArray();
-
-            using (var dcr = new BinaryReader(new MemoryStream(outData)))
-            {
-                // Seek to TextureInfo
-                dcr.BaseStream.Seek(-156, SeekOrigin.End);
-                var texture = ReadTexture(dcr);
-
-                // Seek to D3DFormat
-                dcr.BaseStream.Seek(-12, SeekOrigin.End);
-                texture.Format = dcr.ReadUInt32();
-
-                // Seek to data
-                dcr.BaseStream.Seek(0, SeekOrigin.Begin);
-                if (dcr.BaseStream.Read(texture.Data, 0, texture.Data.Length) !=
-                    texture.Data.Length)
-                {
-                    throw new Exception(
-                        $"Failed to read data for texture 0x{texture.TexHash:X8} ({texture.Name})");
-                }
-            }
+            return realTexture;
         }
     }
 }

@@ -153,100 +153,59 @@ namespace Common
                 switch (chunk.Type)
                 {
                     case ObjectPackChunk:
-                        switch (_game)
+                    {
+                        SolidListManager solidListManager = _game switch
                         {
-                            case GameDetector.Game.Underground:
-                                {
-                                    cd.Resource = new UndergroundSolids().ReadSolidList(_br, chunk.Length);
-                                    break;
-                                }
-                            case GameDetector.Game.Underground2:
-                                {
-                                    cd.Resource = new Underground2Solids().ReadSolidList(_br, chunk.Length);
-                                    break;
-                                }
-                            case GameDetector.Game.MostWanted:
-                                {
-                                    cd.Resource = new MostWantedSolids().ReadSolidList(_br, chunk.Length);
-                                    break;
-                                }
-                            case GameDetector.Game.Carbon:
-                                {
-                                    cd.Resource = new CarbonSolids().ReadSolidList(_br, chunk.Length);
-                                    break;
-                                }
-                            case GameDetector.Game.ProStreet:
-                                {
-                                    cd.Resource = new ProStreetSolids().ReadSolidList(_br, chunk.Length);
-                                    break;
-                                }
-                            case GameDetector.Game.Undercover:
-                                {
-                                    cd.Resource = new UndercoverSolids().ReadSolidList(_br, chunk.Length);
-                                    break;
-                                }
-                            case GameDetector.Game.World:
-                                {
-                                    cd.Resource = new World15Solids().ReadSolidList(_br, chunk.Length);
-                                    break;
-                                }
-                        }
-                        break;
-                    case TexturePackChunk:
-                        {
-                            switch (_game)
-                            {
-                                case GameDetector.Game.Underground:
-                                case GameDetector.Game.Underground2:
-                                case GameDetector.Game.MostWanted:
-                                    cd.Resource = new MostWantedTpk().ReadTexturePack(_br, chunk.Length);
-                                    break;
-                                case GameDetector.Game.Carbon:
-                                case GameDetector.Game.ProStreet:
-                                case GameDetector.Game.ProStreetTest:
-                                    cd.Resource = new CarbonTpk().ReadTexturePack(_br, chunk.Length);
-                                    break;
-                                case GameDetector.Game.Undercover:
-                                    cd.Resource = new UndercoverTpk().ReadTexturePack(_br, chunk.Length);
-                                    break;
-                                case GameDetector.Game.World:
-                                    cd.Resource = new WorldTpk().ReadTexturePack(_br, chunk.Length);
-                                    break;
-                                default:
-                                    throw new Exception($"Cannot process TPK chunk for game: {_game}");
-                            }
-                            //cd.Resource = new DelegateTpk().ReadTexturePack(_br, (uint) chunk.Length);
-                            break;
-                        }
-                    case 0x80034100:
-                        {
-                            switch (_game)
-                            {
-                                case GameDetector.Game.Underground:
-                                    cd.Resource = new UndergroundScenery().ReadScenery(_br, chunk.Length);
-                                    break;
-                                case GameDetector.Game.Underground2:
-                                    cd.Resource = new Underground2Scenery().ReadScenery(_br, chunk.Length);
-                                    break;
-                                case GameDetector.Game.MostWanted:
-                                    cd.Resource = new MostWantedScenery().ReadScenery(_br, chunk.Length);
-                                    break;
-                                case GameDetector.Game.Carbon:
-                                    cd.Resource = new CarbonScenery().ReadScenery(_br, chunk.Length);
-                                    break;
-                                case GameDetector.Game.ProStreet:
-                                    cd.Resource = new ProStreetScenery().ReadScenery(_br, chunk.Length);
-                                    break;
-                                case GameDetector.Game.Undercover:
-                                    cd.Resource = new UndercoverScenery().ReadScenery(_br, chunk.Length);
-                                    break;
-                                case GameDetector.Game.World:
-                                    cd.Resource = new WorldScenery().ReadScenery(_br, chunk.Length);
-                                    break;
-                            }
+                            GameDetector.Game.Underground => new UndergroundSolids(),
+                            GameDetector.Game.Underground2 => new Underground2Solids(),
+                            GameDetector.Game.MostWanted => new MostWantedSolids(),
+                            GameDetector.Game.Carbon => new CarbonSolids(),
+                            GameDetector.Game.ProStreet => new ProStreetSolids(),
+                            GameDetector.Game.Undercover => new UndercoverSolids(),
+                            GameDetector.Game.World => new World15Solids(),
+                            _ => throw new Exception($"Cannot process solid list chunk for game: {_game}")
+                        };
 
-                            break;
-                        }
+                        cd.Resource = solidListManager.ReadSolidList(_br, chunk.Length);
+
+                        break;
+                    }
+                    case TexturePackChunk:
+                    {
+                        TpkManager tpkManager = _game switch
+                        {
+                            GameDetector.Game.Underground => new Version1Tpk(),
+                            GameDetector.Game.Underground2 => new Version1Tpk(),
+                            GameDetector.Game.MostWanted => new Version1Tpk(),
+                            GameDetector.Game.Carbon => new Version2Tpk(),
+                            GameDetector.Game.ProStreet => new Version2Tpk(),
+                            GameDetector.Game.ProStreetTest => new Version2Tpk(),
+                            GameDetector.Game.Undercover => new Version3Tpk(),
+                            GameDetector.Game.World => new Version4Tpk(),
+                            _ => throw new Exception($"Cannot process TPK chunk for game: {_game}")
+                        };
+
+                        cd.Resource = tpkManager.ReadTexturePack(_br, chunk.Length);
+                        break;
+                    }
+                    case 0x80034100:
+                    {
+                        SceneryManager sceneryManager = _game switch
+                        {
+                            GameDetector.Game.Underground => new UndergroundScenery(),
+                            GameDetector.Game.Underground2 => new Underground2Scenery(),
+                            GameDetector.Game.MostWanted => new MostWantedScenery(),
+                            GameDetector.Game.Carbon => new CarbonScenery(),
+                            GameDetector.Game.ProStreet => new ProStreetScenery(),
+                            GameDetector.Game.Undercover => new UndercoverScenery(),
+                            GameDetector.Game.World => new WorldScenery(),
+                            _ => throw new Exception($"Cannot process scenery chunk for game: {_game}")
+                        };
+
+                        cd.Resource = sceneryManager.ReadScenery(_br, chunk.Length);
+
+                        break;
+                    }
                     default:
                         // If the chunk is a container chunk, read its sub-chunks.
                         if (chunk.IsParent)

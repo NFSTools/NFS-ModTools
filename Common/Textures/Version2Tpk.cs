@@ -10,9 +10,9 @@ using Common.Textures.Data;
 namespace Common.Textures
 {
     /// <summary>
-    /// TPK support for NFS:UC
+    /// TPK support for NFS:C, NFS:PS, NFS:UC(?)
     /// </summary>
-    public class UndercoverTpk : TpkManager
+    public class Version2Tpk : TpkManager
     {
         private const uint InfoChunkId = 0x33310001;
         private const uint HashChunkId = 0x33310002;
@@ -26,7 +26,7 @@ namespace Common.Textures
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 12)]
             private byte[] blank;
 
-            public uint NameHash;
+            public uint Hash;
             public uint ClassNameHash;
             public uint ImagePlacement;
             public uint PalettePlacement;
@@ -45,13 +45,13 @@ namespace Common.Textures
             public byte BiasLevel;
             public byte RenderingOrder;
             public byte ScrollType;
-            public byte UsedFlag;
+            public byte pad;
             public byte ApplyAlphaSorting;
             public byte AlphaUsageType;
             public byte AlphaBlendType;
             public byte Flags;
             public byte MipmapBiasType;
-            public byte Padding;
+            public byte pad2;
             public short ScrollTimeStep;
             public short ScrollSpeedS;
             public short ScrollSpeedT;
@@ -60,7 +60,7 @@ namespace Common.Textures
             public short ScaleS;
             public short ScaleT;
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 12)]
-            public byte[] Padding2;
+            public byte[] pad3;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -135,22 +135,23 @@ namespace Common.Textures
                                 {
                                     var tch = br.GetStruct<DataOffsetStruct>();
                                     var curPos = br.BaseStream.Position;
-
                                     br.BaseStream.Position = tch.Offset;
-
+                                    
                                     // Load decompressed texture
                                     using (var ms = new MemoryStream())
                                     {
                                         Compression.DecompressCip(br.BaseStream, ms, tch.LengthCompressed);
-
+                                        
                                         using (var dcr = new BinaryReader(ms))
                                         {
+                                            // Seek to TextureInfo
+                                            dcr.BaseStream.Seek(-0x94, SeekOrigin.End);
                                             var texture = ReadTexture(dcr);
                                             // Seek to D3DFormat
-                                            dcr.BaseStream.Seek(0x88, SeekOrigin.Begin);
+                                            dcr.BaseStream.Seek(-0xC, SeekOrigin.End);
                                             texture.Format = dcr.ReadUInt32();
                                             // Read texture data
-                                            dcr.BaseStream.Seek(0x100, SeekOrigin.Begin);
+                                            dcr.BaseStream.Seek(0, SeekOrigin.Begin);
                                             if (dcr.BaseStream.Read(texture.Data, 0, texture.Data.Length) !=
                                                 texture.Data.Length)
                                             {
@@ -186,11 +187,6 @@ namespace Common.Textures
                                     {
                                         br.BaseStream.Position = basePos + t.DataOffset;
                                         br.Read(t.Data, 0, t.Data.Length);
-                                        if (t.PaletteSize > 0)
-                                        {
-                                            br.BaseStream.Position = basePos + t.PaletteOffset;
-                                            br.Read(t.Palette, 0, t.Palette.Length);
-                                        }
                                     }
                                 }
 
@@ -198,12 +194,25 @@ namespace Common.Textures
                             }
                         case DDSChunkId:
                             {
-                                foreach (var t in _texturePack.Textures)
+                                if (chunkSize / _texturePack.Textures.Count == 0x18)
                                 {
-                                    br.BaseStream.Seek(0x0C, SeekOrigin.Current);
-                                    t.Format = br.ReadUInt32();
-                                    br.BaseStream.Seek(0x08, SeekOrigin.Current);
+                                    foreach (var t in _texturePack.Textures)
+                                    {
+                                        br.BaseStream.Seek(0x0C, SeekOrigin.Current);
+                                        t.Format = br.ReadUInt32();
+                                        br.BaseStream.Seek(0x08, SeekOrigin.Current);
+                                    }
                                 }
+                                else
+                                {
+                                    foreach (var t in _texturePack.Textures)
+                                    {
+                                        var data = br.ReadBytesRequired(0x2C);
+
+                                        Console.WriteLine(BinaryUtil.HexDump(data));
+                                    }
+                                }
+
                                 break;
                             }
                     }
@@ -229,14 +238,10 @@ namespace Common.Textures
                 DataSize = texture.ImageSize,
                 DataOffset = texture.ImagePlacement,
                 MipMapCount = texture.NumMipMapLevels,
-                TexHash = texture.NameHash,
+                TexHash = texture.Hash,
                 TypeHash = texture.ClassNameHash,
                 Format = 0,
                 PitchOrLinearSize = texture.BaseImageSize,
-                CompressionType = texture.ImageCompressionType,
-                PaletteOffset = texture.PalettePlacement,
-                Palette = new byte[texture.PaletteSize],
-                PaletteSize = texture.PaletteSize
             });
 
             return _texturePack.Textures[_texturePack.Textures.Count - 1];
