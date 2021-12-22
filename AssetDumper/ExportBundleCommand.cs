@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Text;
 using CommandLine;
 using Common;
 using Common.Geometry.Data;
@@ -17,8 +19,9 @@ namespace AssetDumper;
 public enum ModelExportMode
 {
     ExportAll,
-    CombinePacks,
-    CombineScenerySections
+    ExportPacks,
+    ExportSceneryInstances,
+    ExportScenerySections,
 }
 
 [Verb("export", HelpText = "Export assets from one or more asset bundles")]
@@ -35,7 +38,7 @@ public class ExportBundleCommand : BaseCommand
 
     [Option("obj-mode",
         HelpText =
-            $"Object export mode ({nameof(ModelExportMode.ExportAll)}, {nameof(ModelExportMode.CombinePacks)}, {nameof(ModelExportMode.CombineScenerySections)})")]
+            $"Object export mode ({nameof(ModelExportMode.ExportAll)}, {nameof(ModelExportMode.ExportPacks)}, {nameof(ModelExportMode.ExportScenerySections)})")]
     public ModelExportMode ModelExportMode { get; [UsedImplicitly] set; } = ModelExportMode.ExportAll;
 
     public override int Execute()
@@ -70,7 +73,8 @@ public class ExportBundleCommand : BaseCommand
 
     private void ProcessResources(IReadOnlyCollection<ChunkManager.BasicResource> resources, string outputDir)
     {
-        var texturesDir = Path.Combine(outputDir, "textures");
+        const string texturesBaseDir = "textures";
+        var texturesDir = Path.Combine(outputDir, texturesBaseDir);
 
         if (!Directory.Exists(texturesDir))
         {
@@ -92,43 +96,108 @@ public class ExportBundleCommand : BaseCommand
         var solidLists = resources.OfType<SolidList>().ToList();
         var scenerySections = resources.OfType<ScenerySection>().ToList();
 
-        if (scenerySections.Any() && ModelExportMode == ModelExportMode.CombineScenerySections)
+        var exportMode = ModelExportMode;
+        if (scenerySections.Any() &&
+            exportMode is ModelExportMode.ExportScenerySections or ModelExportMode.ExportSceneryInstances)
         {
             Log.Information("Processing scenery sections...");
-            var solidObjects = solidLists.SelectMany(l => l.Objects)
+            var solidObjectLookup = solidLists.SelectMany(l => l.Objects)
                 .ToLookup(o => o.Hash, o => o)
                 .ToDictionary(o => o.Key, o => o.First());
-            foreach (var scenerySection in scenerySections.OrderBy(s => s.SectionNumber))
+            if (exportMode == ModelExportMode.ExportScenerySections)
             {
-                ExportScenerySection(solidObjects, scenerySection, Path.Combine(outputDir,
-                    scenerySection.SectionNumber + ".dae"));
+                foreach (var scenerySection in scenerySections.OrderBy(s => s.SectionNumber))
+                {
+                    ExportScenerySection(solidObjectLookup, scenerySection, Path.Combine(outputDir,
+                        scenerySection.SectionNumber + ".dae"), texturesBaseDir);
+                }
+            }
+            else
+            {
+                var groupedInstances = new Dictionary<uint, List<Matrix4x4>>();
+
+                foreach (var scenerySection in scenerySections)
+                {
+                    foreach (var sceneryInstance in scenerySection.Instances)
+                    {
+                        var sceneryInfo = scenerySection.Infos[sceneryInstance.InfoIndex];
+                        var solidKey = sceneryInfo.SolidKey;
+                        
+                        if (!solidObjectLookup.TryGetValue(solidKey, out var solid))
+                        {
+                            Log.Warning("Can't find object with key: 0x{MissingSolidKey:X8}", solidKey);
+                            continue;
+                        }
+
+                        var solidName = solid.Name.ToUpperInvariant();
+                        if (solidName.StartsWith("RFL_") || solidName.StartsWith("SHD_") || solidName.StartsWith("SHADOW"))
+                            // Skip reflections and shadow maps
+                            continue;
+
+                        if (!groupedInstances.TryGetValue(solidKey, out var matrixList))
+                        {
+                            matrixList = groupedInstances[solidKey] = new List<Matrix4x4>();
+                        }
+
+                        Matrix4x4 transform;
+
+                        if (sceneryInfo.IsDeinstanced)
+                        {
+                            Debug.Assert(sceneryInstance.Transform == Matrix4x4.Identity);
+                            transform = solid.Transform;
+                        }
+                        else
+                        {
+                            transform = sceneryInstance.Transform;
+                        }
+
+                        matrixList.Add(transform);
+                    }
+                }
+
+                Log.Information("Exporting {NumObjects} objects with {NumTransforms} total transformations",
+                    groupedInstances.Count, groupedInstances.Select(gi => gi.Value).Sum(tl => tl.Count));
+
+                foreach (var (solidKey, solidTransforms) in groupedInstances)
+                {
+                    var solid = solidObjectLookup[solidKey];
+                    ExportSingleSolid(solid, Path.Combine(outputDir, $"{solid.Name}.dae"), texturesBaseDir);
+
+                    using var solidTransformWriter = new StreamWriter(Path.Combine(outputDir, $"{solid.Name}.txt"));
+                    var sb = new StringBuilder();
+
+                    foreach (var solidTransform in solidTransforms)
+                    {
+                        var position = new Vector3(solidTransform.M41, solidTransform.M42, solidTransform.M43);
+                        var rotation = Quaternion.CreateFromRotationMatrix(solidTransform);
+                        sb.AppendLine(CultureInfo.InvariantCulture, $"{position.X} {position.Y} {position.Z}\t{rotation.W} {rotation.X} {rotation.Y} {rotation.Z}");
+                    }
+                    
+                    solidTransformWriter.Write(sb);
+                }
             }
         }
         else if (solidLists.Any())
         {
             Log.Information("Processing model packs...");
 
-            if (ModelExportMode == ModelExportMode.CombinePacks)
+            if (exportMode == ModelExportMode.ExportPacks)
             {
+                Log.Information("Exporting {NumSolidLists} solid packs", solidLists.Count);
+
                 var outputPath = Path.Combine(outputDir, "combined.dae");
                 Log.Information("Exporting all models to {OutputPath}", outputPath);
                 ExportMultipleSolids(solidLists.SelectMany(s => s.Objects).ToList(),
-                    outputPath);
+                    outputPath, texturesBaseDir);
             }
             else
             {
                 Log.Information("Exporting individual models");
 
-                var modelsDir = Path.Combine(outputDir, "models");
-                if (!Directory.Exists(modelsDir))
-                {
-                    Directory.CreateDirectory(modelsDir);
-                }
-
                 foreach (var solidObject in solidLists.SelectMany(l => l.Objects))
                 {
                     ExportSingleSolid(solidObject,
-                        Path.Combine(modelsDir, $"{solidObject.Name}.dae"));
+                        Path.Combine(outputDir, $"{solidObject.Name}.dae"), texturesBaseDir);
                 }
             }
         }
@@ -147,7 +216,7 @@ public class ExportBundleCommand : BaseCommand
     }
 
     private static void ExportScenerySection(IReadOnlyDictionary<uint, SolidObject> objects,
-        ScenerySection scenerySection, string outputPath)
+        ScenerySection scenerySection, string outputPath, string texturesDirectory)
     {
         Log.Information(
             "Exporting scenery section {ScenerySectionNumber} ({SceneryInfoCount} models, {SceneryInstanceCount} instances)",
@@ -171,18 +240,18 @@ public class ExportBundleCommand : BaseCommand
         }
 
         var scene = new SceneExport(sceneNodes, $"ScenerySection_{scenerySection.SectionNumber}");
-        ExportScene(scene, outputPath, "textures");
+        ExportScene(scene, outputPath, texturesDirectory);
     }
 
-    private static void ExportMultipleSolids(IEnumerable<SolidObject> solidObjects, string outputPath)
+    private static void ExportMultipleSolids(IEnumerable<SolidObject> solidObjects, string outputPath, string texturesDirectory)
     {
         var sceneNodes = solidObjects.Select(solid => new SceneExportNode(solid, solid.Name, solid.Transform)).ToList();
 
         var scene = new SceneExport(sceneNodes, "MultiSolidExport");
-        ExportScene(scene, outputPath, "textures");
+        ExportScene(scene, outputPath, texturesDirectory);
     }
 
-    private static void ExportSingleSolid(SolidObject solidObject, string outputPath)
+    private static void ExportSingleSolid(SolidObject solidObject, string outputPath, string texturesDirectory)
     {
         var sceneNodes = new List<SceneExportNode>
         {
@@ -190,7 +259,7 @@ public class ExportBundleCommand : BaseCommand
         };
 
         var scene = new SceneExport(sceneNodes, solidObject.Name);
-        ExportScene(scene, outputPath, "../textures");
+        ExportScene(scene, outputPath, texturesDirectory);
     }
 
     private static void ExportScene(SceneExport scene, string outputPath, string texturesDirectory)
