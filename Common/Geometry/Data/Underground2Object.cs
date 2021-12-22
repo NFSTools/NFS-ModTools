@@ -10,6 +10,17 @@ namespace Common.Geometry.Data
             SolidMeshVertex vertex;
             switch (stride)
             {
+                case 60:
+                    vertex = new SolidMeshVertex
+                    {
+                        Position = BinaryUtil.ReadVector3(reader),
+                        Normal = BinaryUtil.ReadVector3(reader),
+                        Color = reader.ReadUInt32(),
+                        TexCoords = BinaryUtil.ReadUV(reader),
+                        BlendWeight = BinaryUtil.ReadVector3(reader),
+                        BlendIndices = BinaryUtil.ReadVector3(reader),
+                    };
+                    break;
                 // position (12 bytes) + normal (12 bytes) + color (4 bytes) + tex coords (8 bytes)
                 case 36:
                     vertex = new SolidMeshVertex
