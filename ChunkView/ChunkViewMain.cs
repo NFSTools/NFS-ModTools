@@ -45,7 +45,7 @@ namespace ChunkView
 
             foreach (var line in chunkDef.Split('\n'))
             {
-                var split = line.Split(new[] {' '}, 2);
+                var split = line.Split(new[] { ' ' }, 2);
 
                 _chunkIdDictionary.Add(uint.Parse(split[0].Substring(2), NumberStyles.HexNumber), split[1].Trim());
             }
@@ -88,37 +88,18 @@ namespace ChunkView
             var recentFileItem = new ToolStripMenuItem(path);
             recentFileItem.Name = path;
             recentFilesToolStripMenuItem.DropDownItems.Insert(0, recentFileItem);
-            recentFileItem.Click += delegate
-            {
-                LoadFile(path);
-            };
+            recentFileItem.Click += delegate { LoadFile(path); };
         }
 
         private void TreeView1_OnAfterSelect(object sender, TreeViewEventArgs e)
         {
             if (treeView1.SelectedNode?.Tag is Chunk chunk)
             {
-                //if (treeView1.SelectedNode?.Parent?.Tag is Chunk parentChunk)
-                //{
-                //    hexBox1.ByteProvider = new DynamicByteProvider(parentChunk.Data);
-                //    var scrollOffset = chunk.Offset - parentChunk.Offset - 8;
-
-                //    //if (scrollOffset >= 0x80)
-                //    //{
-                //    //    scrollOffset += (0x80 - scrollOffset % 0x80) + 0x10;
-                //    //}
-
-                //    hexBox1.ScrollByteIntoView(scrollOffset);
-                //    hexBox1.Select(chunk.Offset - parentChunk.Offset - 8, chunk.Size + 8);
-                //}
-                //else
-                //{
-                    hexBox1.ByteProvider = new DynamicByteProvider(chunk.Data);
-                //}
+                hexBox1.ByteProvider = new DynamicByteProvider(chunk.Data);
             }
             else
             {
-                hexBox1.ByteProvider = new DynamicByteProvider(new byte[0]);
+                hexBox1.ByteProvider = new DynamicByteProvider(Array.Empty<byte>());
             }
         }
 
@@ -137,62 +118,64 @@ namespace ChunkView
             exportToolStripMenuItem.Enabled = false;
             reloadToolStripMenuItem.Enabled = false;
 
-            hexBox1.ByteProvider = new DynamicByteProvider(new byte[0]);
+            hexBox1.ByteProvider = new DynamicByteProvider(Array.Empty<byte>());
             treeView1.Nodes.Clear();
             _chunks.Clear();
-            _chunks = new List<Chunk>();
 
-            GC.Collect();
-
-            using (var fs = File.OpenRead(filename))
-            using (var br = new BinaryReader(fs))
+            using (var br = new BinaryReader(File.OpenRead(filename)))
             {
                 stopwatch.Start();
 
-                if (br.ReadUInt32() == 0x5a4c444a)
+                if (br.BaseStream.Length >= 8)
                 {
+                    var head = br.ReadUInt32();
                     br.BaseStream.Position -= 4;
 
-                    br.BaseStream.Position += 0x8;
-
-                    var outSize = br.ReadUInt32();
-                    var compSize = br.ReadUInt32();
-
-                    br.BaseStream.Position = 0;
-                    var inData = br.ReadBytes((int)compSize);
-                    var outData = Compression.Decompress(inData).ToArray();
-
-                    using (var br2 = new BinaryReader(new MemoryStream(outData)))
+                    if (head == 0x5a4c444a)
                     {
-                        _chunks.AddRange(ScanChunks(br2, (uint)br2.BaseStream.Length));
+                        br.BaseStream.Position += 8;
+                        br.ReadUInt32();
+                        var compSize = br.ReadUInt32();
+
+                        br.BaseStream.Position = 0;
+                        var compressedData = new byte[compSize];
+
+                        if (br.Read(compressedData, 0, compressedData.Length) != compressedData.Length)
+                        {
+                            throw new Exception(
+                                $"failed to read {compressedData.Length} bytes of compressed chunk data");
+                        }
+
+                        var decompressedData = Compression.Decompress(compressedData).ToArray();
+
+                        using var decompressedReader = new BinaryReader(new MemoryStream(decompressedData));
+                        _chunks = ScanChunks(decompressedReader, decompressedReader.BaseStream.Length);
+                    }
+                    else
+                    {
+                        _chunks = ScanChunks(br, br.BaseStream.Length);
                     }
 
-                    outData = null;
-                    inData = null;
-                    GC.Collect();
+                    stopwatch.Stop();
                 }
                 else
                 {
-                    br.BaseStream.Position -= 4;
-                    _chunks.AddRange(ScanChunks(br, (uint)br.BaseStream.Length));
+                    stopwatch.Stop();
+                    MessageBox.Show("File is too small.", "ChunkView", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
 
-            stopwatch.Stop();
-
-
             SuspendLayout();
-            PopulateChunks(_chunks, treeView1.Nodes.Add(Path.GetFileName(filename)));
-            ResumeLayout(true);
 
             messageLabel.Text = $"Loaded {_chunks.Count} chunks from [{filename}] in {stopwatch.ElapsedMilliseconds}ms";
-
             Text = $"{WindowTitle} - {filename}";
             _currentPath = filename;
-
             exportToolStripMenuItem.Enabled = true;
             reloadToolStripMenuItem.Enabled = true;
+
+            PopulateChunks(_chunks, treeView1.Nodes.Add(Path.GetFileName(filename)));
             AddRecentFile(filename);
+            ResumeLayout(true);
         }
 
         private void PopulateChunks(IReadOnlyList<Chunk> chunks, TreeNode baseNode)
@@ -233,8 +216,6 @@ namespace ChunkView
                 }
 
                 chunkNode.ToolTipText = string.Join(" | ", infoParts);
-                //chunkNode.ToolTipText = $"ID: 0x{chunk.Id:X8} | Size: {chunk.Size} | Children: {chunk.SubChunks.Count}";
-                //var chunkNode = baseNode.Nodes.Add($"#{index + 1}: {_chunkIdDictionary.ContainsKey(chunk.Id) ? _chunkIdDictionary[chunk.Id]} @ 0x{chunk.Offset:X8}");
                 chunkNode.Tag = chunk;
 
                 if (chunk.SubChunks.Count > 0)
@@ -244,7 +225,7 @@ namespace ChunkView
             }
         }
 
-        private List<Chunk> ScanChunks(BinaryReader br, uint sizeLimit)
+        private static List<Chunk> ScanChunks(BinaryReader br, long sizeLimit)
         {
             var chunks = new List<Chunk>();
             var endPos = br.BaseStream.Position + sizeLimit;
@@ -254,61 +235,39 @@ namespace ChunkView
                 var chunkId = br.ReadUInt32();
                 var chunkSize = br.ReadUInt32();
 
-                var chunkOffset = (uint)br.BaseStream.Position;
+                var chunkOffset = br.BaseStream.Position;
                 var chunkEndPos = br.BaseStream.Position + chunkSize;
-                var data = br.ReadBytes((int)chunkSize);
+                var data = new byte[chunkSize];
+
+                if (br.Read(data, 0, data.Length) != data.Length)
+                {
+                    throw new Exception($"failed to read {data.Length} bytes of chunk data");
+                }
 
                 br.BaseStream.Position = chunkOffset;
 
                 // compressed FNG
                 if (chunkId == 0x00030210)
                 {
-                    br.BaseStream.Position += 4;
+                    br.ReadUInt32(); // FNG file name hash
 
-                    var flag = br.ReadUInt32();
-                    var outSize = 0u;
+                    // Read compressed data
+                    var compressedData = new byte[chunkSize - 4];
 
-                    if (flag == 0x5a4c444a) // JDLZ
+                    if (br.Read(compressedData, 0, compressedData.Length) != compressedData.Length)
                     {
-                        br.BaseStream.Position -= 4;
-
-                        br.BaseStream.Position += 0x8;
-
-                        outSize = br.ReadUInt32();
-                    }
-                    else if (flag == 0x46465548) // HUFF
-                    {
-                        br.BaseStream.Position += 4;
-
-                        outSize = br.ReadUInt32();
-
-                        br.BaseStream.Position += 4;
+                        throw new Exception($"failed to read {compressedData.Length} bytes of compressed FNG data");
                     }
 
-                    br.BaseStream.Position = chunkOffset + 4;
-                    var compData = br.ReadBytes((int)(chunkSize - 4));
-                    var outData = Compression.Decompress(compData).ToArray();
+                    var decompressedData = Compression.Decompress(compressedData);
+                    var fullDecompressedData = new Span<byte>(new byte[decompressedData.Length + 8]);
 
-                    var ms = new MemoryStream();
+                    BitConverter.GetBytes(0x30203).CopyTo(fullDecompressedData[..4]);
+                    BitConverter.GetBytes(decompressedData.Length).CopyTo(fullDecompressedData[4..8]);
+                    decompressedData.CopyTo(fullDecompressedData[8..]);
 
-                    using (var bw = new BinaryWriter(ms, Encoding.Default, true))
-                    {
-                        bw.Write(0x00030203);
-                        bw.Write(outSize);
-                        bw.Write(outData);
-                    }
-
-                    ms.Position = 0;
-
-                    using (var br2 = new BinaryReader(ms))
-                    {
-                        chunks.AddRange(ScanChunks(br2, (uint)br2.BaseStream.Length));
-                    }
-
-                    ms.Dispose();
-
-                    outData = null;
-                    compData = null;
+                    using var decompressedReader = new BinaryReader(new MemoryStream(fullDecompressedData.ToArray()));
+                    chunks.AddRange(ScanChunks(decompressedReader, decompressedReader.BaseStream.Length));
                 }
                 // container chunk
                 else if ((chunkId & 0x80000000) == 0x80000000 || chunkId == 0x00030203)
@@ -344,18 +303,16 @@ namespace ChunkView
         {
             var assembly = Assembly.GetExecutingAssembly();
 
-            using (var stream = assembly.GetManifestResourceStream(path))
-            using (var reader = new StreamReader(stream ?? throw new InvalidOperationException()))
-            {
-                return reader.ReadToEnd();
-            }
+            using var stream = assembly.GetManifestResourceStream(path);
+            using var reader = new StreamReader(stream ?? throw new InvalidOperationException());
+            return reader.ReadToEnd();
         }
 
         internal class Chunk
         {
             public uint Id;
 
-            public uint Offset;
+            public long Offset;
 
             public uint Size;
 
@@ -397,11 +354,14 @@ namespace ChunkView
                 {
                     if (chunk.IsParent)
                     {
-                        ExportChunks(Path.Combine(directory, $"{parentName}-{chunk.Id:X8}"), directory, chunk, chunk.SubChunks);
+                        ExportChunks(Path.Combine(directory, $"{parentName}-{chunk.Id:X8}"), directory, chunk,
+                            chunk.SubChunks);
                     }
                     else
                     {
-                        File.WriteAllBytes(Path.Combine(directory, $"{parentName}-{chunk.Id:X8}-{chunk.Offset:X8}-{++chunkCounter}.bin"), chunk.Data);
+                        File.WriteAllBytes(
+                            Path.Combine(directory,
+                                $"{parentName}-{chunk.Id:X8}-{chunk.Offset:X8}-{++chunkCounter}.bin"), chunk.Data);
                     }
                 }
             }
@@ -411,11 +371,14 @@ namespace ChunkView
                 {
                     if (chunk.IsParent)
                     {
-                        ExportChunks(Path.Combine(directory, $"{parentName}-{chunk.Id:X8}"), directory, chunk, chunk.SubChunks);
+                        ExportChunks(Path.Combine(directory, $"{parentName}-{chunk.Id:X8}"), directory, chunk,
+                            chunk.SubChunks);
                     }
                     else
                     {
-                        File.WriteAllBytes(Path.Combine(directory, $"{parentName}-{chunk.Id:X8}-{chunk.Offset:X8}-{++chunkCounter}.bin"), chunk.Data);
+                        File.WriteAllBytes(
+                            Path.Combine(directory,
+                                $"{parentName}-{chunk.Id:X8}-{chunk.Offset:X8}-{++chunkCounter}.bin"), chunk.Data);
                     }
                 }
             }
