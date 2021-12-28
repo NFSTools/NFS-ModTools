@@ -130,7 +130,8 @@ public class ExportBundleCommand : BaseCommand
                         }
 
                         var solidName = solid.Name.ToUpperInvariant();
-                        if (solidName.StartsWith("RFL_") || solidName.StartsWith("SHD_") || solidName.StartsWith("SHADOW"))
+                        if (solidName.StartsWith("RFL_") || solidName.StartsWith("SHD_") ||
+                            solidName.StartsWith("SHADOW"))
                             // Skip reflections and shadow maps
                             continue;
 
@@ -170,9 +171,10 @@ public class ExportBundleCommand : BaseCommand
                     {
                         var position = new Vector3(solidTransform.M41, solidTransform.M42, solidTransform.M43);
                         var rotation = Quaternion.CreateFromRotationMatrix(solidTransform);
-                        sb.AppendLine(CultureInfo.InvariantCulture, $"{position.X} {position.Y} {position.Z}\t{rotation.W} {rotation.X} {rotation.Y} {rotation.Z}");
+                        sb.AppendLine(CultureInfo.InvariantCulture,
+                            $"{position.X} {position.Y} {position.Z}\t{rotation.W} {rotation.X} {rotation.Y} {rotation.Z}");
                     }
-                    
+
                     solidTransformWriter.Write(sb);
                 }
             }
