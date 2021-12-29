@@ -7,7 +7,7 @@ using System.Numerics;
 
 namespace Common.Geometry.Data
 {
-    public abstract class SolidObject : ChunkManager.BasicResource
+    public abstract class SolidObject : BasicResource
     {
         private sealed class HashEqualityComparer : IEqualityComparer<SolidObject>
         {
@@ -47,7 +47,7 @@ namespace Common.Geometry.Data
         public List<byte[]> VertexBuffers { get; } = new List<byte[]>();
 
         /// <summary>
-        /// Pull a vertex from the given buffer.
+        /// Read a vertex for a material from a binary stream.
         /// </summary>
         /// <param name="reader"></param>
         /// <param name="material"></param>
@@ -56,11 +56,11 @@ namespace Common.Geometry.Data
         protected abstract SolidMeshVertex GetVertex(BinaryReader reader, SolidObjectMaterial material, int stride);
 
         /// <summary>
-        /// Do any necessary post-processing of an entire vertex stream.
+        /// Perform post-processing operations on a vertex array
         /// </summary>
-        /// <param name="vertices">The array of vertices</param>
-        /// <param name="streamIndex">The index of the vertex stream</param>
-        protected virtual void ProcessVertices(ref SolidMeshVertex?[] vertices, int streamIndex)
+        /// <param name="vertices">The vertex array</param>
+        /// <param name="id">The ID of the vertex array</param>
+        protected virtual void ProcessVertices(ref SolidMeshVertex[] vertices, int id)
         {
             //
         }
@@ -70,22 +70,28 @@ namespace Common.Geometry.Data
         /// </summary>
         public virtual void PostProcessing()
         {
-            // Each vertex buffer gets its own BinaryReader.
-            var vbStreams = new BinaryReader[VertexBuffers.Count];
-            // Bookkeeping array: how many vertices are in a given buffer?
-            var vbCounts = new uint[VertexBuffers.Count];
-            // Bookkeeping array: how many vertices have been consumed from a given buffer?
-            var vbOffsets = new uint[VertexBuffers.Count];
-            // Each vertex buffer also gets its own array of vertex objects
-            var vbArrays = new SolidMeshVertex?[VertexBuffers.Count][];
+            var vertexBuffersCount = VertexBuffers.Count;
+            
+            // Bookkeeping array: how many vertices are in each vertex buffer?
+            var vbCounts = new uint[vertexBuffersCount];
+            
+            // Bookkeeping array: how many vertices have been consumed from each vertex buffer?
+            var vbOffsets = new uint[vertexBuffersCount];
+            
+            // Vertex buffer data readers
+            var vbReaders = new BinaryReader[vertexBuffersCount];
+            
+            // Vertex arrays
+            var vbArrays = new SolidMeshVertex[vertexBuffersCount][];
 
-            for (var i = 0; i < vbStreams.Length; i++)
+            // Set up vertex buffer readers
+            for (var i = 0; i < vbReaders.Length; i++)
             {
-                vbStreams[i] = new BinaryReader(new MemoryStream(VertexBuffers[i]));
+                vbReaders[i] = new BinaryReader(new MemoryStream(VertexBuffers[i]));
             }
 
             // Filling in vbCounts...
-            if (VertexBuffers.Count == 1)
+            if (vertexBuffersCount == 1)
             {
                 // The mesh descriptor tells us how many vertices exist.
                 // Since we only have one vertex buffer, we can use the info
@@ -93,7 +99,7 @@ namespace Common.Geometry.Data
                 // seen after this block.
                 vbCounts[0] = MeshDescriptor.NumVerts;
             }
-            else if (VertexBuffers.Count > 1)
+            else if (vertexBuffersCount > 1)
             {
                 // Fill in vbCounts by examining every material.
                 // We need to make sure at least one of our materials
@@ -112,20 +118,20 @@ namespace Common.Geometry.Data
             }
 
             // Verifying the integrity of our data...
-            for (var i = 0; i < vbStreams.Length; i++)
+            for (var i = 0; i < vbReaders.Length; i++)
             {
                 // To avoid a division-by-zero exception, we allow a vertex buffer to have
                 // EITHER 0 vertices OR exactly enough data for a given number of vertices.
                 Debug.Assert(vbCounts[i] == 0 || VertexBuffers[i].Length % vbCounts[i] == 0);
 
-                vbArrays[i] = new SolidMeshVertex?[vbCounts[i]];
+                vbArrays[i] = new SolidMeshVertex[vbCounts[i]];
             }
 
             // Reading vertices from buffers...
             foreach (var solidObjectMaterial in Materials)
             {
                 var vbIndex = solidObjectMaterial.VertexStreamIndex;
-                var vbStream = vbStreams[vbIndex];
+                var vbStream = vbReaders[vbIndex];
                 var vbVertexCount = vbCounts[vbIndex];
                 var vbOffset = vbOffsets[vbIndex];
                 var vbStride = (int)(vbStream.BaseStream.Length / vbVertexCount);
@@ -169,10 +175,7 @@ namespace Common.Geometry.Data
 
                     for (var j = 0; j <= maxReferencedVertex; j++)
                     {
-                        var solidMeshVertex = meshVertices[j];
-                        solidObjectMaterial.Vertices[j] = solidMeshVertex ??
-                                                          throw new NullReferenceException(
-                                                              $"Object {Name}: vertex buffer {vertexStreamIndex} has no vertex at index {j}");
+                        solidObjectMaterial.Vertices[j] = meshVertices[j];
                     }
 
                     // Validate material indices

@@ -93,7 +93,7 @@ namespace Common
                 }
             }
         }
-        
+
         /// <summary>
         /// Read an unmanaged structure from a binary file.
         /// </summary>
@@ -149,11 +149,13 @@ namespace Common
             var w = (short)(packed >> 48) * PackedComponentInverse;
             return new Vector4(x, y, z, w);
         }
-        
+
         public static Vector3 ReadNormal(BinaryReader binaryReader, bool packed = false)
         {
-            var vec = packed ? ReadShort4N(binaryReader) : new Vector4(ReadVector3(binaryReader), 1);
-            return new Vector3(vec.X, vec.Y, vec.Z);
+            if (!packed) return ReadVector3(binaryReader);
+
+            var packedVector = ReadShort4N(binaryReader);
+            return new Vector3(packedVector.X, packedVector.Y, packedVector.Z);
         }
 
         public static void PutStruct<T>(this BinaryWriter writer, T instance) where T : struct
@@ -165,6 +167,7 @@ namespace Common
                 {
                     Marshal.StructureToPtr(instance, (IntPtr)byteArrayPtr, true);
                 }
+
                 writer.Write(byteArray);
             }
         }

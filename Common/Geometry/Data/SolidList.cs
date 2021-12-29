@@ -2,7 +2,7 @@
 
 namespace Common.Geometry.Data
 {
-    public class SolidList : ChunkManager.BasicResource
+    public class SolidList : BasicResource
     {
         public string PipelinePath { get; set; }
 

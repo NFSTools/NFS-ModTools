@@ -46,37 +46,44 @@ namespace Common.Geometry
 
             public Vector3 BoundsMax;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
-            public byte[] TextureAssignments;
+            public byte DiffuseMapId;
+            public byte NormalMapId;
+            public byte HeightMapId;
+            public byte SpecularMapId;
+            public byte OpacityMapId;
 
             public byte LightMaterialNumber;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 18)]
-            public byte[] Unknown4;
+            public ushort Padding;
+            public ulong Padding2;
+            public ulong Padding3;
 
             public uint NumVerts;
             public uint NumIndices;
             public uint NumTris;
             public uint IndexOffset;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 36)]
-            public byte[] Unknown5;
+            public uint Padding4;
+            public ulong Padding5;
+            public ulong Padding6;
+            public ulong Padding7;
+            public ulong Padding8;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         internal struct ObjectHeader
         {
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 12)]
-            public byte[] InitialData;
+            public long Padding;
+
+            public uint Padding2;
 
             public uint ObjectFlags;
 
             public uint ObjectHash;
 
             public uint NumTris;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-            public readonly byte[] pad2;
+            
+            public long Padding3;
 
             public Vector3 BoundsMin;
             public readonly int Blank5;
@@ -85,20 +92,18 @@ namespace Common.Geometry
             public readonly int Blank6;
 
             public Matrix4x4 Transform;
+            
+            public long Padding4, Padding5, Padding6;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
-            public readonly uint[] Unknown;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
-            public float[] UnknownFloats;
+            public float Volume, Density;
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 52)]
         internal struct MeshDescriptor
         {
-            public long Unknown1;
+            public long Padding;
 
-            public uint Unknown2;
+            public uint Padding2;
 
             public uint Flags;
 
@@ -108,8 +113,8 @@ namespace Common.Geometry
 
             public uint NumVertexStreams;
 
-            public ulong Padding;
-            public uint Padding2;
+            public ulong Padding3;
+            public uint Padding4;
 
             public uint NumTriangles;
 
@@ -280,7 +285,7 @@ namespace Common.Geometry
                             {
                                 _namedMaterials = 0;
 
-                                var header = BinaryUtil.ReadStruct<ObjectHeader>(br);
+                                var header = BinaryUtil.ReadUnmanagedStruct<ObjectHeader>(br);
                                 var name = BinaryUtil.ReadNullTerminatedString(br);
 
                                 solidObject.Name = name;
@@ -317,7 +322,7 @@ namespace Common.Geometry
 
                                 for (var j = 0; j < solidObject.MeshDescriptor.NumMats; j++)
                                 {
-                                    var shadingGroup = BinaryUtil.ReadStruct<Material>(br);
+                                    var shadingGroup = BinaryUtil.ReadUnmanagedStruct<Material>(br);
 
                                     if (j > 0 && shadingGroup.EffectId != lastEffectId)
                                     {
@@ -331,7 +336,7 @@ namespace Common.Geometry
                                         MinPoint = shadingGroup.BoundsMin,
                                         MaxPoint = shadingGroup.BoundsMax,
                                         NumVerts = shadingGroup.NumVerts,
-                                        TextureHash = solidObject.TextureHashes[shadingGroup.TextureAssignments[0]],
+                                        TextureHash = solidObject.TextureHashes[shadingGroup.DiffuseMapId],
                                         EffectId = shadingGroup.EffectId,
                                         VertexStreamIndex = streamIndex
                                     };

@@ -71,7 +71,7 @@ public class ExportBundleCommand : BaseCommand
         return 0;
     }
 
-    private void ProcessResources(IReadOnlyCollection<ChunkManager.BasicResource> resources, string outputDir)
+    private void ProcessResources(IReadOnlyCollection<BasicResource> resources, string outputDir)
     {
         const string texturesBaseDir = "textures";
         var texturesDir = Path.Combine(outputDir, texturesBaseDir);

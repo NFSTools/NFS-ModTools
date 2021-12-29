@@ -111,14 +111,14 @@ namespace Common.Geometry.Data
             base.PostProcessing();
         }
 
-        protected override void ProcessVertices(ref SolidMeshVertex?[] vertices, int streamIndex)
+        protected override void ProcessVertices(ref SolidMeshVertex[] vertices, int id)
         {
-            base.ProcessVertices(ref vertices, streamIndex);
+            base.ProcessVertices(ref vertices, id);
 
             // If we don't have a morph list for the stream, bail out
-            if (this.MorphLists.Count <= streamIndex) return;
+            if (this.MorphLists.Count <= id) return;
 
-            var morphList = this.MorphLists[streamIndex];
+            var morphList = this.MorphLists[id];
 
             foreach (var morphInfo in morphList)
             {
@@ -126,12 +126,9 @@ namespace Common.Geometry.Data
                     i <= morphInfo.VertexEndIndex;
                     i++)
                 {
-                    Debug.Assert(vertices[i].HasValue);
-                    var vertex = vertices[i].Value;
-                    vertex.Position = Vector3.Transform(
-                        vertex.Position, 
+                    vertices[i].Position = Vector3.Transform(
+                        vertices[i].Position, 
                         this.MorphMatrices[morphInfo.MorphMatrixIndex]);
-                    vertices[i] = vertex;
                 }
             }
         }

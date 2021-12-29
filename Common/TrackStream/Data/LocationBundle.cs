@@ -46,6 +46,6 @@ namespace Common.TrackStream.Data
 
         public List<StreamSection> Sections { get; set; }
 
-        public List<ChunkManager.Chunk> Chunks { get; set; }
+        public List<Chunk> Chunks { get; set; }
     }
 }

@@ -35,7 +35,7 @@ namespace Common.Textures.Data
         TEXCOMP_8BIT_RGB16_A8 = 0x8F,
     }
 
-    public class Texture : ChunkManager.BasicResource
+    public class Texture : BasicResource
     {
         public string Name { get; set; }
 
@@ -109,7 +109,7 @@ namespace Common.Textures.Data
         }
     }
 
-    public class TexturePack : ChunkManager.BasicResource
+    public class TexturePack : BasicResource
     {
         public string Name { get; set; }
 

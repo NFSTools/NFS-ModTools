@@ -16,7 +16,7 @@ namespace Common.Scenery.Data
         public Matrix4x4 Transform { get; set; }
     }
     
-    public class ScenerySection : ChunkManager.BasicResource
+    public class ScenerySection : BasicResource
     {
         public int SectionNumber { get; set; }
         public List<SceneryInfo> Infos { get; set; } = new List<SceneryInfo>();

@@ -183,7 +183,7 @@ namespace Common.TrackStream
             {
                 using (var chunkStream = new ChunkStream(new BinaryWriter(fs)))
                 {
-                    ChunkManager.Chunk previousChunk = null;
+                    Chunk previousChunk = null;
 
                     foreach (var chunk in chunkManager.Chunks.Where(c => c.Id != 0))
                     {

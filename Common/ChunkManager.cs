@@ -107,7 +107,7 @@ namespace Common
         protected abstract void ProcessSave();
     }
 
-    public partial class ChunkManager : RealFile
+    public class ChunkManager : RealFile
     {
         public List<Chunk> Chunks { get; } = new();
 

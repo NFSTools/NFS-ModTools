@@ -73,7 +73,7 @@ namespace Common.TrackStream
                 File = bundlePath,
                 Name = fileName.Substring(0, fileName.IndexOf('.')),
                 Sections = new List<StreamSection>(),
-                Chunks = new List<ChunkManager.Chunk>()
+                Chunks = new List<Chunk>()
             };
 
             var streamPath = Path.Combine(

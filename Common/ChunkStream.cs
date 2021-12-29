@@ -377,7 +377,7 @@ namespace Common
             _binaryWriter.Write(data);
         }
 
-        public void WriteChunk(ChunkManager.Chunk chunk)
+        public void WriteChunk(Chunk chunk)
         {
             BeginChunk(chunk.Id);
 
@@ -398,7 +398,7 @@ namespace Common
             EndChunk();
         }
 
-        private void WriteChunkChildren(List<ChunkManager.Chunk> chunks)
+        private void WriteChunkChildren(List<Chunk> chunks)
         {
             foreach (var chunk in chunks)
             {
