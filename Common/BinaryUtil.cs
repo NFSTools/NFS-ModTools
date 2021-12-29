@@ -10,6 +10,8 @@ namespace Common
 {
     public static class BinaryUtil
     {
+        private const float PackedComponentInverse = 0.0000305185f;
+
         /// <summary>
         /// Search for a chunk, return its size, and put its offset into a variable.
         /// </summary>
@@ -101,11 +103,11 @@ namespace Common
         public static T ReadUnmanagedStruct<T>(BinaryReader reader) where T : unmanaged
         {
             var structSize = Unsafe.SizeOf<T>();
-            var bytes = reader.ReadBytes(structSize);
+            Span<byte> bytes = reader.ReadBytes(structSize);
 
             Debug.Assert(bytes.Length == structSize, "bytes.Length == structSize");
 
-            return MemoryMarshal.Read<T>(bytes);
+            return Unsafe.As<byte, T>(ref bytes.GetPinnableReference());
         }
 
         /// <summary>
@@ -132,8 +134,8 @@ namespace Common
         public static Vector2 ReadShort2N(BinaryReader binaryReader)
         {
             var packed = binaryReader.ReadInt32();
-            var x = (short)packed / 32767f;
-            var y = (short)(packed >> 16) / 32767f;
+            var x = (short)packed * PackedComponentInverse;
+            var y = (short)(packed >> 16) * PackedComponentInverse;
 
             return new Vector2(x, y);
         }
@@ -141,10 +143,10 @@ namespace Common
         public static Vector4 ReadShort4N(BinaryReader binaryReader)
         {
             var packed = binaryReader.ReadInt64();
-            var x = (short)packed / 32767f;
-            var y = (short)(packed >> 16) / 32767f;
-            var z = (short)(packed >> 32) / 32767f;
-            var w = (short)(packed >> 48) / 32767f;
+            var x = (short)packed * PackedComponentInverse;
+            var y = (short)(packed >> 16) * PackedComponentInverse;
+            var z = (short)(packed >> 32) * PackedComponentInverse;
+            var w = (short)(packed >> 48) * PackedComponentInverse;
             return new Vector4(x, y, z, w);
         }
         
