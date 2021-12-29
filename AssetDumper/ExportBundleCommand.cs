@@ -730,17 +730,11 @@ public class ExportBundleCommand : BaseCommand
             var material = solidObject.Materials[materialIndex];
             var faces = new List<ushort[]>();
 
-            for (int i = 0; i < material.Indices.Length; i += 3)
+            for (var i = 0; i < material.Indices.Length; i += 3)
             {
                 var idx1 = material.Indices[i];
                 var idx2 = material.Indices[i + 1];
                 var idx3 = material.Indices[i + 2];
-
-                if (idx1 != idx2 && idx1 != idx3 && idx2 != idx3)
-                {
-                    idx2 = idx3;
-                    idx3 = material.Indices[i + 1];
-                }
 
                 faces.Add(new[] { idx1, idx2, idx3 });
             }
