@@ -145,6 +145,43 @@ namespace Common.Geometry.Data
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     vertex.Tangent = BinaryUtil.ReadNormal(reader, true);
                     break;
+                case EffectID.ALWAYSFACING:
+                    vertex.Position = BinaryUtil.ReadVector3(reader);
+                    vertex.Color = reader.ReadUInt32();
+                    vertex.Normal = BinaryUtil.ReadNormal(reader, true);
+                    // TODO: read packed tangent vector (4 short-components)
+                    reader.BaseStream.Position += 8;
+                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    break;
+                case EffectID.STANDARD:
+                    vertex.Position = BinaryUtil.ReadVector3(reader);
+                    vertex.Color = reader.ReadUInt32();
+                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    reader.BaseStream.Position += 8; // todo: what's this?
+                    break;
+                case EffectID.TUNNEL:
+                    vertex.Position = BinaryUtil.ReadVector3(reader);
+                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    reader.BaseStream.Position += 8; // todo: what's this?
+                    reader.BaseStream.Position += 4; // todo: what's this?
+                    reader.BaseStream.Position += 4; // todo: what's this?
+                    vertex.Color = reader.ReadUInt32();
+                    vertex.Normal = BinaryUtil.ReadNormal(reader, true);
+                    break;
+                case EffectID.ROADLIGHTMAP:
+                    vertex.Position = BinaryUtil.ReadVector3(reader);
+                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    reader.BaseStream.Position += 8; // todo: what's this?
+                    reader.BaseStream.Position += 8; // todo: what's this?
+                    reader.BaseStream.Position += 4; // todo: what's this?
+                    vertex.Normal = BinaryUtil.ReadNormal(reader, true);
+                    vertex.Color = reader.ReadUInt32();
+                    break;
+                case EffectID.WATER:
+                    vertex.Position = BinaryUtil.ReadVector3(reader);
+                    vertex.Color = reader.ReadUInt32();
+                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    break;
                 default:
                     throw new Exception($"Unsupported effect in object {Name}: {psm.EffectId}");
             }
