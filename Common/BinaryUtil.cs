@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -90,6 +91,22 @@ namespace Common
                 }
             }
         }
+        
+        /// <summary>
+        /// Read an unmanaged structure from a binary file.
+        /// </summary>
+        /// <param name="reader"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public static T ReadUnmanagedStruct<T>(BinaryReader reader) where T : unmanaged
+        {
+            var structSize = Unsafe.SizeOf<T>();
+            var bytes = reader.ReadBytes(structSize);
+
+            Debug.Assert(bytes.Length == structSize, "bytes.Length == structSize");
+
+            return MemoryMarshal.Read<T>(bytes);
+        }
 
         /// <summary>
         /// BinaryReader extension method for reading raw structures.
@@ -102,34 +119,14 @@ namespace Common
             return ReadStruct<T>(reader);
         }
 
-        /// <summary>
-        /// BinaryWriter extension method for writing raw structures.
-        /// </summary>
-        /// <param name="writer"></param>
-        /// <param name="instance"></param>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
-        public static void PutStruct<T>(this BinaryWriter writer, T instance) where T : struct
-        {
-            unsafe
-            {
-                byte[] byteArray = new byte[Marshal.SizeOf<T>()];
-                fixed (byte* byteArrayPtr = byteArray)
-                {
-                    Marshal.StructureToPtr(instance, (IntPtr)byteArrayPtr, true);
-                }
-                writer.Write(byteArray);
-            }
-        }
-
         public static Vector2 ReadVector2(BinaryReader binaryReader)
         {
-            return ReadStruct<Vector2>(binaryReader);
+            return ReadUnmanagedStruct<Vector2>(binaryReader);
         }
 
         public static Vector3 ReadVector3(BinaryReader binaryReader)
         {
-            return ReadStruct<Vector3>(binaryReader);
+            return ReadUnmanagedStruct<Vector3>(binaryReader);
         }
 
         public static Vector2 ReadShort2N(BinaryReader binaryReader)
@@ -155,6 +152,19 @@ namespace Common
         {
             var vec = packed ? ReadShort4N(binaryReader) : new Vector4(ReadVector3(binaryReader), 1);
             return new Vector3(vec.X, vec.Y, vec.Z);
+        }
+
+        public static void PutStruct<T>(this BinaryWriter writer, T instance) where T : struct
+        {
+            unsafe
+            {
+                var byteArray = new byte[Marshal.SizeOf<T>()];
+                fixed (byte* byteArrayPtr = byteArray)
+                {
+                    Marshal.StructureToPtr(instance, (IntPtr)byteArrayPtr, true);
+                }
+                writer.Write(byteArray);
+            }
         }
     }
 }

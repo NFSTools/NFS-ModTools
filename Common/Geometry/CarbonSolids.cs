@@ -122,8 +122,7 @@ namespace Common.Geometry
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         private struct SolidObjectDescriptor
         {
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
-            private readonly uint[] Blank;
+            private readonly ulong Padding;
 
             private readonly uint Unknown1;
 
@@ -135,8 +134,7 @@ namespace Common.Geometry
 
             public readonly uint NumVertexStreams;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            private readonly uint[] Blank3;
+            private readonly ulong Padding2, Padding3;
 
             public readonly uint NumIndices; // 0 if NumTris
             public readonly uint NumTris; // 0 if NumIndices
@@ -206,7 +204,7 @@ namespace Common.Geometry
                             {
                                 while (br.BaseStream.Position < chunkEndPos)
                                 {
-                                    var och = BinaryUtil.ReadStruct<SolidObjectOffset>(br);
+                                    var och = BinaryUtil.ReadUnmanagedStruct<SolidObjectOffset>(br);
                                     var curPos = br.BaseStream.Position;
                                     br.BaseStream.Position = och.Offset;
 
@@ -322,7 +320,7 @@ namespace Common.Geometry
                             }
                         case 0x134900:
                             {
-                                var descriptor = BinaryUtil.ReadStruct<SolidObjectDescriptor>(br);
+                                var descriptor = BinaryUtil.ReadUnmanagedStruct<SolidObjectDescriptor>(br);
 
                                 solidObject.MeshDescriptor = new SolidMeshDescriptor
                                 {

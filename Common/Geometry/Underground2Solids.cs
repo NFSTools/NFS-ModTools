@@ -254,7 +254,7 @@ namespace Common.Geometry
                             }
                         case 0x134900:
                             {
-                                var descriptor = BinaryUtil.ReadStruct<SolidObjectDescriptor>(br);
+                                var descriptor = BinaryUtil.ReadUnmanagedStruct<SolidObjectDescriptor>(br);
 
                                 solidObject.MeshDescriptor = new SolidMeshDescriptor
                                 {

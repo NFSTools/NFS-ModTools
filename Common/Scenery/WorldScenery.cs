@@ -60,8 +60,8 @@ namespace Common.Scenery
             public uint SceneryGuid;
             public short SceneryInfoNumber;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
-            public byte[] Padding;
+            public ulong Padding;
+            public ushort Padding2;
         }
 
         private ScenerySection _scenerySection;
@@ -111,7 +111,7 @@ namespace Common.Scenery
 
         private void ReadScenerySectionHeader(BinaryReader br)
         {
-            var header = BinaryUtil.ReadStruct<ScenerySectionHeader>(br);
+            var header = BinaryUtil.ReadUnmanagedStruct<ScenerySectionHeader>(br);
             _scenerySection.SectionNumber = header.SectionNumber;
             //Debug.Log($"ScenerySection number is {_scenerySection.SectionNumber}");
         }
@@ -149,7 +149,7 @@ namespace Common.Scenery
             for (int i = 0; i < count; ++i)
             {
                 var instance = new SceneryInstance();
-                var internalInstance = BinaryUtil.ReadStruct<SceneryInstanceInternal>(br);
+                var internalInstance = BinaryUtil.ReadUnmanagedStruct<SceneryInstanceInternal>(br);
 
                 instance.InfoIndex = internalInstance.SceneryInfoNumber;
                 instance.Transform = Matrix4x4.Multiply(internalInstance.Rotation,

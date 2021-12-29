@@ -81,8 +81,9 @@ namespace Common.Geometry
 
             public readonly uint NumVertexStreams; // should be 0, # of materials = # of streams
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
-            public readonly uint[] Zeroes;
+            public readonly ulong Padding, Padding2;
+
+            public uint Padding3;
 
             public readonly uint NumTris;
             public readonly uint NumTriIdx;
@@ -367,7 +368,7 @@ namespace Common.Geometry
                         {
                             while (br.BaseStream.Position < chunkEndPos)
                             {
-                                var och = BinaryUtil.ReadStruct<SolidObjectOffset>(br);
+                                var och = BinaryUtil.ReadUnmanagedStruct<SolidObjectOffset>(br);
                                 var curPos = br.BaseStream.Position;
                                 br.BaseStream.Position = och.Offset;
 
@@ -486,7 +487,7 @@ namespace Common.Geometry
                         }
                         case 0x134900:
                         {
-                            var descriptor = BinaryUtil.ReadStruct<SolidObjectDescriptor>(br);
+                            var descriptor = BinaryUtil.ReadUnmanagedStruct<SolidObjectDescriptor>(br);
 
                             Debug.Assert(descriptor.NumTriIdx == 0);
 

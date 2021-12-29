@@ -108,8 +108,8 @@ namespace Common.Geometry
 
             public uint NumVertexStreams;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-            public uint[] Zeroes;
+            public ulong Padding;
+            public uint Padding2;
 
             public uint NumTriangles;
 
@@ -126,8 +126,7 @@ namespace Common.Geometry
             public readonly int LengthCompressed;
             public readonly int Length;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
-            private readonly uint[] unknown;
+            public uint Unknown, Unknown2, Unknown3, Unknown4, Unknown5;
         }
 
         private const uint SolidListInfoChunk = 0x134002;
@@ -185,7 +184,7 @@ namespace Common.Geometry
 
                                 while (br.BaseStream.Position < chunkEndPos)
                                 {
-                                    var och = BinaryUtil.ReadStruct<ObjectCompressionHeader>(br);
+                                    var och = BinaryUtil.ReadUnmanagedStruct<ObjectCompressionHeader>(br);
                                     var curPos = br.BaseStream.Position;
                                     br.BaseStream.Position = och.Offset;
 
@@ -295,7 +294,7 @@ namespace Common.Geometry
                             }
                         case 0x134900:
                             {
-                                var descriptor = BinaryUtil.ReadStruct<MeshDescriptor>(br);
+                                var descriptor = BinaryUtil.ReadUnmanagedStruct<MeshDescriptor>(br);
 
                                 solidObject.MeshDescriptor = new SolidMeshDescriptor
                                 {
@@ -393,7 +392,7 @@ namespace Common.Geometry
 
                             for (int i = 0; i < chunkSize / 0x40; i++)
                             {
-                                solidObject.MorphMatrices.Add(BinaryUtil.ReadStruct<Matrix4x4>(br));
+                                solidObject.MorphMatrices.Add(BinaryUtil.ReadUnmanagedStruct<Matrix4x4>(br));
                             }
 
                             break;
