@@ -116,16 +116,10 @@ namespace Viewer
                 var idx2 = material.Indices[j + 1];
                 var idx3 = material.Indices[j + 2];
 
-                if (idx1 != idx2 && idx1 != idx3 && idx2 != idx3)
-                {
-                    idx2 = idx3;
-                    idx3 = material.Indices[j + 1];
-                }
-
                 faces.Add(new int[] { idx1, idx2, idx3 });
             }
 
-            var meshBuilder = new MeshBuilder(generateNormals: material.Vertices.Any(v => v.Normal.HasValue));
+            var meshBuilder = new MeshBuilder(generateNormals: material.Vertices.All(v => v.Normal.HasValue));
 
             foreach (var face in faces)
             {
