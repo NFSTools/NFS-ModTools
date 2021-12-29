@@ -16,7 +16,7 @@ namespace Common.Geometry.Data
                         Position = BinaryUtil.ReadVector3(reader),
                         Normal = BinaryUtil.ReadVector3(reader),
                         Color = reader.ReadUInt32(),
-                        TexCoords = BinaryUtil.ReadUV(reader),
+                        TexCoords = BinaryUtil.ReadVector2(reader),
                         BlendWeight = BinaryUtil.ReadVector3(reader),
                         BlendIndices = BinaryUtil.ReadVector3(reader),
                     };
@@ -28,7 +28,7 @@ namespace Common.Geometry.Data
                         Position = BinaryUtil.ReadVector3(reader),
                         Normal = BinaryUtil.ReadVector3(reader),
                         Color = reader.ReadUInt32(),
-                        TexCoords = BinaryUtil.ReadUV(reader)
+                        TexCoords = BinaryUtil.ReadVector2(reader)
                     };
                     break;
                 // position (12 bytes) + color (4 bytes) + tex coords (8 bytes)
@@ -37,7 +37,7 @@ namespace Common.Geometry.Data
                     {
                         Position = BinaryUtil.ReadVector3(reader),
                         Color = reader.ReadUInt32(),
-                        TexCoords = BinaryUtil.ReadUV(reader)
+                        TexCoords = BinaryUtil.ReadVector2(reader)
                     };
                     break;
                 default:

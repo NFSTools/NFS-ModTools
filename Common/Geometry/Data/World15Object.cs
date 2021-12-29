@@ -61,7 +61,7 @@ namespace Common.Geometry.Data
                 case InternalEffectID.WATER:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     vertex.Color = reader.ReadUInt32(); // daytime color
                     reader.ReadUInt32(); // nighttime color
                     break;
@@ -69,14 +69,14 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Color = reader.ReadUInt32(); // daytime color
                     reader.ReadUInt32(); // nighttime color
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     break;
                 case InternalEffectID.WorldZBiasPrelitShader:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     vertex.Color = reader.ReadUInt32(); // daytime color
                     reader.ReadUInt32(); // nighttime color
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     break;
                 case InternalEffectID.WorldNormalMap:
                 case InternalEffectID.GLASS_REFLECTNM:
@@ -84,7 +84,7 @@ namespace Common.Geometry.Data
                 case InternalEffectID.WorldFEShader:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     vertex.Color = reader.ReadUInt32(); // daytime color
                     reader.ReadUInt32(); // nighttime color
                     vertex.Tangent = BinaryUtil.ReadNormal(reader, true);
@@ -92,7 +92,7 @@ namespace Common.Geometry.Data
                 case InternalEffectID.CarShader:
                 case InternalEffectID.CARNORMALMAP:
                     vertex.Position = BinaryUtil.ReadNormal(reader, true) * 8;
-                    vertex.TexCoords = new Vector2(reader.ReadInt16() / 4096f, 1 - reader.ReadInt16() / 4096f);
+                    vertex.TexCoords = new Vector2(reader.ReadInt16() / 4096f, reader.ReadInt16() / 4096f - 1);
                     vertex.Color = reader.ReadUInt32();
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     vertex.Tangent = BinaryUtil.ReadNormal(reader, true);

@@ -118,7 +118,7 @@ namespace Common.Geometry.Data
                 case EffectID.mw2_pano:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     reader.ReadSingle();
-                    vertex.TexCoords = BinaryUtil.ReadPackedUV(reader) * 32;
+                    vertex.TexCoords = BinaryUtil.ReadShort2N(reader) * 32;
                     break;
                 case EffectID.mw2_matte:
                 case EffectID.mw2_diffuse_spec:
@@ -135,7 +135,7 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     reader.ReadSingle();
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadPackedUV(reader) * 32;
+                    vertex.TexCoords = BinaryUtil.ReadShort2N(reader) * 32;
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     break;
                 case EffectID.mw2_normalmap:
@@ -148,7 +148,7 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     reader.ReadSingle();
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadPackedUV(reader) * 32;
+                    vertex.TexCoords = BinaryUtil.ReadShort2N(reader) * 32;
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     // todo: read packed tangent vector
                     reader.BaseStream.Position += 0x8;
@@ -161,7 +161,7 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     reader.ReadSingle();
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadPackedUV(reader) * 32;
+                    vertex.TexCoords = BinaryUtil.ReadShort2N(reader) * 32;
                     // TODO: TEXCOORD1??? what do we do with this?
                     reader.ReadInt16();
                     reader.ReadInt16();
@@ -173,7 +173,7 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     reader.ReadSingle();
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadPackedUV(reader) * 32;
+                    vertex.TexCoords = BinaryUtil.ReadShort2N(reader) * 32;
                     // TODO: TEXCOORD1??? what do we do with this?
                     reader.ReadInt16();
                     reader.ReadInt16();
@@ -190,7 +190,7 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     reader.ReadSingle();
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadPackedUV(reader) * 32;
+                    vertex.TexCoords = BinaryUtil.ReadShort2N(reader) * 32;
                     // TODO: TEXCOORD1??? what do we do with this?
                     reader.ReadInt16();
                     reader.ReadInt16();
@@ -200,7 +200,7 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     reader.ReadSingle();
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadPackedUV(reader) * 32;
+                    vertex.TexCoords = BinaryUtil.ReadShort2N(reader) * 32;
                     // TODO: TEXCOORD1??? what do we do with this?
                     reader.ReadInt16();
                     reader.ReadInt16();
@@ -211,7 +211,7 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     reader.ReadSingle();
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadPackedUV(reader) * 32;
+                    vertex.TexCoords = BinaryUtil.ReadShort2N(reader) * 32;
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     break;
                 case EffectID.mw2_foliage:
@@ -222,12 +222,12 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     reader.ReadSingle();
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadPackedUV(reader) * 32;
+                    vertex.TexCoords = BinaryUtil.ReadShort2N(reader) * 32;
                     break;
                 case EffectID.mw2_sky:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     reader.ReadSingle();
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     break;
                 case EffectID.mw2_texture_scroll:
                 case EffectID.mw2_car_heaven_default:
@@ -235,14 +235,14 @@ namespace Common.Geometry.Data
                     reader.ReadSingle();
                     // TODO: COLOR0 is a float4. how do we deal with that?
                     reader.BaseStream.Position += 0x10;
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     break;
                 case EffectID.mw2_car_heaven:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     reader.ReadSingle();
                     // TODO: COLOR0 is a float4. how do we deal with that?
                     reader.BaseStream.Position += 0x10;
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     break;
                 case EffectID.mw2_carhvn_floor:
@@ -250,7 +250,7 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     reader.ReadSingle();
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadPackedUV(reader) * 32;
+                    vertex.TexCoords = BinaryUtil.ReadShort2N(reader) * 32;
                     // TODO: TEXCOORD1??? what do we do with this?
                     reader.ReadInt16();
                     reader.ReadInt16();
@@ -272,7 +272,7 @@ namespace Common.Geometry.Data
                 case EffectID.car_t_nm:
                 case EffectID.car_v:
                     vertex.Position = BinaryUtil.ReadNormal(reader, true) * 10;
-                    vertex.TexCoords = BinaryUtil.ReadPackedUV(reader) * 32;
+                    vertex.TexCoords = BinaryUtil.ReadShort2N(reader) * 32;
                     vertex.Color = reader.ReadUInt32();
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     vertex.Tangent = BinaryUtil.ReadNormal(reader, true);

@@ -51,7 +51,7 @@ namespace Common.Geometry.Data
                 case EffectID.WORLDBAKEDLIGHTING:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     reader.BaseStream.Position += 16;
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     break;
@@ -60,14 +60,14 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Normal = BinaryUtil.ReadNormal(reader);
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     reader.BaseStream.Position += 8; // TODO: what is this second D3DDECLUSAGE_TEXCOORD element?
                     break;
                 case EffectID.WORLDNORMALMAP:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Normal = BinaryUtil.ReadNormal(reader);
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     reader.BaseStream.Position += 8; // TODO: what is this second D3DDECLUSAGE_TEXCOORD element?
                     // TODO: read tangent
                     reader.BaseStream.Position += 16;
@@ -78,7 +78,7 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Normal = BinaryUtil.ReadNormal(reader);
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     break;
                 case EffectID.TREELEAVES:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
@@ -87,22 +87,22 @@ namespace Common.Geometry.Data
                     // TODO: COLLADA supports tangent vectors, so we should eventually read them
                     //> elements[3]: type=D3DDECLTYPE_FLOAT4 usage=D3DDECLUSAGE_TANGENT size=16 offset=0x1c
                     reader.BaseStream.Position += 0x10;
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     break;
                 case EffectID.WORLDCONSTANT:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     vertex.Color = reader.ReadUInt32();
                     break;
                 case EffectID.ROAD:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     reader.BaseStream.Position += 28;
                     vertex.Color = reader.ReadUInt32();
                     break;
                 case EffectID.TERRAIN:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     reader.BaseStream.Position += 16;
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     // TODO: read packed tangent vector (4 short-components)
@@ -113,7 +113,7 @@ namespace Common.Geometry.Data
                     break;
                 case EffectID.GRASSTERRAIN:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     reader.BaseStream.Position += 20;
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     // TODO: read packed tangent vector (4 short-components)
@@ -124,7 +124,7 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Color = reader.ReadUInt32();
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     reader.BaseStream.Position += 8; // TODO: what is this second D3DDECLUSAGE_TEXCOORD element?
                     break;
                 case EffectID.GRASSCARD:
@@ -133,14 +133,14 @@ namespace Common.Geometry.Data
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     // TODO: read packed tangent vector (4 short-components)
                     reader.BaseStream.Position += 8;
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     reader.BaseStream.Position += 8; // TODO: what is this second D3DDECLUSAGE_TEXCOORD element?
                     break;
                 case EffectID.CAR:
                 case EffectID.CARNORMALMAP:
                 case EffectID.CARVINYL:
                     vertex.Position = BinaryUtil.ReadNormal(reader, true);
-                    vertex.TexCoords = BinaryUtil.ReadPackedUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadShort2N(reader);
                     vertex.Color = reader.ReadUInt32();
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     vertex.Tangent = BinaryUtil.ReadNormal(reader, true);
@@ -151,17 +151,17 @@ namespace Common.Geometry.Data
                     vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                     // TODO: read packed tangent vector (4 short-components)
                     reader.BaseStream.Position += 8;
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     break;
                 case EffectID.STANDARD:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     reader.BaseStream.Position += 8; // todo: what's this?
                     break;
                 case EffectID.TUNNEL:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     reader.BaseStream.Position += 8; // todo: what's this?
                     reader.BaseStream.Position += 4; // todo: what's this?
                     reader.BaseStream.Position += 4; // todo: what's this?
@@ -170,7 +170,7 @@ namespace Common.Geometry.Data
                     break;
                 case EffectID.ROADLIGHTMAP:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     reader.BaseStream.Position += 8; // todo: what's this?
                     reader.BaseStream.Position += 8; // todo: what's this?
                     reader.BaseStream.Position += 4; // todo: what's this?
@@ -180,7 +180,7 @@ namespace Common.Geometry.Data
                 case EffectID.WATER:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     break;
                 default:
                     throw new Exception($"Unsupported effect in object {Name}: {psm.EffectId}");

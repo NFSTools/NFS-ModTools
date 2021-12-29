@@ -51,13 +51,13 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Normal = BinaryUtil.ReadVector3(reader);
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     break;
                 case InternalEffectID.skyshader:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Normal = BinaryUtil.ReadVector3(reader);
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     reader.BaseStream.Position += 8; // TODO: What's this additional D3DDECLUSAGE_TEXCOORD element?
                     break;
                 case InternalEffectID.WorldNormalMap:
@@ -65,7 +65,7 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Normal = BinaryUtil.ReadVector3(reader);
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     vertex.Tangent = BinaryUtil.ReadVector3(reader);
                     reader.BaseStream.Position += 4; // skip W component of tangent vector
                     break;
@@ -73,26 +73,26 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Normal = BinaryUtil.ReadVector3(reader);
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     vertex.Tangent = BinaryUtil.ReadVector3(reader);
                     break;
                 case InternalEffectID.CARNORMALMAP:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     vertex.Color = reader.ReadUInt32();
                     vertex.Normal = BinaryUtil.ReadVector3(reader);
                     vertex.Tangent = BinaryUtil.ReadVector3(reader);
                     break;
                 case InternalEffectID.GLASS_REFLECT:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     vertex.Color = reader.ReadUInt32();
                     vertex.Normal = BinaryUtil.ReadVector3(reader);
                     break;
                 case InternalEffectID.WATER:
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     vertex.Normal = BinaryUtil.ReadVector3(reader);
                     break;
                 default:

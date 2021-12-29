@@ -257,7 +257,7 @@ namespace Common
             chunk.Write(_binaryWriter);
         }
 
-        public void WriteStruct<T>(T instance)
+        public void WriteStruct<T>(T instance) where T : struct
         {
             if (!_canWrite)
                 throw new InvalidOperationException("Cannot write to this stream");

@@ -279,7 +279,7 @@ namespace Common
                         Offset = chunk.Offset,
                         Size = chunk.Length - padding,
                         SubChunks = new List<Chunk>(),
-                        Data = _br.ReadBytes(chunk.Length).ToArray()
+                        Data = _br.ReadBytes((int)chunk.Length)
                     };
 
                     chunkList.Add(child);

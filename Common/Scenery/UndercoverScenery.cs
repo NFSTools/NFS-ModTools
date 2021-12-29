@@ -140,7 +140,7 @@ namespace Common.Scenery
 
         private void ReadSceneryInstances(BinaryReader br, uint size)
         {
-            size -= BinaryUtil.AutoAlign(br, 0x10);
+            size -= BinaryUtil.AlignReader(br, 0x10);
             Debug.Assert(size % 0x60 == 0);
             var count = (int)size / 0x60;
             _scenerySection.Instances = new List<SceneryInstance>(count);

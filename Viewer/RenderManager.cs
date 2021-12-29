@@ -132,7 +132,7 @@ namespace Viewer
                 if (vertex.Normal.HasValue)
                     meshBuilder.Normals.Add(new Vector3(vertex.Normal.Value.X, vertex.Normal.Value.Y,
                         vertex.Normal.Value.Z));
-                meshBuilder.TextureCoordinates.Add(new Vector2(vertex.TexCoords.X, -vertex.TexCoords.Y));
+                meshBuilder.TextureCoordinates.Add(new Vector2(vertex.TexCoords.X, vertex.TexCoords.Y));
             }
 
             if (!meshBuilder.HasNormals)

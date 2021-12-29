@@ -54,7 +54,7 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Normal = BinaryUtil.ReadVector3(reader);
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     reader.BaseStream.Position += 8; // TODO: What's this additional D3DDECLUSAGE_TEXCOORD element?
                     vertex.Tangent = BinaryUtil.ReadVector3(reader);
                     reader.BaseStream.Position += 4; // skip W component of tangent vector
@@ -63,7 +63,7 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Normal = BinaryUtil.ReadVector3(reader);
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     reader.BaseStream.Position += 8; // TODO: What's this additional D3DDECLUSAGE_TEXCOORD element?
                     break;
                 case InternalEffectID.WorldShader:
@@ -73,7 +73,7 @@ namespace Common.Geometry.Data
                     vertex.Position = BinaryUtil.ReadVector3(reader);
                     vertex.Normal = BinaryUtil.ReadVector3(reader);
                     vertex.Color = reader.ReadUInt32();
-                    vertex.TexCoords = BinaryUtil.ReadUV(reader);
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     break;
                 default:
                     throw new Exception($"Unsupported effect in object {Name}: {id}");

@@ -170,7 +170,7 @@ namespace Common.Textures
                         {
                             if (!_compressed)
                             {
-                                BinaryUtil.AutoAlign(br, 0x80);
+                                BinaryUtil.AlignReader(br, 0x80);
 
                                 var basePos = br.BaseStream.Position;
 

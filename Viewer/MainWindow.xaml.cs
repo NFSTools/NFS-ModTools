@@ -409,7 +409,7 @@ namespace Viewer
                             {
                                 masterStream.BaseStream.Position = section.Offset;
 
-                                var sectionData = masterStream.ReadBytes(section.Size);
+                                var sectionData = masterStream.ReadBytes((int)section.Size);
 
                                 using (var br = new BinaryReader(new MemoryStream(sectionData)))
                                 {
