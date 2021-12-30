@@ -26,11 +26,6 @@
     <Resource Include="nfsw_IDI_ICON1.ico" />
   </ItemGroup>
   <ItemGroup>
-    <AdditionalFiles Include="default.bmp">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </AdditionalFiles>
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="HelixToolkit.Core.WPF" Version="2.20.0" />
     <PackageReference Include="HelixToolkit.SharpDX.Core.Wpf" Version="2.20.0" />
     <PackageReference Include="Pfim" Version="0.5.2" />
