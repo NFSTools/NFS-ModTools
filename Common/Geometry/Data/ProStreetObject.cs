@@ -182,6 +182,15 @@ namespace Common.Geometry.Data
                     vertex.Color = reader.ReadUInt32();
                     vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                     break;
+                case EffectID.WORLDBONE:
+                    vertex.Position = BinaryUtil.ReadVector3(reader);
+                    vertex.Normal = BinaryUtil.ReadNormal(reader);
+                    vertex.Color = reader.ReadUInt32();
+                    vertex.TexCoords = BinaryUtil.ReadVector2(reader);
+                    vertex.BlendWeight = BinaryUtil.ReadVector3(reader);
+                    vertex.BlendIndices = BinaryUtil.ReadVector3(reader);
+                    vertex.Tangent = BinaryUtil.ReadVector3(reader);
+                    break;
                 default:
                     throw new Exception($"Unsupported effect in object {Name}: {psm.EffectId}");
             }
