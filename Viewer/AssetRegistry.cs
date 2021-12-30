@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using Common;
 using Common.Geometry.Data;
 using Common.Textures.Data;
-using Common.TrackStream.Data;
 
 namespace Viewer
 {
@@ -239,10 +238,5 @@ namespace Viewer
         public ObservableCollection<FileAssetContainer> InnerFiles { get; set; } = new ObservableCollection<FileAssetContainer>();
 
         public ObservableCollection<FileAssetContainer> Assets { get; set; } = new ObservableCollection<FileAssetContainer>();
-    }
-
-    public class SectionContainer : FileAssetContainer
-    {
-        public StreamSection Section { get; set; }
     }
 }

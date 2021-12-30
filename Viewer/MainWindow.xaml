@@ -34,10 +34,6 @@
                           x:Name="OpenItem"
                           Click="OpenItem_OnClick"
                           Style="{StaticResource CustomMenuItem}" />
-                <MenuItem Header="Open Map"
-                          x:Name="OpenMapItem"
-                          Click="OpenMapItem_OnClick"
-                          Style="{StaticResource CustomMenuItem}" />
             </MenuItem>
             <MenuItem Header="Geometry" Style="{StaticResource CustomMenuItem}" />
             <MenuItem Header="Camera" Style="{StaticResource CustomMenuItem}">
@@ -74,36 +70,6 @@
                 <HierarchicalDataTemplate DataType="{x:Type local:SimpleAssetGroup}" ItemsSource="{Binding SubAssets}">
                     <TextBlock Text="{Binding Name}"
                                Foreground="#dedede" />
-                </HierarchicalDataTemplate>
-
-                <HierarchicalDataTemplate DataType="{x:Type local:SectionContainer}" ItemsSource="{Binding SubAssets}">
-                    <StackPanel Orientation="Horizontal"
-                                Margin="0,0,6,0">
-                        <CheckBox IsChecked="{Binding IsSelected}"
-                                  Margin="0,0,3,0"
-                                  Command="{Binding ElementName=MyMainWindow,Path=SectionCheckCommand}"
-                                  CommandParameter="{Binding}" />
-                        <TextBlock Text="{Binding Path=Section.Name}"
-                                   Foreground="Gold"
-                                   Margin="0,0,4,0">
-                            <TextBlock.Style>
-                                <Style TargetType="{x:Type TextBlock}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                            <Setter Property="FontWeight" Value="Bold" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                        <TextBlock Text="["
-                                   Foreground="#bbb" />
-                        <TextBlock Text="{Binding Section.Number}"
-                                   Foreground="#bbb"
-                                   FontWeight="DemiBold" />
-                        <TextBlock Text="]"
-                                   Foreground="#bbb" />
-                    </StackPanel>
                 </HierarchicalDataTemplate>
 
                 <HierarchicalDataTemplate DataType="{x:Type local:SolidListAsset}" ItemsSource="{Binding SubAssets}">
