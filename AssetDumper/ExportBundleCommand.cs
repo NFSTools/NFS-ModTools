@@ -234,7 +234,8 @@ public class ExportBundleCommand : BaseCommand
                 continue;
 
             var solidName = solid.Name.ToUpperInvariant();
-            if (solidName.StartsWith("RFL_") || solidName.StartsWith("SHD_"))
+            if (solidName.StartsWith("RFL_") || solidName.StartsWith("SHD_") ||
+                solidName.StartsWith("SHADOW"))
                 // Skip reflections and shadow maps
                 continue;
 
