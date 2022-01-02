@@ -88,21 +88,6 @@ public class MostWantedSolidReader : SolidReader<MostWantedObject>
         }
     }
 
-    private void ReadSolidSmoothVerticesPlat(BinaryReader binaryReader, uint chunkSize)
-    {
-        Debug.Assert(chunkSize % 12 == 0, "chunkSize % 12 == 0");
-    }
-
-    private void ReadSolidSmoothVertices(BinaryReader binaryReader, uint chunkSize)
-    {
-        Debug.Assert(chunkSize % 8 == 0, "chunkSize % 8 == 0");
-    }
-
-    private void ReadSolidNormalSmoother(BinaryReader binaryReader)
-    {
-        binaryReader.BaseStream.Position += 12;
-    }
-
     private void ReadSolidPlatIndices(BinaryReader binaryReader)
     {
         BinaryUtil.AlignReader(binaryReader, 0x10);
