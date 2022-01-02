@@ -4,8 +4,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 using Common;
 using Common.Geometry.Data;
 using Common.Textures.Data;
@@ -17,12 +15,15 @@ namespace Viewer
     /// </summary>
     public class AssetRegistry
     {
-        private readonly Dictionary<string, Dictionary<uint, FileAssetContainer>> _sectionAssets = new Dictionary<string, Dictionary<uint, FileAssetContainer>>();
-
-        private AssetRegistry() { }
-
         private static AssetRegistry _instance;
         private static readonly object InstanceLock = new object();
+
+        private readonly Dictionary<string, Dictionary<uint, FileAssetContainer>> _sectionAssets =
+            new Dictionary<string, Dictionary<uint, FileAssetContainer>>();
+
+        private AssetRegistry()
+        {
+        }
 
         public static AssetRegistry Instance
         {
@@ -60,7 +61,7 @@ namespace Viewer
                 {
                     case SolidListAsset sla:
                     {
-                        _sectionAssets[key][Hasher.BinHash(sla.Resource.PipelinePath)] = sla;
+                        _sectionAssets[key][Hasher.BinHash(sla.Resource.Filename)] = sla;
                         break;
                     }
                     case TexturePackAsset tpk:
@@ -69,7 +70,8 @@ namespace Viewer
                         break;
                     }
                     default:
-                        throw new ArgumentOutOfRangeException(nameof(assetContainer), $"No hash provider for: {assetContainer.GetType()}");
+                        throw new ArgumentOutOfRangeException(nameof(assetContainer),
+                            $"No hash provider for: {assetContainer.GetType()}");
                 }
             }
         }
@@ -229,14 +231,18 @@ namespace Viewer
         }
     }
 
-    public class NullAsset : FileAssetContainer { }
+    public class NullAsset : FileAssetContainer
+    {
+    }
 
     public class FileContainer
     {
         public string FileName { get; set; }
 
-        public ObservableCollection<FileAssetContainer> InnerFiles { get; set; } = new ObservableCollection<FileAssetContainer>();
+        public ObservableCollection<FileAssetContainer> InnerFiles { get; set; } =
+            new ObservableCollection<FileAssetContainer>();
 
-        public ObservableCollection<FileAssetContainer> Assets { get; set; } = new ObservableCollection<FileAssetContainer>();
+        public ObservableCollection<FileAssetContainer> Assets { get; set; } =
+            new ObservableCollection<FileAssetContainer>();
     }
 }

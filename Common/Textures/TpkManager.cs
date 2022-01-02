@@ -13,13 +13,6 @@ namespace Common.Textures
         /// <returns></returns>
         public abstract TexturePack ReadTexturePack(BinaryReader br, uint containerSize);
 
-        /// <summary>
-        /// Write a texture pack to a chunk stream.
-        /// </summary>
-        /// <param name="cs"></param>
-        /// <param name="texturePack"></param>
-        public abstract void WriteTexturePack(ChunkStream cs, TexturePack texturePack);
-
         protected abstract void ReadChunks(BinaryReader br, uint containerSize);
     }
 }

@@ -79,7 +79,7 @@
                                   Margin="0,0,3,0"
                                   Command="{Binding ElementName=MyMainWindow,Path=ModelPackCheckCommand}"
                                   CommandParameter="{Binding}" />
-                        <TextBlock Text="{Binding Resource.PipelinePath}"
+                        <TextBlock Text="{Binding Resource.Filename}"
                                    Foreground="#bbb"
                                    FontWeight="DemiBold"
                                    Margin="0,0,4,0">
@@ -95,7 +95,7 @@
                         </TextBlock>
                         <TextBlock Text="["
                                    Foreground="#bbb" />
-                        <TextBlock Text="{Binding Resource.Filename}"
+                        <TextBlock Text="{Binding Resource.GroupName}"
                                    Foreground="#bbb"
                                    FontWeight="DemiBold" />
                         <TextBlock Text="]"

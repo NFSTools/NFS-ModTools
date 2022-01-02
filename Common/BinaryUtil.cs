@@ -116,6 +116,7 @@ namespace Common
         /// <param name="reader"></param>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
+        [Obsolete("use BinaryUtil.ReadStruct")]
         public static T GetStruct<T>(this BinaryReader reader) where T : struct
         {
             return ReadStruct<T>(reader);

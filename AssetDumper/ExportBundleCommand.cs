@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -33,7 +32,7 @@ public class ExportBundleCommand : BaseCommand
     [Option('g', "game", HelpText = "The game that the bundle files come from.", Required = true)]
     public GameDetector.Game Game { get; [UsedImplicitly] set; }
 
-    [Option('o', "output", HelpText = "The directory to export files to.", Required = true)]
+    [Option('o', "output", HelpText = "The directory to export files to.", Required = false)]
     public string OutputDirectory { get; [UsedImplicitly] set; }
 
     [Option("obj-mode",
@@ -43,7 +42,10 @@ public class ExportBundleCommand : BaseCommand
 
     public override int Execute()
     {
-        Directory.CreateDirectory(OutputDirectory);
+        if (OutputDirectory != null)
+            Directory.CreateDirectory(OutputDirectory);
+        else
+            Log.Information("Operating in dry-run mode: no files will be exported");
 
         foreach (var file in Files)
         {
@@ -62,10 +64,13 @@ public class ExportBundleCommand : BaseCommand
                 select c.Resource).ToList();
             Log.Information("Read {NumResources} resource(s) from {FilePath} in {ElapsedDurationMS}ms", resources.Count,
                 file, sw.ElapsedMilliseconds);
-            sw.Restart();
-            ProcessResources(resources, OutputDirectory);
-            sw.Stop();
-            Log.Information("Exported resources in {ElapsedDurationMS}ms", sw.ElapsedMilliseconds);
+            if (OutputDirectory != null)
+            {
+                sw.Restart();
+                ProcessResources(resources, OutputDirectory);
+                sw.Stop();
+                Log.Information("Exported resources in {ElapsedDurationMS}ms", sw.ElapsedMilliseconds);
+            }
         }
 
         return 0;
@@ -122,7 +127,7 @@ public class ExportBundleCommand : BaseCommand
                     {
                         var sceneryInfo = scenerySection.Infos[sceneryInstance.InfoIndex];
                         var solidKey = sceneryInfo.SolidKey;
-                        
+
                         if (!solidObjectLookup.TryGetValue(solidKey, out var solid))
                         {
                             Log.Warning("Can't find object with key: 0x{MissingSolidKey:X8}", solidKey);
@@ -205,18 +210,6 @@ public class ExportBundleCommand : BaseCommand
         }
     }
 
-    private class SceneExport
-    {
-        public List<SceneExportNode> Nodes { get; }
-        public string SceneName { get; }
-
-        public SceneExport(List<SceneExportNode> nodes, string sceneName)
-        {
-            Nodes = nodes;
-            SceneName = sceneName;
-        }
-    }
-
     private static void ExportScenerySection(IReadOnlyDictionary<uint, SolidObject> objects,
         ScenerySection scenerySection, string outputPath, string texturesDirectory)
     {
@@ -246,7 +239,8 @@ public class ExportBundleCommand : BaseCommand
         ExportScene(scene, outputPath, texturesDirectory);
     }
 
-    private static void ExportMultipleSolids(IEnumerable<SolidObject> solidObjects, string outputPath, string texturesDirectory)
+    private static void ExportMultipleSolids(IEnumerable<SolidObject> solidObjects, string outputPath,
+        string texturesDirectory)
     {
         var sceneNodes = solidObjects.Select(solid => new SceneExportNode(solid, solid.Name, solid.Transform)).ToList();
 
@@ -816,18 +810,30 @@ public class ExportBundleCommand : BaseCommand
             Item = mesh
         });
     }
+
+    private class SceneExport
+    {
+        public SceneExport(List<SceneExportNode> nodes, string sceneName)
+        {
+            Nodes = nodes;
+            SceneName = sceneName;
+        }
+
+        public List<SceneExportNode> Nodes { get; }
+        public string SceneName { get; }
+    }
 }
 
 internal class SceneExportNode
 {
-    public SolidObject SolidObject { get; }
-    public string Name { get; }
-    public Matrix4x4 Transform { get; }
-
     public SceneExportNode(SolidObject solidObject, string name, Matrix4x4 transform)
     {
         SolidObject = solidObject;
         Name = name;
         Transform = transform;
     }
+
+    public SolidObject SolidObject { get; }
+    public string Name { get; }
+    public Matrix4x4 Transform { get; }
 }
