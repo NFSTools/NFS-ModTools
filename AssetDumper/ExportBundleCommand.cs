@@ -259,6 +259,16 @@ public class ExportBundleCommand : BaseCommand
         ExportScene(scene, outputPath, texturesDirectory);
     }
 
+    private static string GetMaterialId(SolidObjectMaterial material)
+    {
+        return $"texture-0x{material.TextureHash:X8}";
+    }
+
+    private static string GetMaterialName(SolidObjectMaterial material)
+    {
+        return material.Name ?? $"TextureMTL-0x{material.TextureHash:X8}";
+    }
+
     private static void ExportScene(SceneExport scene, string outputPath, string texturesDirectory)
     {
         var collada = new COLLADA
@@ -277,7 +287,6 @@ public class ExportBundleCommand : BaseCommand
         var images = new library_images();
         var imageList = new List<image>();
         var materials = new library_materials();
-        var materialList = new List<material>();
         var effects = new library_effects();
         var effectList = new List<effect>();
 
@@ -293,15 +302,6 @@ public class ExportBundleCommand : BaseCommand
                 name = $"TextureIMG-0x{textureId:X8}",
                 Item = Path.Combine(texturesDirectory, $"0x{textureId:X8}.dds"),
                 depth = 1
-            });
-            materialList.Add(new material
-            {
-                id = $"texture-0x{textureId:X8}",
-                name = $"TextureMTL-0x{textureId:X8}",
-                instance_effect = new instance_effect
-                {
-                    url = $"#texture-0x{textureId:X8}-fx"
-                },
             });
             effectList.Add(new effect
             {
@@ -359,7 +359,15 @@ public class ExportBundleCommand : BaseCommand
         }
 
         images.image = imageList.ToArray();
-        materials.material = materialList.ToArray();
+        materials.material = (from solidObject in solidsToAdd
+            from solidObjectMaterial in solidObject.Materials
+            let materialId = GetMaterialId(solidObjectMaterial)
+            let materialName = GetMaterialName(solidObjectMaterial)
+            select new material
+            {
+                id = materialId, name = materialName,
+                instance_effect = new instance_effect { url = $"#texture-0x{solidObjectMaterial.TextureHash:X8}-fx" }
+            }).ToArray();
         effects.effect = effectList.ToArray();
 
         // Build geometry library
@@ -432,7 +440,7 @@ public class ExportBundleCommand : BaseCommand
                                 new instance_material
                                 {
                                     symbol = $"material{materialIdx}",
-                                    target = $"#texture-0x{material.TextureHash:X8}",
+                                    target = $"#{GetMaterialId(material)}",
                                     bind_vertex_input = new[]
                                     {
                                         new instance_materialBind_vertex_input
