@@ -130,7 +130,8 @@ public class ExportBundleCommand : BaseCommand
 
                         if (!solidObjectLookup.TryGetValue(solidKey, out var solid))
                         {
-                            Log.Warning("Can't find object with key: 0x{MissingSolidKey:X8}", solidKey);
+                            Log.Warning("Can't find object with key 0x{MissingSolidKey:X8} for scenery {SceneryName}",
+                                solidKey, sceneryInfo.Name);
                             continue;
                         }
 
