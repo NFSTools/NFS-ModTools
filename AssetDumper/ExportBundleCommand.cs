@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -47,30 +48,67 @@ public class ExportBundleCommand : BaseCommand
         else
             Log.Information("Operating in dry-run mode: no files will be exported");
 
+        var realFileList = new List<string>();
+
         foreach (var file in Files)
-        {
             if (!File.Exists(file))
             {
-                throw new FileNotFoundException("Can't find file", file);
+                if (Directory.Exists(file))
+                {
+                    var files = Directory.GetFiles(file);
+                    Log.Information("Adding {NumFiles} file(s) from directory {Directory} to file list", files.Length,
+                        file);
+                    realFileList.AddRange(files);
+                }
+                else
+                {
+                    throw new FileNotFoundException("Can't find file", file);
+                }
+            }
+            else
+            {
+                realFileList.Add(file);
             }
 
+        var resources = new List<BasicResource>();
+
+        var sw = Stopwatch.StartNew();
+
+        foreach (var file in realFileList)
+        {
             Log.Information("Reading {FilePath}", file);
             var cm = new ChunkManager(Game);
-            var sw = Stopwatch.StartNew();
-            cm.Read(file);
-            sw.Stop();
-            var resources = (from c in cm.Chunks
-                where c.Resource != null
-                select c.Resource).ToList();
-            Log.Information("Read {NumResources} resource(s) from {FilePath} in {ElapsedDurationMS}ms", resources.Count,
-                file, sw.ElapsedMilliseconds);
-            if (OutputDirectory != null)
+            sw.Restart();
+
+            try
             {
-                sw.Restart();
-                ProcessResources(resources, OutputDirectory);
+                cm.Read(file);
                 sw.Stop();
-                Log.Information("Exported resources in {ElapsedDurationMS}ms", sw.ElapsedMilliseconds);
+                var fileResources = (from c in cm.Chunks
+                    where c.Resource != null
+                    select c.Resource).ToList();
+                resources.AddRange(fileResources);
+                Log.Information("Read {NumResources} resource(s) from {FilePath} in {ElapsedDurationMS}ms",
+                    fileResources.Count,
+                    file, sw.ElapsedMilliseconds);
             }
+            catch (Exception e)
+            {
+#if DEBUG
+                throw;
+#endif
+                Log.Error(e, "Failed to read file");
+            }
+        }
+
+        if (OutputDirectory != null && resources.Count > 0)
+        {
+            Log.Information("Exporting {NumResources} resource(s) from {NumFiles} file(s)", resources.Count,
+                realFileList.Count);
+            sw.Restart();
+            ProcessResources(resources, OutputDirectory);
+            sw.Stop();
+            Log.Information("Exported in {ElapsedDurationMS}ms", sw.ElapsedMilliseconds);
         }
 
         return 0;
@@ -88,13 +126,16 @@ public class ExportBundleCommand : BaseCommand
 
         Log.Information("Processing texture packs...");
 
+        var texturePaths = new Dictionary<uint, string>();
+
         // Process texture packs
         foreach (var resource in resources.OfType<TexturePack>())
         {
             foreach (var texture in resource.Textures)
             {
-                var texturePath = Path.Combine(texturesDir, $"0x{texture.TexHash:X8}.dds");
-                texture.DumpToFile(texturePath);
+                var textureFileName = GetTextureFileName(texture);
+                texturePaths[texture.TexHash] = Path.Combine(texturesBaseDir, textureFileName);
+                texture.DumpToFile(Path.Combine(texturesDir, textureFileName));
             }
         }
 
@@ -114,7 +155,7 @@ public class ExportBundleCommand : BaseCommand
                 foreach (var scenerySection in scenerySections.OrderBy(s => s.SectionNumber))
                 {
                     ExportScenerySection(solidObjectLookup, scenerySection, Path.Combine(outputDir,
-                        scenerySection.SectionNumber + ".dae"), texturesBaseDir);
+                        scenerySection.SectionNumber + ".dae"), texturePaths);
                 }
             }
             else
@@ -168,7 +209,7 @@ public class ExportBundleCommand : BaseCommand
                 foreach (var (solidKey, solidTransforms) in groupedInstances)
                 {
                     var solid = solidObjectLookup[solidKey];
-                    ExportSingleSolid(solid, Path.Combine(outputDir, $"{solid.Name}.dae"), texturesBaseDir);
+                    ExportSingleSolid(solid, Path.Combine(outputDir, $"{solid.Name}.dae"), texturePaths);
 
                     using var solidTransformWriter = new StreamWriter(Path.Combine(outputDir, $"{solid.Name}.txt"));
                     var sb = new StringBuilder();
@@ -185,7 +226,7 @@ public class ExportBundleCommand : BaseCommand
                 }
             }
         }
-        else if (solidLists.Any())
+        else if (solidLists.Any() && exportMode is ModelExportMode.ExportPacks or ModelExportMode.ExportAll)
         {
             Log.Information("Processing model packs...");
 
@@ -196,7 +237,7 @@ public class ExportBundleCommand : BaseCommand
                 var outputPath = Path.Combine(outputDir, "combined.dae");
                 Log.Information("Exporting all models to {OutputPath}", outputPath);
                 ExportMultipleSolids(solidLists.SelectMany(s => s.Objects).ToList(),
-                    outputPath, texturesBaseDir);
+                    outputPath, texturePaths);
             }
             else
             {
@@ -205,14 +246,14 @@ public class ExportBundleCommand : BaseCommand
                 foreach (var solidObject in solidLists.SelectMany(l => l.Objects))
                 {
                     ExportSingleSolid(solidObject,
-                        Path.Combine(outputDir, $"{solidObject.Name}.dae"), texturesBaseDir);
+                        Path.Combine(outputDir, $"{solidObject.Name}.dae"), texturePaths);
                 }
             }
         }
     }
 
     private static void ExportScenerySection(IReadOnlyDictionary<uint, SolidObject> objects,
-        ScenerySection scenerySection, string outputPath, string texturesDirectory)
+        ScenerySection scenerySection, string outputPath, Dictionary<uint, string> texturePaths)
     {
         Log.Information(
             "Exporting scenery section {ScenerySectionNumber} ({SceneryInfoCount} models, {SceneryInstanceCount} instances)",
@@ -237,19 +278,20 @@ public class ExportBundleCommand : BaseCommand
         }
 
         var scene = new SceneExport(sceneNodes, $"ScenerySection_{scenerySection.SectionNumber}");
-        ExportScene(scene, outputPath, texturesDirectory);
+        ExportScene(scene, outputPath, texturePaths);
     }
 
     private static void ExportMultipleSolids(IEnumerable<SolidObject> solidObjects, string outputPath,
-        string texturesDirectory)
+        Dictionary<uint, string> texturePaths)
     {
         var sceneNodes = solidObjects.Select(solid => new SceneExportNode(solid, solid.Name, solid.Transform)).ToList();
 
         var scene = new SceneExport(sceneNodes, "MultiSolidExport");
-        ExportScene(scene, outputPath, texturesDirectory);
+        ExportScene(scene, outputPath, texturePaths);
     }
 
-    private static void ExportSingleSolid(SolidObject solidObject, string outputPath, string texturesDirectory)
+    private static void ExportSingleSolid(SolidObject solidObject, string outputPath,
+        Dictionary<uint, string> texturePaths)
     {
         var sceneNodes = new List<SceneExportNode>
         {
@@ -257,7 +299,7 @@ public class ExportBundleCommand : BaseCommand
         };
 
         var scene = new SceneExport(sceneNodes, solidObject.Name);
-        ExportScene(scene, outputPath, texturesDirectory);
+        ExportScene(scene, outputPath, texturePaths);
     }
 
     private static string GetMaterialId(SolidObjectMaterial material)
@@ -270,7 +312,12 @@ public class ExportBundleCommand : BaseCommand
         return material.Name ?? $"TextureMTL-0x{material.TextureHash:X8}";
     }
 
-    private static void ExportScene(SceneExport scene, string outputPath, string texturesDirectory)
+    private static string GetTextureFileName(Texture texture)
+    {
+        return $"0x{texture.TexHash:X8}_{texture.Name}.dds";
+    }
+
+    private static void ExportScene(SceneExport scene, string outputPath, Dictionary<uint, string> texturePaths)
     {
         var collada = new COLLADA
         {
@@ -297,13 +344,14 @@ public class ExportBundleCommand : BaseCommand
             symbol = $"material{materialIdx}",
             target = $"#texture-0x{material.TextureHash:X8}"
              */
-            imageList.Add(new image
-            {
-                id = $"texture-0x{textureId:X8}-img",
-                name = $"TextureIMG-0x{textureId:X8}",
-                Item = Path.Combine(texturesDirectory, $"0x{textureId:X8}.dds"),
-                depth = 1
-            });
+            if (texturePaths.TryGetValue(textureId, out var texturePath))
+                imageList.Add(new image
+                {
+                    id = $"texture-0x{textureId:X8}-img",
+                    name = $"TextureIMG-0x{textureId:X8}",
+                    Item = texturePath,
+                    depth = 1
+                });
             effectList.Add(new effect
             {
                 id = $"texture-0x{textureId:X8}-fx",
