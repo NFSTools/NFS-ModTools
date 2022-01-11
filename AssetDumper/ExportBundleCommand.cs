@@ -648,11 +648,12 @@ public class ExportBundleCommand : BaseCommand
                     {
                         var color = v.Color ?? 0xFFFFFFFF;
 
+                        var a = (color >> 24) & 0xFF;
                         var r = (color >> 16) & 0xFF;
                         var g = (color >> 8) & 0xFF;
                         var b = (color >> 0) & 0xFF;
 
-                        return new double[] { r / 255f, g / 255f, b / 255f };
+                        return new double[] { r / 255f, g / 255f, b / 255f, a / 255f };
                     }).ToArray(),
                 id = colorsDataId,
                 count = (ulong)(allVertices.Count * 3)
@@ -680,6 +681,11 @@ public class ExportBundleCommand : BaseCommand
                         new param
                         {
                             name = "B",
+                            type = "float"
+                        },
+                        new param
+                        {
+                            name = "A",
                             type = "float"
                         }
                     }
