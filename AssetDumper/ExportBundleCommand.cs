@@ -550,7 +550,9 @@ public class ExportBundleCommand : BaseCommand
         var colorsSourceIds = new Dictionary<int, string>();
 
         var positionsSrcId = $"{geometryId}_positions";
+        var colorsSrcId = $"{geometryId}_colors";
         var positionsDataId = $"{positionsSrcId}_array";
+        var colorsDataId = $"{colorsSrcId}_array";
 
         var uvsSrcId = $"{geometryId}_texcoords";
         var uvsDataId = $"{uvsSrcId}_array";
@@ -635,6 +637,56 @@ public class ExportBundleCommand : BaseCommand
             }
         });
 
+        sources.Add(new source
+        {
+            name = "color",
+            id = colorsSrcId,
+            Item = new float_array
+            {
+                Values = allVertices
+                    .SelectMany(v =>
+                    {
+                        var color = v.Color ?? 0xFFFFFFFF;
+
+                        var r = (color >> 16) & 0xFF;
+                        var g = (color >> 8) & 0xFF;
+                        var b = (color >> 0) & 0xFF;
+
+                        return new double[] { r / 255f, g / 255f, b / 255f };
+                    }).ToArray(),
+                id = colorsDataId,
+                count = (ulong)(allVertices.Count * 3)
+            },
+            technique_common = new sourceTechnique_common
+            {
+                accessor = new accessor
+                {
+                    count = (ulong)allVertices.Count,
+                    offset = 0,
+                    source = $"#{colorsDataId}",
+                    stride = 3,
+                    param = new[]
+                    {
+                        new param
+                        {
+                            name = "R",
+                            type = "float"
+                        },
+                        new param
+                        {
+                            name = "G",
+                            type = "float"
+                        },
+                        new param
+                        {
+                            name = "B",
+                            type = "float"
+                        }
+                    }
+                }
+            }
+        });
+
         for (var i = 0; i < solidObject.Materials.Count; i++)
         {
             var material = solidObject.Materials[i];
@@ -694,69 +746,6 @@ public class ExportBundleCommand : BaseCommand
                 });
 
                 normalsSourceIds[i] = normalsSrcId;
-            }
-
-            // Try to generate colors source
-
-            if (material.Vertices.All(v => v.Color != null))
-            {
-                var colorsSrcId = $"{geometryId}_mat{i}_colors";
-                var colorsDataId = $"{colorsSrcId}_array";
-
-                sources.Add(new source
-                {
-                    name = "color",
-                    id = colorsSrcId,
-                    Item = new float_array
-                    {
-                        Values = material.Vertices
-                            .SelectMany(v =>
-                            {
-                                Debug.Assert(v.Color != null, "v.Color != null");
-                                var color = v.Color.Value;
-
-                                var r = (color >> 16) & 0xFF;
-                                var g = (color >> 8) & 0xFF;
-                                var b = (color >> 0) & 0xFF;
-
-                                return new double[] { r / 255f, g / 255f, b / 255f };
-
-                                //return new double[] {normal.X, normal.Y, normal.Z};
-                            }).ToArray(),
-                        id = colorsDataId,
-                        count = (ulong)(material.Vertices.Length * 3)
-                    },
-                    technique_common = new sourceTechnique_common
-                    {
-                        accessor = new accessor
-                        {
-                            count = (ulong)material.Vertices.Length,
-                            offset = 0,
-                            source = $"#{colorsDataId}",
-                            stride = 3,
-                            param = new[]
-                            {
-                                new param
-                                {
-                                    name = "R",
-                                    type = "float"
-                                },
-                                new param
-                                {
-                                    name = "G",
-                                    type = "float"
-                                },
-                                new param
-                                {
-                                    name = "B",
-                                    type = "float"
-                                },
-                            }
-                        }
-                    }
-                });
-
-                colorsSourceIds[i] = colorsSrcId;
             }
         }
 
@@ -820,16 +809,13 @@ public class ExportBundleCommand : BaseCommand
                 hasNormals = true;
             }
 
-            if (colorsSourceIds.TryGetValue(materialIndex, out var colorsId))
+            inputs.Add(new InputLocalOffset
             {
-                inputs.Add(new InputLocalOffset
-                {
-                    semantic = "COLOR",
-                    source = $"#{colorsId}",
-                    offset = inputOffset++,
-                });
-                hasColors = true;
-            }
+                semantic = "COLOR",
+                source = $"#{colorsSrcId}",
+                offset = inputOffset++
+            });
+            hasColors = true;
 
             items.Add(new triangles
             {
@@ -848,7 +834,7 @@ public class ExportBundleCommand : BaseCommand
                         if (hasNormals)
                             index_list.Add(idx);
                         if (hasColors)
-                            index_list.Add(idx);
+                            index_list.Add(curVertexOffset + idx);
                     }
 
                     return index_list;
