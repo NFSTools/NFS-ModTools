@@ -427,7 +427,7 @@ public class ExportBundleCommand : BaseCommand
 
         foreach (var solidObject in solidsToAdd)
         {
-            var geometryId = $"0x{solidObject.Hash:X8}";
+            var geometryId = $"geometry-0x{solidObject.Hash:X8}";
             geometryList.Add(SolidToGeometry(solidObject, geometryId));
             geometryIds.Add(solidObject.Hash, geometryId);
         }
@@ -541,28 +541,21 @@ public class ExportBundleCommand : BaseCommand
 
     private static geometry SolidToGeometry(SolidObject solidObject, string geometryId)
     {
-        var verticesId = $"{geometryId}_vertices";
-
         var mesh = new mesh();
         var sources = new List<source>();
 
-        var normalsSourceIds = new Dictionary<int, string>();
-        var colorsSourceIds = new Dictionary<int, string>();
+        var allVertices = new List<SolidMeshVertex>();
 
-        var positionsSrcId = $"{geometryId}_positions";
-        var colorsSrcId = $"{geometryId}_colors";
-        var positionsDataId = $"{positionsSrcId}_array";
-        var colorsDataId = $"{colorsSrcId}_array";
+        foreach (var vertexSet in solidObject.VertexSets) allVertices.AddRange(vertexSet);
 
-        var uvsSrcId = $"{geometryId}_texcoords";
-        var uvsDataId = $"{uvsSrcId}_array";
-
-        var allVertices = solidObject.Materials.SelectMany(m => m.Vertices).ToList();
+        var positionsName = $"{geometryId}_positions";
+        var positionSrcId = $"{positionsName}_src";
+        var positionsDataId = $"{positionSrcId}_data";
 
         sources.Add(new source
         {
-            name = "position",
-            id = positionsSrcId,
+            name = positionsName,
+            id = positionSrcId,
             Item = new float_array
             {
                 Values = allVertices
@@ -600,16 +593,19 @@ public class ExportBundleCommand : BaseCommand
             }
         });
 
-        // TODO: Why can't we have multiple sources for texture coordinates?
+        var uvSrcName = $"{geometryId}_uv";
+        var uvSrcId = $"{uvSrcName}_src";
+        var uvDataId = $"{uvSrcId}_data";
+
         sources.Add(new source
         {
             name = $"texcoords",
-            id = uvsSrcId,
+            id = uvSrcId,
             Item = new float_array
             {
                 Values = allVertices
                     .SelectMany(v => new double[] { v.TexCoords.X, -v.TexCoords.Y }).ToArray(),
-                id = uvsDataId,
+                id = uvDataId,
                 count = (ulong)(allVertices.Count * 2)
             },
             technique_common = new sourceTechnique_common
@@ -618,7 +614,7 @@ public class ExportBundleCommand : BaseCommand
                 {
                     count = (ulong)allVertices.Count,
                     offset = 0,
-                    source = $"#{uvsDataId}",
+                    source = $"#{uvDataId}",
                     stride = 2,
                     param = new[]
                     {
@@ -637,10 +633,14 @@ public class ExportBundleCommand : BaseCommand
             }
         });
 
+        var colorsName = $"{geometryId}_color";
+        var colorSrcId = $"{colorsName}_src";
+        var colorsDataId = $"{colorsName}_data";
+
         sources.Add(new source
         {
             name = "color",
-            id = colorsSrcId,
+            id = colorSrcId,
             Item = new float_array
             {
                 Values = allVertices
@@ -687,69 +687,10 @@ public class ExportBundleCommand : BaseCommand
             }
         });
 
-        for (var i = 0; i < solidObject.Materials.Count; i++)
-        {
-            var material = solidObject.Materials[i];
-
-            // Try to generate normals source
-
-            if (material.Vertices.All(v => v.Normal != null))
-            {
-                var normalsSrcId = $"{geometryId}_mat{i}_normals";
-                var normalsDataId = $"{normalsSrcId}_array";
-
-                sources.Add(new source
-                {
-                    name = "normal",
-                    id = normalsSrcId,
-                    Item = new float_array
-                    {
-                        Values = material.Vertices
-                            .SelectMany(v =>
-                            {
-                                Debug.Assert(v.Normal != null, "v.Normal != null");
-                                var normal = v.Normal.Value;
-
-                                return new double[] { normal.X, normal.Y, normal.Z };
-                            }).ToArray(),
-                        id = normalsDataId,
-                        count = (ulong)(material.Vertices.Length * 3)
-                    },
-                    technique_common = new sourceTechnique_common
-                    {
-                        accessor = new accessor
-                        {
-                            count = (ulong)material.Vertices.Length,
-                            offset = 0,
-                            source = $"#{normalsDataId}",
-                            stride = 3,
-                            param = new[]
-                            {
-                                new param
-                                {
-                                    name = "X",
-                                    type = "float"
-                                },
-                                new param
-                                {
-                                    name = "Y",
-                                    type = "float"
-                                },
-                                new param
-                                {
-                                    name = "Z",
-                                    type = "float"
-                                },
-                            }
-                        }
-                    }
-                });
-
-                normalsSourceIds[i] = normalsSrcId;
-            }
-        }
-
         mesh.source = sources.ToArray();
+
+        var vertexSrcId = $"{geometryId}_vertices";
+
         mesh.vertices = new vertices
         {
             input = new[]
@@ -757,19 +698,22 @@ public class ExportBundleCommand : BaseCommand
                 new InputLocal
                 {
                     semantic = "POSITION",
-                    source = $"#{positionsSrcId}",
+                    source = $"#{positionSrcId}"
                 }
             },
-            id = verticesId
+            id = vertexSrcId
         };
 
         var items = new List<object>();
         var vertexOffset = 0;
+        var lastVertexSet = 0;
 
         for (var materialIndex = 0; materialIndex < solidObject.Materials.Count; materialIndex++)
         {
             var material = solidObject.Materials[materialIndex];
             var faces = new List<ushort[]>();
+
+            if (material.VertexSetIndex != lastVertexSet) vertexOffset += solidObject.VertexSets[lastVertexSet].Count;
 
             for (var i = 0; i < material.Indices.Length; i += 3)
             {
@@ -780,78 +724,41 @@ public class ExportBundleCommand : BaseCommand
                 faces.Add(new[] { idx1, idx2, idx3 });
             }
 
-            var curVertexOffset = vertexOffset;
-            var inputOffset = 0u;
-
             var inputs = new List<InputLocalOffset>
             {
-                new InputLocalOffset
+                new()
                 {
-                    offset = inputOffset++, semantic = "VERTEX", source = $"#{verticesId}",
+                    semantic = "VERTEX", source = $"#{vertexSrcId}"
                 },
-                new InputLocalOffset
+                new()
                 {
-                    offset = inputOffset++, semantic = "TEXCOORD", source = $"#{uvsSrcId}"
+                    semantic = "TEXCOORD", source = $"#{uvSrcId}"
+                },
+                new()
+                {
+                    semantic = "COLOR", source = $"#{colorSrcId}"
                 }
             };
-
-            var hasNormals = false;
-            var hasColors = false;
-
-            if (normalsSourceIds.TryGetValue(materialIndex, out var normalsId))
-            {
-                inputs.Add(new InputLocalOffset
-                {
-                    semantic = "NORMAL",
-                    source = $"#{normalsId}",
-                    offset = inputOffset++,
-                });
-                hasNormals = true;
-            }
-
-            inputs.Add(new InputLocalOffset
-            {
-                semantic = "COLOR",
-                source = $"#{colorsSrcId}",
-                offset = inputOffset++
-            });
-            hasColors = true;
 
             items.Add(new triangles
             {
                 count = (ulong)faces.Count,
                 input = inputs.ToArray(),
                 material = $"material{materialIndex}",
-                p = string.Join(" ", faces.SelectMany(f =>
-                {
-                    var index_list = new List<int>();
-
-                    foreach (var idx in f)
-                    {
-                        index_list.Add(curVertexOffset + idx); // position
-                        index_list.Add(curVertexOffset + idx); // UV
-
-                        if (hasNormals)
-                            index_list.Add(idx);
-                        if (hasColors)
-                            index_list.Add(curVertexOffset + idx);
-                    }
-
-                    return index_list;
-                }))
+                p = string.Join(" ", faces.SelectMany(f => f.Select(idx => vertexOffset + idx).ToList()))
             });
 
-            vertexOffset += material.Vertices.Length;
+            lastVertexSet = material.VertexSetIndex;
         }
 
         mesh.Items = items.ToArray();
 
-        return (new geometry
+        return new geometry
         {
             name = solidObject.Name,
             id = geometryId,
             Item = mesh
-        });
+        };
     }
 
     private class SceneExport

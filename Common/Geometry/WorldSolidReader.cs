@@ -8,7 +8,7 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry;
 
-public class WorldSolidReader : SolidReader<World15Object>
+public class WorldSolidReader : SolidReader<World15Object, World15Material>
 {
     private int _namedMaterials;
 
@@ -186,7 +186,7 @@ public class WorldSolidReader : SolidReader<World15Object>
                 NumVerts = shadingGroup.NumVerts,
                 TextureHash = Solid.TextureHashes[shadingGroup.DiffuseMapId],
                 EffectId = shadingGroup.EffectId,
-                VertexStreamIndex = streamIndex
+                VertexSetIndex = streamIndex
             };
 
             Solid.Materials.Add(solidObjectMaterial);
@@ -224,12 +224,11 @@ public class WorldSolidReader : SolidReader<World15Object>
         };
     }
 
-    protected override SolidMeshVertex GetVertex(BinaryReader reader, SolidObjectMaterial material, int stride)
+    protected override SolidMeshVertex GetVertex(BinaryReader reader, World15Material material, int stride)
     {
-        var wm = (World15Material)material;
         var vertex = new SolidMeshVertex();
 
-        var id = (InternalEffectId)wm.EffectId;
+        var id = (InternalEffectId)material.EffectId;
 
         switch (id)
         {

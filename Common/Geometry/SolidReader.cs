@@ -16,7 +16,8 @@ public abstract class SolidReader
     public abstract SolidObject Read(BinaryReader binaryReader, uint containerSize);
 }
 
-public abstract class SolidReader<TSolid> : SolidReader where TSolid : SolidObject
+public abstract class SolidReader<TSolid, TMaterial> : SolidReader
+    where TSolid : SolidObject where TMaterial : SolidObjectMaterial
 {
     protected TSolid Solid { get; init; }
 
@@ -127,7 +128,7 @@ public abstract class SolidReader<TSolid> : SolidReader where TSolid : SolidObje
             // actually has a NumVerts > 0, otherwise weird things
             // will probably happen.
             Debug.Assert(Solid.Materials.Any(m => m.NumVerts > 0));
-            foreach (var t in Solid.Materials) vbCounts[t.VertexStreamIndex] += t.NumVerts;
+            foreach (var t in Solid.Materials) vbCounts[t.VertexSetIndex] += t.NumVerts;
         }
         else
         {
@@ -148,7 +149,7 @@ public abstract class SolidReader<TSolid> : SolidReader where TSolid : SolidObje
         // Reading vertices from buffers...
         foreach (var solidObjectMaterial in Solid.Materials)
         {
-            var vbIndex = solidObjectMaterial.VertexStreamIndex;
+            var vbIndex = solidObjectMaterial.VertexSetIndex;
             var vbStream = vbReaders[vbIndex];
             var vbVertexCount = vbCounts[vbIndex];
             var vbOffset = vbOffsets[vbIndex];
@@ -166,7 +167,7 @@ public abstract class SolidReader<TSolid> : SolidReader where TSolid : SolidObje
                 {
                     Debug.Assert(vbStream.BaseStream.Position - vbStartPos == vbStride * i,
                         "vbStream.BaseStream.Position - vbStartPos == vbStride * i");
-                    vbArrays[vbIndex][vbOffset + i] = GetVertex(vbStream, solidObjectMaterial, vbStride);
+                    vbArrays[vbIndex][vbOffset + i] = GetVertex(vbStream, (TMaterial)solidObjectMaterial, vbStride);
                 }
 
                 vbOffsets[vbIndex] += numVerts;
@@ -180,27 +181,20 @@ public abstract class SolidReader<TSolid> : SolidReader where TSolid : SolidObje
 
         for (var i = 0; i < vbArrays.Length; i++) ProcessVertices(ref vbArrays[i], i);
 
-        // Loading vertices into materials...
+#if DEBUG
         foreach (var solidObjectMaterial in Solid.Materials)
         {
-            var vertexStreamIndex = solidObjectMaterial.VertexStreamIndex;
-
-            if (solidObjectMaterial.Indices.Any())
-            {
-                var meshVertices = vbArrays[vertexStreamIndex];
-                var maxReferencedVertex = solidObjectMaterial.Indices.Max();
-                solidObjectMaterial.Vertices = new SolidMeshVertex[maxReferencedVertex + 1];
-
-                for (var j = 0; j <= maxReferencedVertex; j++) solidObjectMaterial.Vertices[j] = meshVertices[j];
-
-                // Validate material indices
-                Debug.Assert(solidObjectMaterial.Indices.All(t => t < solidObjectMaterial.Vertices.Length));
-            }
-            else
-            {
-                solidObjectMaterial.Vertices = Array.Empty<SolidMeshVertex>();
-            }
+            if (!solidObjectMaterial.Indices.Any()) continue;
+            
+            var vertexStreamIndex = solidObjectMaterial.VertexSetIndex;
+            var meshVertices = vbArrays[vertexStreamIndex];
+            var maxReferencedVertex = solidObjectMaterial.Indices.Max();
+            
+            Debug.Assert(maxReferencedVertex < meshVertices.Length, "maxReferencedVertex < meshVertices.Length");
         }
+#endif
+
+        foreach (var vertexArray in vbArrays) Solid.VertexSets.Add(new List<SolidMeshVertex>(vertexArray));
 
         // Clean up vertex buffers, which are no longer needed
         VertexBuffers.Clear();
@@ -257,7 +251,7 @@ public abstract class SolidReader<TSolid> : SolidReader where TSolid : SolidObje
     protected abstract void ProcessPlatChunk(BinaryReader binaryReader, uint chunkId,
         uint chunkSize);
 
-    protected abstract SolidMeshVertex GetVertex(BinaryReader reader, SolidObjectMaterial material, int stride);
+    protected abstract SolidMeshVertex GetVertex(BinaryReader reader, TMaterial material, int stride);
 
     protected abstract void ProcessVertices(ref SolidMeshVertex[] vertices, int vertexStreamId);
 

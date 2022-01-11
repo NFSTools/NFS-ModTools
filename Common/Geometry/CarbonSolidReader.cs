@@ -7,7 +7,7 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry;
 
-public class CarbonSolidReader : SolidReader<CarbonObject>
+public class CarbonSolidReader : SolidReader<CarbonObject, CarbonMaterial>
 {
     private int _namedMaterials;
 
@@ -176,7 +176,7 @@ public class CarbonSolidReader : SolidReader<CarbonObject>
                 NumVerts = shadingGroup.NumVerts,
                 TextureHash = Solid.TextureHashes[shadingGroup.TextureNumber[0]],
                 EffectId = shadingGroup.EffectId,
-                VertexStreamIndex = streamIndex
+                VertexSetIndex = streamIndex
             };
 
             Solid.Materials.Add(solidObjectMaterial);
@@ -200,12 +200,10 @@ public class CarbonSolidReader : SolidReader<CarbonObject>
         };
     }
 
-    protected override SolidMeshVertex GetVertex(BinaryReader reader, SolidObjectMaterial material, int stride)
+    protected override SolidMeshVertex GetVertex(BinaryReader reader, CarbonMaterial material, int stride)
     {
-        var cm = (CarbonMaterial)material;
         var vertex = new SolidMeshVertex();
-
-        var id = (InternalEffectId)cm.EffectId;
+        var id = (InternalEffectId)material.EffectId;
 
         switch (id)
         {

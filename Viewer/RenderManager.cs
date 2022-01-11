@@ -14,8 +14,8 @@ namespace Viewer
 {
     public class RenderManager
     {
-        private readonly Dictionary<uint, DiffuseMaterial> _textureMaterials = new();
         private readonly Color4 _missingTextureColor = new(0xffff03e6);
+        private readonly Dictionary<uint, DiffuseMaterial> _textureMaterials = new();
 
         public ObservableConcurrentDictionary<SolidObject, Element3D> CurrentElements { get; } =
             new();
@@ -81,14 +81,14 @@ namespace Viewer
                             solid.Transform.M41, solid.Transform.M42, solid.Transform.M43, solid.Transform.M44)),
                     }
                 },
-                ItemsSource = new List<Element3D>(solid.Materials.Select(CreateMeshElement))
+                ItemsSource = new List<Element3D>(solid.Materials.Select(mat => CreateMeshElement(solid, mat)))
             };
         }
 
-        private Element3D CreateMeshElement(SolidObjectMaterial material)
+        private Element3D CreateMeshElement(SolidObject solidObject, SolidObjectMaterial material)
         {
             var model = new MeshGeometryModel3D();
-            model.Geometry = CreateMeshGeometry(material);
+            model.Geometry = CreateMeshGeometry(solidObject, material);
 
             // If we already have a material for the texture, use it
             if (_textureMaterials.TryGetValue(material.TextureHash, out var textureMaterial))
@@ -106,7 +106,7 @@ namespace Viewer
             return model;
         }
 
-        private static Geometry3D CreateMeshGeometry(SolidObjectMaterial material)
+        private static Geometry3D CreateMeshGeometry(SolidObject solidObject, SolidObjectMaterial material)
         {
             var faces = new List<int[]>();
 
@@ -119,26 +119,21 @@ namespace Viewer
                 faces.Add(new int[] { idx1, idx2, idx3 });
             }
 
-            var meshBuilder = new MeshBuilder(generateNormals: material.Vertices.All(v => v.Normal.HasValue));
+            var materialVerts = solidObject.VertexSets[material.VertexSetIndex];
+            var meshBuilder = new MeshBuilder();
 
             foreach (var face in faces)
             {
                 meshBuilder.AddTriangle(face);
             }
 
-            foreach (var vertex in material.Vertices)
+            foreach (var vertex in materialVerts)
             {
                 meshBuilder.Positions.Add(new Vector3(vertex.Position.X, vertex.Position.Y, vertex.Position.Z));
-                if (vertex.Normal.HasValue)
-                    meshBuilder.Normals.Add(new Vector3(vertex.Normal.Value.X, vertex.Normal.Value.Y,
-                        vertex.Normal.Value.Z));
                 meshBuilder.TextureCoordinates.Add(new Vector2(vertex.TexCoords.X, vertex.TexCoords.Y));
             }
 
-            if (!meshBuilder.HasNormals)
-            {
-                meshBuilder.ComputeNormalsAndTangents(MeshFaces.Default);
-            }
+            meshBuilder.ComputeNormalsAndTangents(MeshFaces.Default);
 
             return meshBuilder.ToMesh();
         }

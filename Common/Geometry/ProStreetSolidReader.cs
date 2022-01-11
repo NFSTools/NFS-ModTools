@@ -7,7 +7,7 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry;
 
-public class ProStreetSolidReader : SolidReader<ProStreetObject>
+public class ProStreetSolidReader : SolidReader<ProStreetObject, ProStreetMaterial>
 {
     private int _namedMaterials;
 
@@ -139,7 +139,7 @@ public class ProStreetSolidReader : SolidReader<ProStreetObject>
                 Flags = shadingGroup.Flags,
                 NumIndices = shadingGroup.IndicesUsed,
                 NumVerts = shadingGroup.VertexBufferUsage / shadingGroup.Flags2[2],
-                VertexStreamIndex = j,
+                VertexSetIndex = j,
                 Hash = shadingGroup.UnknownId,
                 TextureHash = Solid.TextureHashes[shadingGroup.TextureShaderUsage[4]],
                 EffectId = shadingGroup.EffectId
@@ -174,7 +174,7 @@ public class ProStreetSolidReader : SolidReader<ProStreetObject>
         };
     }
 
-    protected override SolidMeshVertex GetVertex(BinaryReader reader, SolidObjectMaterial material, int stride)
+    protected override SolidMeshVertex GetVertex(BinaryReader reader, ProStreetMaterial material, int stride)
     {
         var psm = (ProStreetMaterial)material;
         var vertex = new SolidMeshVertex();

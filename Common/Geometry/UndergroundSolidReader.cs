@@ -7,7 +7,7 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry;
 
-public class UndergroundSolidReader : SolidReader<UndergroundObject>
+public class UndergroundSolidReader : SolidReader<UndergroundObject, UndergroundMaterial>
 {
     public UndergroundSolidReader()
     {
@@ -122,7 +122,7 @@ public class UndergroundSolidReader : SolidReader<UndergroundObject>
                 MinPoint = meshEntry.BoundsMin,
                 MaxPoint = meshEntry.BoundsMax,
                 NumIndices = meshEntry.Length,
-                VertexStreamIndex = 0,
+                VertexSetIndex = 0,
                 TextureHash = Solid.TextureHashes[meshEntry.TextureIndex]
             });
         }
@@ -159,7 +159,7 @@ public class UndergroundSolidReader : SolidReader<UndergroundObject>
         Solid.Transform = header.PivotMatrix;
     }
 
-    protected override SolidMeshVertex GetVertex(BinaryReader reader, SolidObjectMaterial material, int stride)
+    protected override SolidMeshVertex GetVertex(BinaryReader reader, UndergroundMaterial material, int stride)
     {
         return stride switch
         {

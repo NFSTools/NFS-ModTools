@@ -19,6 +19,8 @@ namespace Common.Geometry.Data
 
         public List<SolidObjectMaterial> Materials { get; } = new();
 
+        public List<List<SolidMeshVertex>> VertexSets { get; } = new();
+
         public List<uint> TextureHashes { get; } = new();
 
         private sealed class HashEqualityComparer : IEqualityComparer<SolidObject>

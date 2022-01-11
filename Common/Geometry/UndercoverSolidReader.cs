@@ -9,7 +9,7 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry;
 
-public class UndercoverSolidReader : SolidReader<UndercoverObject>
+public class UndercoverSolidReader : SolidReader<UndercoverObject, UndercoverMaterial>
 {
     private static readonly Dictionary<uint, UndercoverEffectId> EffectIdMapping =
         new()
@@ -318,12 +318,11 @@ public class UndercoverSolidReader : SolidReader<UndercoverObject>
                 Flags = shadingGroup.MeshFlags,
                 NumIndices = (uint)shadingGroup.IdxUsed,
                 NumVerts = (uint)numVertices,
-                VertexStreamIndex = j,
+                VertexSetIndex = j,
                 TextureHash = Solid.TextureHashes[shadingGroup.TextureNumber[0]],
                 EffectId = EffectIdMapping[shadingGroup.MaterialAttribKey],
                 NumReducedIndices = shadingGroup.NumReducedIdx,
-                Indices = new ushort[shadingGroup.IdxUsed],
-                Vertices = new SolidMeshVertex[numVertices]
+                Indices = new ushort[shadingGroup.IdxUsed]
             };
 
             Solid.Materials.Add(solidObjectMaterial);
@@ -352,9 +351,9 @@ public class UndercoverSolidReader : SolidReader<UndercoverObject>
         };
     }
 
-    protected override SolidMeshVertex GetVertex(BinaryReader reader, SolidObjectMaterial material, int stride)
+    protected override SolidMeshVertex GetVertex(BinaryReader reader, UndercoverMaterial material, int stride)
     {
-        var effectId = ((UndercoverMaterial)material).EffectId;
+        var effectId = material.EffectId;
         var vertex = new SolidMeshVertex();
 
         switch (effectId)

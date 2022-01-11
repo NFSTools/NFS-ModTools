@@ -7,7 +7,7 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry;
 
-public class Underground2SolidReader : SolidReader<Underground2Object>
+public class Underground2SolidReader : SolidReader<Underground2Object, Underground2Material>
 {
     public Underground2SolidReader()
     {
@@ -124,7 +124,7 @@ public class Underground2SolidReader : SolidReader<Underground2Object>
                 MinPoint = shadingGroup.BoundsMin,
                 MaxPoint = shadingGroup.BoundsMax,
                 NumIndices = shadingGroup.Length,
-                VertexStreamIndex = 0,
+                VertexSetIndex = 0,
                 TextureHash = Solid.TextureHashes[(int)shadingGroup.TextureIndex]
             });
         }
@@ -157,7 +157,7 @@ public class Underground2SolidReader : SolidReader<Underground2Object>
         };
     }
 
-    protected override SolidMeshVertex GetVertex(BinaryReader reader, SolidObjectMaterial material, int stride)
+    protected override SolidMeshVertex GetVertex(BinaryReader reader, Underground2Material material, int stride)
     {
         return stride switch
         {

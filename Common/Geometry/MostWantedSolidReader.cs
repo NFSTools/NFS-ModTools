@@ -7,7 +7,7 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry;
 
-public class MostWantedSolidReader : SolidReader<MostWantedObject>
+public class MostWantedSolidReader : SolidReader<MostWantedObject, MostWantedMaterial>
 {
     private int _namedMaterials;
 
@@ -134,7 +134,7 @@ public class MostWantedSolidReader : SolidReader<MostWantedObject>
                 NumVerts = shadingGroup.NumVerts,
                 TextureHash = Solid.TextureHashes[shadingGroup.TextureNumber[0]],
                 EffectId = shadingGroup.EffectId,
-                VertexStreamIndex = streamIndex
+                VertexSetIndex = streamIndex
             };
 
             Solid.Materials.Add(solidObjectMaterial);
@@ -164,12 +164,10 @@ public class MostWantedSolidReader : SolidReader<MostWantedObject>
         if (chunkSize > 0) Solid.Materials[_namedMaterials++].Name = BinaryUtil.ReadNullTerminatedString(binaryReader);
     }
 
-    protected override SolidMeshVertex GetVertex(BinaryReader reader, SolidObjectMaterial material, int stride)
+    protected override SolidMeshVertex GetVertex(BinaryReader reader, MostWantedMaterial material, int stride)
     {
-        var mwm = (MostWantedMaterial)material;
         var vertex = new SolidMeshVertex();
-
-        var id = (InternalEffectId)mwm.EffectId;
+        var id = (InternalEffectId)material.EffectId;
 
         switch (id)
         {

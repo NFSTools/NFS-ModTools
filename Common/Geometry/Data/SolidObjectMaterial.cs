@@ -14,7 +14,7 @@ namespace Common.Geometry.Data
 
         public uint NumVerts { get; set; }
 
-        public int VertexStreamIndex { get; set; }
+        public int VertexSetIndex { get; set; }
 
         public uint NumIndices { get; set; } // NumTris * 3
 
@@ -22,6 +22,5 @@ namespace Common.Geometry.Data
 
         public string Name { get; set; }
         public ushort[] Indices { get; set; }
-        public SolidMeshVertex[] Vertices { get; set; }
     }
 }
