@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using Common.Geometry.Data;
 
 namespace Common.Geometry;
@@ -182,40 +181,20 @@ public abstract class SolidReader<TSolid, TMaterial> : SolidReader
 
         for (var i = 0; i < vbArrays.Length; i++) ProcessVertices(ref vbArrays[i], i);
 
-        // De-duplicate vertices
-        var uniqueVertIndices = new int[vbArrays.Length][];
-        var vertexSets = new List<List<SolidMeshVertex>>();
-
-        for (var i = 0; i < vbArrays.Length; i++)
+#if DEBUG
+        foreach (var solidObjectMaterial in Solid.Materials)
         {
-            var vbArray = vbArrays[i];
-            var uniqueVertPositions = new Dictionary<Vector3, int>();
-            var uniqueVerts = new List<SolidMeshVertex>(vbArray.Length);
-
-            uniqueVertIndices[i] = new int[vbArray.Length];
-
-            for (var j = 0; j < vbArray.Length; j++)
-            {
-                var vertex = vbArray[j];
-                if (!uniqueVertPositions.TryGetValue(vertex.Position, out var k))
-                {
-                    k = uniqueVertPositions[vertex.Position] = uniqueVerts.Count;
-                    uniqueVerts.Add(vertex);
-                }
-
-                uniqueVertIndices[i][j] = k;
-            }
-
-            vertexSets.Add(uniqueVerts);
+            if (!solidObjectMaterial.Indices.Any()) continue;
+            
+            var vertexStreamIndex = solidObjectMaterial.VertexSetIndex;
+            var meshVertices = vbArrays[vertexStreamIndex];
+            var maxReferencedVertex = solidObjectMaterial.Indices.Max();
+            
+            Debug.Assert(maxReferencedVertex < meshVertices.Length, "maxReferencedVertex < meshVertices.Length");
         }
+#endif
 
-        foreach (var solidObjectMaterial in Solid.Materials.Where(solidObjectMaterial =>
-                     solidObjectMaterial.Indices.Length != 0))
-            for (var i = 0; i < solidObjectMaterial.Indices.Length; i++)
-                solidObjectMaterial.Indices[i] =
-                    (ushort)uniqueVertIndices[solidObjectMaterial.VertexSetIndex][solidObjectMaterial.Indices[i]];
-
-        Solid.VertexSets.AddRange(vertexSets);
+        foreach (var vertexArray in vbArrays) Solid.VertexSets.Add(new List<SolidMeshVertex>(vertexArray));
 
         // Clean up vertex buffers, which are no longer needed
         VertexBuffers.Clear();
