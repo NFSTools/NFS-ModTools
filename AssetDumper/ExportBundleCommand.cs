@@ -656,7 +656,7 @@ public class ExportBundleCommand : BaseCommand
                         return new double[] { r / 255f, g / 255f, b / 255f, a / 255f };
                     }).ToArray(),
                 id = colorsDataId,
-                count = (ulong)(allVertices.Count * 3)
+                count = (ulong)(allVertices.Count * 4)
             },
             technique_common = new sourceTechnique_common
             {
@@ -665,7 +665,7 @@ public class ExportBundleCommand : BaseCommand
                     count = (ulong)allVertices.Count,
                     offset = 0,
                     source = $"#{colorsDataId}",
-                    stride = 3,
+                    stride = 4,
                     param = new[]
                     {
                         new param
