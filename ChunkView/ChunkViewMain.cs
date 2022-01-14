@@ -6,7 +6,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Windows.Forms;
 using Be.Windows.Forms;
 using Common;
@@ -95,7 +94,7 @@ namespace ChunkView
         {
             if (treeView1.SelectedNode?.Tag is Chunk chunk)
             {
-                hexBox1.ByteProvider = new DynamicByteProvider(chunk.Data);
+                hexBox1.ByteProvider = new DynamicByteProvider(chunk.Data ?? Array.Empty<byte>());
             }
             else
             {
@@ -236,18 +235,21 @@ namespace ChunkView
                 var chunkSize = br.ReadUInt32();
 
                 var chunkOffset = br.BaseStream.Position;
-                var chunkEndPos = br.BaseStream.Position + chunkSize;
-                var data = new byte[chunkSize];
+                var chunkEndPos = chunkOffset + chunkSize;
 
-                if (br.Read(data, 0, data.Length) != data.Length)
+                if ((chunkId & 0x80000000) == 0x80000000)
                 {
-                    throw new Exception($"failed to read {data.Length} bytes of chunk data");
+                    chunks.Add(new Chunk
+                    {
+                        Id = chunkId,
+                        Offset = chunkOffset,
+                        Size = chunkSize,
+                        SubChunks = ScanChunks(br, chunkSize),
+                        IsParent = true
+                    });
                 }
-
-                br.BaseStream.Position = chunkOffset;
-
                 // compressed FNG
-                if (chunkId == 0x00030210)
+                else if (chunkId == 0x00030210)
                 {
                     br.ReadUInt32(); // FNG file name hash
 
@@ -269,21 +271,13 @@ namespace ChunkView
                     using var decompressedReader = new BinaryReader(new MemoryStream(fullDecompressedData.ToArray()));
                     chunks.AddRange(ScanChunks(decompressedReader, decompressedReader.BaseStream.Length));
                 }
-                // container chunk
-                else if ((chunkId & 0x80000000) == 0x80000000 || chunkId == 0x00030203)
-                {
-                    chunks.Add(new Chunk
-                    {
-                        Id = chunkId,
-                        Offset = chunkOffset,
-                        Size = chunkSize,
-                        SubChunks = ScanChunks(br, chunkSize),
-                        IsParent = true,
-                        Data = data
-                    });
-                }
                 else
                 {
+                    var data = new byte[chunkSize];
+
+                    if (br.Read(data, 0, data.Length) != data.Length)
+                        throw new Exception($"failed to read {data.Length} bytes of chunk data");
+
                     chunks.Add(new Chunk
                     {
                         Id = chunkId,
@@ -306,21 +300,6 @@ namespace ChunkView
             using var stream = assembly.GetManifestResourceStream(path);
             using var reader = new StreamReader(stream ?? throw new InvalidOperationException());
             return reader.ReadToEnd();
-        }
-
-        internal class Chunk
-        {
-            public uint Id;
-
-            public long Offset;
-
-            public uint Size;
-
-            public byte[] Data;
-
-            public bool IsParent;
-
-            public List<Chunk> SubChunks = new List<Chunk>();
         }
 
         private void exportToolStripMenuItem_Click(object sender, EventArgs e)
@@ -387,6 +366,20 @@ namespace ChunkView
         private void reloadToolStripMenuItem_Click(object sender, EventArgs e)
         {
             LoadFile(_currentPath);
+        }
+
+        internal class Chunk
+        {
+            public byte[] Data;
+            public uint Id;
+
+            public bool IsParent;
+
+            public long Offset;
+
+            public uint Size;
+
+            public List<Chunk> SubChunks = new List<Chunk>();
         }
     }
 }
