@@ -145,16 +145,7 @@ public class Underground2SolidReader : SolidReader<Underground2Object, Undergrou
     {
         BinaryUtil.AlignReader(binaryReader, 0x10);
         var descriptor = BinaryUtil.ReadUnmanagedStruct<SolidObjectDescriptor>(binaryReader);
-
-        MeshDescriptor = new SolidMeshDescriptor
-        {
-            Flags = descriptor.Flags,
-            HasNormals = (descriptor.Flags & 0x0080) != 0,
-            NumIndices = descriptor.NumTris * 3,
-            NumMats = descriptor.NumMats,
-            NumVertexStreams = 1,
-            NumVerts = descriptor.NumVerts
-        };
+        NumVertices = descriptor.NumVerts;
     }
 
     protected override SolidMeshVertex GetVertex(BinaryReader reader, Underground2Material material, int stride)

@@ -342,13 +342,7 @@ public class UndercoverSolidReader : SolidReader<UndercoverObject, UndercoverMat
         BinaryUtil.AlignReader(binaryReader, 0x10);
 
         var descriptor = BinaryUtil.ReadUnmanagedStruct<SolidObjectDescriptor>(binaryReader);
-        MeshDescriptor = new SolidMeshDescriptor
-        {
-            Flags = descriptor.Flags,
-            NumMats = descriptor.MaterialShaderNum,
-            NumVertexStreams = descriptor.NumVertexStreams,
-            NumVerts = descriptor.NumVerts
-        };
+        NumVertices = descriptor.NumVerts;
     }
 
     protected override SolidMeshVertex GetVertex(BinaryReader reader, UndercoverMaterial material, int stride)

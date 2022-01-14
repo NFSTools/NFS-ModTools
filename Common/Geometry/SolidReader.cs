@@ -9,7 +9,7 @@ namespace Common.Geometry;
 
 public abstract class SolidReader
 {
-    protected SolidMeshDescriptor MeshDescriptor { get; set; }
+    protected uint NumVertices { get; set; }
 
     protected List<byte[]> VertexBuffers { get; } = new();
 
@@ -119,7 +119,7 @@ public abstract class SolidReader<TSolid, TMaterial> : SolidReader
             // Since we only have one vertex buffer, we can use the info
             // from the mesh descriptor instead of doing the material loop
             // seen after this block.
-            vbCounts[0] = MeshDescriptor.NumVerts;
+            vbCounts[0] = NumVertices;
         }
         else if (vertexBuffersCount > 1)
         {
@@ -185,11 +185,11 @@ public abstract class SolidReader<TSolid, TMaterial> : SolidReader
         foreach (var solidObjectMaterial in Solid.Materials)
         {
             if (!solidObjectMaterial.Indices.Any()) continue;
-            
+
             var vertexStreamIndex = solidObjectMaterial.VertexSetIndex;
             var meshVertices = vbArrays[vertexStreamIndex];
             var maxReferencedVertex = solidObjectMaterial.Indices.Max();
-            
+
             Debug.Assert(maxReferencedVertex < meshVertices.Length, "maxReferencedVertex < meshVertices.Length");
         }
 #endif

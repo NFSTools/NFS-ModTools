@@ -139,7 +139,7 @@ public class MostWantedSolidReader : SolidReader<MostWantedObject, MostWantedMat
 
             Solid.Materials.Add(solidObjectMaterial);
 
-            MeshDescriptor.NumVerts += shadingGroup.NumVerts;
+            NumVertices += shadingGroup.NumVerts;
             lastEffectId = shadingGroup.EffectId;
         }
     }
@@ -147,16 +147,7 @@ public class MostWantedSolidReader : SolidReader<MostWantedObject, MostWantedMat
     private void ReadSolidPlatInfo(BinaryReader binaryReader)
     {
         BinaryUtil.AlignReader(binaryReader, 0x10);
-        var descriptor = BinaryUtil.ReadUnmanagedStruct<SolidObjectDescriptor>(binaryReader);
-
-        MeshDescriptor = new SolidMeshDescriptor
-        {
-            Flags = descriptor.Flags,
-            HasNormals = true,
-            NumIndices = descriptor.NumIndices,
-            NumMats = descriptor.NumMats,
-            NumVertexStreams = descriptor.NumVertexStreams
-        };
+        BinaryUtil.ReadUnmanagedStruct<SolidObjectDescriptor>(binaryReader);
     }
 
     private void ReadSolidPlatMeshEntryName(BinaryReader binaryReader, uint chunkSize)

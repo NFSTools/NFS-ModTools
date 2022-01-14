@@ -171,13 +171,13 @@ public class WorldSolidReader : SolidReader<World15Object, World15Material>
         var streamIndex = 0;
         var lastEffectId = 0u;
 
-        for (var j = 0; j < MeshDescriptor.NumMats; j++)
+        for (var j = 0; j < chunkSize / 116; j++)
         {
             var shadingGroup = BinaryUtil.ReadUnmanagedStruct<Material>(binaryReader);
 
             if (j > 0 && shadingGroup.EffectId != lastEffectId) streamIndex++;
 
-            var solidObjectMaterial = new World15Material
+            Solid.Materials.Add(new World15Material
             {
                 Flags = shadingGroup.Flags,
                 NumIndices = shadingGroup.NumIndices == 0 ? shadingGroup.NumTris * 3 : shadingGroup.NumIndices,
@@ -187,12 +187,9 @@ public class WorldSolidReader : SolidReader<World15Object, World15Material>
                 TextureHash = Solid.TextureHashes[shadingGroup.DiffuseMapId],
                 EffectId = shadingGroup.EffectId,
                 VertexSetIndex = streamIndex
-            };
+            });
 
-            Solid.Materials.Add(solidObjectMaterial);
-
-            MeshDescriptor.NumVerts += shadingGroup.NumVerts;
-
+            NumVertices += shadingGroup.NumVerts;
             lastEffectId = shadingGroup.EffectId;
         }
     }
@@ -211,17 +208,7 @@ public class WorldSolidReader : SolidReader<World15Object, World15Material>
     private void ReadSolidPlatInfo(BinaryReader binaryReader)
     {
         BinaryUtil.AlignReader(binaryReader, 0x10);
-        var descriptor = BinaryUtil.ReadUnmanagedStruct<SolidObjectDescriptor>(binaryReader);
-
-        MeshDescriptor = new SolidMeshDescriptor
-        {
-            Flags = descriptor.Flags,
-            HasNormals = true,
-            NumIndices = descriptor.NumIndices,
-            NumMats = descriptor.NumMats,
-            NumVertexStreams = descriptor.NumVertexStreams,
-            NumTris = descriptor.NumTris
-        };
+        BinaryUtil.ReadUnmanagedStruct<SolidObjectDescriptor>(binaryReader);
     }
 
     protected override SolidMeshVertex GetVertex(BinaryReader reader, World15Material material, int stride)

@@ -180,7 +180,7 @@ public class CarbonSolidReader : SolidReader<CarbonObject, CarbonMaterial>
             };
 
             Solid.Materials.Add(solidObjectMaterial);
-            MeshDescriptor.NumVerts += shadingGroup.NumVerts;
+            NumVertices += shadingGroup.NumVerts;
 
             lastEffectId = shadingGroup.EffectId;
         }
@@ -189,15 +189,7 @@ public class CarbonSolidReader : SolidReader<CarbonObject, CarbonMaterial>
     private void ReadSolidPlatInfo(BinaryReader binaryReader)
     {
         BinaryUtil.AlignReader(binaryReader, 0x10);
-        var descriptor = BinaryUtil.ReadUnmanagedStruct<SolidObjectDescriptor>(binaryReader);
-
-        MeshDescriptor = new SolidMeshDescriptor
-        {
-            Flags = descriptor.Flags,
-            NumIndices = descriptor.NumIndices,
-            NumMats = descriptor.NumMats,
-            NumVertexStreams = descriptor.NumVertexStreams
-        };
+        BinaryUtil.ReadUnmanagedStruct<SolidObjectDescriptor>(binaryReader);
     }
 
     protected override SolidMeshVertex GetVertex(BinaryReader reader, CarbonMaterial material, int stride)
