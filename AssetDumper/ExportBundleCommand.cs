@@ -128,6 +128,15 @@ public class ExportBundleCommand : BaseCommand
 
         var texturePaths = new Dictionary<uint, string>();
 
+        // dictionary of (key, data length)
+        // the purpose of this is basically to deal with Undercover
+        // being incredibly weird and having multiple versions of the
+        // same texture in different resolutions
+        var seenTextures = new Dictionary<uint, int>();
+        // bookkeeping so we don't spam the user with annoying messages about
+        // the same texture having a low-quality version skipped
+        var notedSkippedTextures = new HashSet<uint>();
+
         // Process texture packs
         foreach (var resource in resources.OfType<TexturePack>())
         {
@@ -135,7 +144,18 @@ public class ExportBundleCommand : BaseCommand
             {
                 var textureFileName = GetTextureFileName(texture);
                 texturePaths[texture.TexHash] = Path.Combine(texturesBaseDir, textureFileName);
-                texture.DumpToFile(Path.Combine(texturesDir, textureFileName));
+
+                if (!seenTextures.TryGetValue(texture.TexHash, out var dataSize) || dataSize < texture.Data.Length)
+                {
+                    seenTextures[texture.TexHash] = texture.Data.Length;
+                    texture.DumpToFile(Path.Combine(texturesDir, textureFileName));
+                }
+                else if (notedSkippedTextures.Add(texture.TexHash))
+                {
+                    Log.Information(
+                        "Skipping lower quality version of texture {TexName} (hash 0x{TexKey:X8}) - further messages about this texture will be skipped",
+                        texture.Name, texture.TexHash);
+                }
             }
         }
 
@@ -751,7 +771,7 @@ public class ExportBundleCommand : BaseCommand
                 count = (ulong)faces.Count,
                 input = inputs.ToArray(),
                 material = $"material{materialIndex}",
-                p = string.Join(" ", faces.SelectMany(f => f.Select(idx => vertexOffset + idx).ToList()))
+                p = string.Join(" ", indexList)
             });
 
             lastVertexSet = material.VertexSetIndex;
