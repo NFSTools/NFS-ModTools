@@ -713,6 +713,61 @@ public class ExportBundleCommand : BaseCommand
             }
         });
 
+        var normalsSrcIds = new string[solidObject.VertexSets.Count];
+
+        for (var index = 0; index < solidObject.VertexSets.Count; index++)
+        {
+            var vertexSet = solidObject.VertexSets[index];
+            if (!vertexSet.All(v => v.Normal.HasValue)) continue;
+
+            var normalSrcName = normalsSrcIds[index] = $"{geometryId}_normal{index}";
+            var normalDataId = $"{normalSrcName}_data";
+
+            sources.Add(new source
+            {
+                id = normalSrcName,
+                Item = new float_array
+                {
+                    Values = vertexSet
+                        .SelectMany(v =>
+                        {
+                            var normal = v.Normal ?? throw new Exception("impossible");
+                            return new double[] { normal.X, normal.Y, normal.Z };
+                        }).ToArray(),
+                    id = normalDataId,
+                    count = (ulong)(allVertices.Count * 3)
+                },
+                technique_common = new sourceTechnique_common
+                {
+                    accessor = new accessor
+                    {
+                        count = (ulong)vertexSet.Count,
+                        offset = 0,
+                        source = $"#{normalDataId}",
+                        stride = 3,
+                        param = new[]
+                        {
+                            new param
+                            {
+                                name = "X",
+                                type = "float"
+                            },
+                            new param
+                            {
+                                name = "Y",
+                                type = "float"
+                            },
+                            new param
+                            {
+                                name = "Z",
+                                type = "float"
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         mesh.source = sources.ToArray();
 
         var vertexSrcId = $"{geometryId}_vertices";
@@ -741,6 +796,8 @@ public class ExportBundleCommand : BaseCommand
 
             if (material.VertexSetIndex != lastVertexSet) vertexOffset += solidObject.VertexSets[lastVertexSet].Count;
 
+            var hasNormals = normalsSrcIds[material.VertexSetIndex] != null;
+
             for (var i = 0; i < material.Indices.Length; i += 3)
             {
                 var idx1 = material.Indices[i];
@@ -765,6 +822,23 @@ public class ExportBundleCommand : BaseCommand
                     semantic = "COLOR", source = $"#{colorSrcId}"
                 }
             };
+
+            if (hasNormals)
+                inputs.Add(new InputLocalOffset
+                {
+                    semantic = "NORMAL",
+                    source = $"#{normalsSrcIds[material.VertexSetIndex]}",
+                    offset = 1
+                });
+
+            var indexList = new List<ushort>();
+
+            foreach (var index in faces.SelectMany(face => face))
+            {
+                indexList.Add((ushort)(vertexOffset + index));
+                if (hasNormals)
+                    indexList.Add(index);
+            }
 
             items.Add(new triangles
             {
