@@ -10,75 +10,6 @@ namespace Common.Scenery
 {
     public class UndergroundScenery : SceneryManager
     {
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public struct ScenerySectionHeader // 0x00034101
-        {
-            public long Pointer1;
-            public int Pointer2;
-            public int SectionNumber;
-            public int Pointer3;
-            public long Pointer4;
-            public long Pointer5;
-            public long Pointer6;
-            public long Pointer7;
-            public long Pointer8;
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public struct SceneryInfoStruct // 0x00034102
-        {
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
-            public uint[] NameHash;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            public short[] FarClipSize;
-
-            public short Dummy;
-            public short Dummy2;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
-            public uint[] ModelPointers;
-
-            [MarshalAs(UnmanagedType.ByValArray, ArraySubType = UnmanagedType.I1, SizeConst = 6)]
-            public bool[] IsFacadeFlag;
-
-            public byte Dummy3;
-            public byte Dummy4;
-            public float Radius;
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public struct Matrix3x3Packed
-        {
-            public short Value11;
-            public short Value12;
-            public short Value13;
-            public short Value21;
-            public short Value22;
-            public short Value23;
-            public short Value31;
-            public short Value32;
-            public short Value33;
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public struct Vector3Packed
-        {
-            public short X, Y, Z;
-        }
-
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public struct SceneryInstanceInternal // 0x00034103
-        {
-            public Vector3Packed BBoxMin;
-            public Vector3Packed BBoxMax;
-            public ushort SceneryInfoNumber;
-            public ushort ExcludeFlags;
-            public Vector3 Position;
-            public PackedRotationMatrix Rotation;
-            public ushort Padding;
-        }
-
         private ScenerySection _scenerySection;
 
         public override ScenerySection ReadScenery(BinaryReader br, uint containerSize)
@@ -161,7 +92,7 @@ namespace Common.Scenery
                 var info = BinaryUtil.ReadStruct<SceneryInfoStruct>(br);
                 _scenerySection.Infos.Add(new SceneryInfo
                 {
-                    Name = $"model-0x{info.NameHash[0]:X8}",
+                    Name = null,
                     SolidKey = info.NameHash[0]
                 });
             }
@@ -187,6 +118,75 @@ namespace Common.Scenery
                 _scenerySection.Instances.Add(instance);
             }
             //Debug.Log($"Loaded {_scenerySection.SceneryInstances.Count} scenery instances for ScenerySection {_scenerySection.SectionNumber}");
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public struct ScenerySectionHeader // 0x00034101
+        {
+            public long Pointer1;
+            public int Pointer2;
+            public int SectionNumber;
+            public int Pointer3;
+            public long Pointer4;
+            public long Pointer5;
+            public long Pointer6;
+            public long Pointer7;
+            public long Pointer8;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public struct SceneryInfoStruct // 0x00034102
+        {
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
+            public uint[] NameHash;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+            public short[] FarClipSize;
+
+            public short Dummy;
+            public short Dummy2;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
+            public uint[] ModelPointers;
+
+            [MarshalAs(UnmanagedType.ByValArray, ArraySubType = UnmanagedType.I1, SizeConst = 6)]
+            public bool[] IsFacadeFlag;
+
+            public byte Dummy3;
+            public byte Dummy4;
+            public float Radius;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public struct Matrix3x3Packed
+        {
+            public short Value11;
+            public short Value12;
+            public short Value13;
+            public short Value21;
+            public short Value22;
+            public short Value23;
+            public short Value31;
+            public short Value32;
+            public short Value33;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public struct Vector3Packed
+        {
+            public short X, Y, Z;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public struct SceneryInstanceInternal // 0x00034103
+        {
+            public Vector3Packed BBoxMin;
+            public Vector3Packed BBoxMax;
+            public ushort SceneryInfoNumber;
+            public ushort ExcludeFlags;
+            public Vector3 Position;
+            public PackedRotationMatrix Rotation;
+            public ushort Padding;
         }
     }
 }

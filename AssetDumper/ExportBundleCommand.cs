@@ -192,7 +192,7 @@ public class ExportBundleCommand : BaseCommand
                         if (!solidObjectLookup.TryGetValue(solidKey, out var solid))
                         {
                             Log.Warning("Can't find object with key 0x{MissingSolidKey:X8} for scenery {SceneryName}",
-                                solidKey, sceneryInfo.Name);
+                                solidKey, sceneryInfo.Name ?? "(none)");
                             continue;
                         }
 
@@ -294,7 +294,7 @@ public class ExportBundleCommand : BaseCommand
                 // Skip reflections and shadow maps
                 continue;
 
-            sceneNodes.Add(new SceneExportNode(solid, info.Name, instance.Transform));
+            sceneNodes.Add(new SceneExportNode(solid, info.Name ?? solid.Name, instance.Transform));
         }
 
         var scene = new SceneExport(sceneNodes, $"ScenerySection_{scenerySection.SectionNumber}");
