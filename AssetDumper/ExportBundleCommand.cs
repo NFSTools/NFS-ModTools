@@ -229,7 +229,8 @@ public class ExportBundleCommand : BaseCommand
                 foreach (var (solidKey, solidTransforms) in groupedInstances)
                 {
                     var solid = solidObjectLookup[solidKey];
-                    ExportSingleSolid(solid, Path.Combine(outputDir, $"{solid.Name}.dae"), texturePaths);
+                    ExportSingleSolid(solid, Path.Combine(outputDir, $"{solid.Name}.dae"), texturePaths,
+                        solidObjectLookup);
 
                     using var solidTransformWriter = new StreamWriter(Path.Combine(outputDir, $"{solid.Name}.txt"));
                     var sb = new StringBuilder();
@@ -250,23 +251,30 @@ public class ExportBundleCommand : BaseCommand
         {
             Log.Information("Processing model packs...");
 
+            var allSolidObjects = solidLists.SelectMany(l => l.Objects).ToList();
+            var morphTargetObjectHashes =
+                allSolidObjects.OfType<IMorphableSolid>().SelectMany(ms => ms.MorphTargets).ToHashSet();
+            var solidObjectsToExport = allSolidObjects.Where(o => !morphTargetObjectHashes.Contains(o.Hash)).ToList();
+
+            var solidObjectLookup = allSolidObjects
+                .ToLookup(o => o.Hash, o => o)
+                .ToDictionary(o => o.Key, o => o.First());
+
             if (exportMode == ModelExportMode.ExportPacks)
             {
                 Log.Information("Exporting {NumSolidLists} solid packs", solidLists.Count);
 
                 var outputPath = Path.Combine(outputDir, "combined.dae");
                 Log.Information("Exporting all models to {OutputPath}", outputPath);
-                ExportMultipleSolids(solidLists.SelectMany(s => s.Objects).ToList(),
-                    outputPath, texturePaths);
+                ExportMultipleSolids(solidObjectsToExport, outputPath, texturePaths, solidObjectLookup);
             }
             else
             {
                 Log.Information("Exporting individual models");
-
-                foreach (var solidObject in solidLists.SelectMany(l => l.Objects))
+                foreach (var solidObject in solidObjectsToExport)
                 {
                     ExportSingleSolid(solidObject,
-                        Path.Combine(outputDir, $"{solidObject.Name}.dae"), texturePaths);
+                        Path.Combine(outputDir, $"{solidObject.Name}.dae"), texturePaths, solidObjectLookup);
                 }
             }
         }
@@ -297,28 +305,75 @@ public class ExportBundleCommand : BaseCommand
             sceneNodes.Add(new SceneExportNode(solid, info.Name ?? solid.Name, instance.Transform));
         }
 
-        var scene = new SceneExport(sceneNodes, $"ScenerySection_{scenerySection.SectionNumber}");
+        var scene = new SceneExport(sceneNodes, $"ScenerySection_{scenerySection.SectionNumber}", objects);
         ExportScene(scene, outputPath, texturePaths);
     }
 
-    private static void ExportMultipleSolids(IEnumerable<SolidObject> solidObjects, string outputPath,
-        Dictionary<uint, string> texturePaths)
+    private static void ValidateMorphTarget(SolidObject baseObject, SolidObject targetObject)
+    {
+        if (baseObject.Materials.Count != targetObject.Materials.Count)
+            throw new InvalidDataException(
+                $"Mesh count mismatch: base has {baseObject.Materials.Count}, target has {targetObject.Materials.Count}");
+        if (baseObject.VertexSets.Count != targetObject.VertexSets.Count)
+            throw new InvalidDataException(
+                $"Vertex set count mismatch: base has {baseObject.VertexSets.Count}, target has {targetObject.VertexSets.Count}");
+        for (var i = 0; i < baseObject.Materials.Count; i++)
+        {
+            if (baseObject.Materials[i].NumVerts != targetObject.Materials[i].NumVerts)
+                throw new InvalidDataException(
+                    $"Vertex count mismatch: base mesh {i} has {baseObject.Materials[i].NumVerts}, target mesh has {targetObject.Materials[i].NumVerts}");
+            if (baseObject.Materials[i].NumIndices != targetObject.Materials[i].NumIndices)
+                throw new InvalidDataException(
+                    $"Index count mismatch: base mesh {i} has {baseObject.Materials[i].NumIndices}, target mesh has {targetObject.Materials[i].NumIndices}");
+        }
+    }
+
+    private static void ExportMultipleSolids(IReadOnlyCollection<SolidObject> solidObjects, string outputPath,
+        Dictionary<uint, string> texturePaths, IReadOnlyDictionary<uint, SolidObject> solidObjectLookup)
     {
         var sceneNodes = solidObjects.Select(solid => new SceneExportNode(solid, solid.Name, solid.Transform)).ToList();
 
-        var scene = new SceneExport(sceneNodes, "MultiSolidExport");
+        foreach (var solid in solidObjects)
+        {
+            if (solid is not IMorphableSolid morphableSolid) continue;
+            foreach (var targetHash in morphableSolid.MorphTargets)
+            {
+                if (!solidObjectLookup.TryGetValue(targetHash, out var targetSolid))
+                    throw new KeyNotFoundException(
+                        $"Solid {solid.Name} references nonexistent solid: 0x{targetHash:X8}");
+
+                ValidateMorphTarget(solid, targetSolid);
+                sceneNodes.Add(new SceneExportNode(targetSolid, targetSolid.Name, targetSolid.Transform, false));
+            }
+        }
+
+        var scene = new SceneExport(sceneNodes, "MultiSolidExport", solidObjectLookup);
         ExportScene(scene, outputPath, texturePaths);
     }
 
-    private static void ExportSingleSolid(SolidObject solidObject, string outputPath,
-        Dictionary<uint, string> texturePaths)
+    private static void ExportSingleSolid(SolidObject solid, string outputPath,
+        Dictionary<uint, string> texturePaths, IReadOnlyDictionary<uint, SolidObject> solidObjectLookup)
     {
         var sceneNodes = new List<SceneExportNode>
         {
-            new(solidObject, solidObject.Name, solidObject.Transform)
+            new(solid, solid.Name, solid.Transform)
         };
 
-        var scene = new SceneExport(sceneNodes, solidObject.Name);
+        if (solid is IMorphableSolid morphableSolid)
+            foreach (var targetHash in morphableSolid.MorphTargets)
+            {
+                if (!solidObjectLookup.TryGetValue(targetHash, out var targetSolid))
+                {
+                    Console.Error.WriteLine(
+                        $"WARNING: Solid {solid.Name} references nonexistent solid [0x{targetHash:X8}] as morph target");
+                    continue;
+                }
+
+                ValidateMorphTarget(solid, targetSolid);
+                sceneNodes.Add(new SceneExportNode(targetSolid, targetSolid.Name, targetSolid.Transform, false));
+            }
+
+        var scene = new SceneExport(sceneNodes, solid.Name, solidObjectLookup);
         ExportScene(scene, outputPath, texturePaths);
     }
 
@@ -461,6 +516,7 @@ public class ExportBundleCommand : BaseCommand
         for (var idx = 0; idx < scene.Nodes.Count; idx++)
         {
             var node = scene.Nodes[idx];
+            if (!node.IncludeInVisualScene) continue;
             var instanceMatrix = node.Transform;
             sceneNodes.Add(new node
             {
@@ -536,12 +592,103 @@ public class ExportBundleCommand : BaseCommand
             }
         };
 
+        var controllers = new library_controllers();
+        var controllerList = new List<controller>();
+
+        foreach (var solidObject in solidsToAdd)
+        {
+            if (solidObject is not IMorphableSolid morphableSolid) continue;
+
+            if (morphableSolid.MorphTargets.Count > 0)
+            {
+                var legitMorphTargets = morphableSolid.MorphTargets.Where(mt => geometryIds.ContainsKey(mt)).ToList();
+
+                var morph = new morph();
+                var baseSolidGeometryId = geometryIds[solidObject.Hash];
+                morph.source1 = $"#{baseSolidGeometryId}";
+                morph.method = MorphMethodType.RELATIVE;
+
+                var morphTargetsSource = new source
+                {
+                    id = $"{baseSolidGeometryId}-targets"
+                };
+                morphTargetsSource.Item = new IDREF_array
+                {
+                    id = $"{morphTargetsSource.id}-array",
+                    count = (ulong)legitMorphTargets.Count,
+                    Value = string.Join(" ", legitMorphTargets.Select(targetHash => geometryIds[targetHash]))
+                };
+                morphTargetsSource.technique_common = new sourceTechnique_common
+                {
+                    accessor = new accessor
+                    {
+                        source = $"#{morphTargetsSource.id}-array",
+                        count = (ulong)legitMorphTargets.Count,
+                        stride = 1,
+                        param = new[]
+                        {
+                            new param { name = "IDREF", type = "IDREF" }
+                        }
+                    }
+                };
+
+                var morphWeightsSource = new source();
+                morphWeightsSource.id = $"{baseSolidGeometryId}-weights";
+                morphWeightsSource.Item = new float_array
+                {
+                    id = $"{morphWeightsSource.id}-array",
+                    count = (ulong)legitMorphTargets.Count,
+                    Values = new double[legitMorphTargets.Count]
+                };
+                morphWeightsSource.technique_common = new sourceTechnique_common
+                {
+                    accessor = new accessor
+                    {
+                        source = $"#{morphWeightsSource.id}-array",
+                        count = (ulong)legitMorphTargets.Count,
+                        stride = 1,
+                        param = new[]
+                        {
+                            new param { name = "MORPH_WEIGHT", type = "float" }
+                        }
+                    }
+                };
+
+                morph.source = new[]
+                {
+                    morphTargetsSource,
+                    morphWeightsSource
+                };
+
+                morph.targets = new morphTargets
+                {
+                    input = new[]
+                    {
+                        new InputLocal { semantic = "MORPH_TARGET", source = $"#{morphTargetsSource.id}" },
+                        new InputLocal { semantic = "MORPH_WEIGHT", source = $"#{morphWeightsSource.id}" }
+                    }
+                };
+
+                var controllerName = $"{baseSolidGeometryId}_morph";
+                var controller = new controller
+                {
+                    id = controllerName,
+                    name = controllerName,
+                    Item = morph
+                };
+
+                controllerList.Add(controller);
+            }
+        }
+
+        controllers.controller = controllerList.ToArray();
         collada.Items = new object[]
         {
             images,
             materials,
             effects,
             geometries,
+            controllers,
             visualScenes
         };
         collada.scene = new COLLADAScene
@@ -863,27 +1010,32 @@ public class ExportBundleCommand : BaseCommand
 
     private class SceneExport
     {
-        public SceneExport(List<SceneExportNode> nodes, string sceneName)
+        public SceneExport(List<SceneExportNode> nodes, string sceneName,
+            IReadOnlyDictionary<uint, SolidObject> solidObjects)
         {
             Nodes = nodes;
             SceneName = sceneName;
+            SolidObjects = solidObjects;
         }
 
         public List<SceneExportNode> Nodes { get; }
         public string SceneName { get; }
+        public IReadOnlyDictionary<uint, SolidObject> SolidObjects { get; }
     }
 }
 
 internal class SceneExportNode
 {
-    public SceneExportNode(SolidObject solidObject, string name, Matrix4x4 transform)
+    public SceneExportNode(SolidObject solidObject, string name, Matrix4x4 transform, bool includeInVisualScene = true)
     {
         SolidObject = solidObject;
         Name = name;
         Transform = transform;
+        IncludeInVisualScene = includeInVisualScene;
     }
 
     public SolidObject SolidObject { get; }
     public string Name { get; }
     public Matrix4x4 Transform { get; }
+    public bool IncludeInVisualScene { get; }
 }

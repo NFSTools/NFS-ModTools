@@ -122,8 +122,16 @@ public class CarbonSolidReader : SolidReader<CarbonObject, CarbonMaterial>
     private void ReadSolidMorphTargets(BinaryReader binaryReader, uint chunkSize)
     {
         Debug.Assert(chunkSize % 12 == 0, "chunkSize % 12 == 0");
-        // TODO: Do something with this data
-        binaryReader.BaseStream.Position += chunkSize;
+        var morphTargets = new (uint hash, float blendAmt)[chunkSize / 12];
+        for (uint i = 0; i < morphTargets.Length; i++)
+        {
+            var nameHash = binaryReader.ReadUInt32();
+            binaryReader.ReadUInt32();
+            var blendAmount = binaryReader.ReadSingle();
+            morphTargets[i] = (nameHash, blendAmount);
+            Debug.Assert(blendAmount == 0.0f);
+            Solid.MorphTargets.Add(nameHash);
+        }
     }
 
     private void ReadSolidPlatMeshEntryName(BinaryReader binaryReader, uint chunkSize)

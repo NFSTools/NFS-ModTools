@@ -1,7 +1,9 @@
-﻿namespace Common.Geometry.Data
+﻿using System.Collections.Generic;
+
+namespace Common.Geometry.Data
 {
-    public class CarbonObject : SolidObject
+    public class CarbonObject : SolidObject, IMorphableSolid
     {
-        //
+        public List<uint> MorphTargets { get; } = new();
     }
 }
