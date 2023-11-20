@@ -258,6 +258,8 @@ public class UndercoverSolidReader : SolidReader<UndercoverObject, UndercoverMat
             case 0x134C02:
                 ReadSolidPlatMeshEntryName(binaryReader, chunkSize);
                 break;
+            case 0x134022: // bone hash list
+                break;
             // case 0x134C04:
             //     ReadUCapFrameWeights(binaryReader, chunkSize);
             //     break;
@@ -540,6 +542,16 @@ public class UndercoverSolidReader : SolidReader<UndercoverObject, UndercoverMat
                 reader.ReadSingle();
                 vertex.Tangent = BinaryUtil.ReadVector3(reader);
                 reader.ReadSingle();
+                break;
+            case UndercoverEffectId.worldbone:
+            case UndercoverEffectId.worldbonenocull:
+            case UndercoverEffectId.worldbonetransparency:
+                vertex.Position = BinaryUtil.ReadVector3(reader);
+                reader.ReadSingle();
+                vertex.TexCoords = BinaryUtil.ReadShort2N(reader) * 32;
+                reader.BaseStream.Position += 8; // BLEND{WEIGHT,INDICES}0
+                vertex.Normal = BinaryUtil.ReadNormal(reader, true);
+                vertex.Tangent = BinaryUtil.ReadNormal(reader, true);
                 break;
             default:
                 throw new Exception($"Unsupported effect: {effectId}");
