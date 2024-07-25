@@ -910,7 +910,7 @@ public class ExportBundleCommand : BaseCommand
             Item = new float_array
             {
                 Values = allVertices
-                    .SelectMany(v => new double[] { v.TexCoords.X, -v.TexCoords.Y }).ToArray(),
+                    .SelectMany(v => new double[] { v.TexCoords.X, 1 - v.TexCoords.Y }).ToArray(),
                 id = uvDataId,
                 count = (ulong)(allVertices.Count * 2)
             },
