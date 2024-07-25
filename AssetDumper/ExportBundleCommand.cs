@@ -212,7 +212,7 @@ public class ExportBundleCommand : BaseCommand
                         if (sceneryInfo.IsDeinstanced)
                         {
                             Debug.Assert(sceneryInstance.Transform == Matrix4x4.Identity);
-                            transform = solid.Transform;
+                            transform = solid.PivotMatrix;
                         }
                         else
                         {
