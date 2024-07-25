@@ -378,9 +378,9 @@ public class ExportBundleCommand : BaseCommand
         ExportScene(scene, outputPath, texturePaths);
     }
 
-    private static string GetMaterialId(SolidObjectMaterial material)
+    private static string GetMaterialId(SolidObject solidObject, int materialIndex, SolidObjectMaterial material)
     {
-        return $"texture-0x{material.TextureHash:X8}";
+        return $"_mesh{materialIndex}_0x{solidObject.Hash:X8}";
     }
 
     private static string GetMaterialName(SolidObjectMaterial material)
@@ -404,7 +404,7 @@ public class ExportBundleCommand : BaseCommand
             .Distinct(SolidObject.HashComparer)
             .ToList();
         var texturesToAdd = solidsToAdd
-            .SelectMany(s => s.TextureHashes)
+            .SelectMany(s => s.Materials.Select(m => m.TextureHash))
             .Distinct()
             .ToList();
 
@@ -415,11 +415,6 @@ public class ExportBundleCommand : BaseCommand
         var effectList = new List<effect>();
 
         foreach (var textureId in texturesToAdd)
-        {
-            /*
-            symbol = $"material{materialIdx}",
-            target = $"#texture-0x{material.TextureHash:X8}"
-             */
             if (texturePaths.TryGetValue(textureId, out var texturePath))
                 imageList.Add(new image
                 {
@@ -428,70 +423,78 @@ public class ExportBundleCommand : BaseCommand
                     Item = texturePath,
                     depth = 1
                 });
-            effectList.Add(new effect
+
+        foreach (var solid in solidsToAdd)
+            for (var materialIndex = 0; materialIndex < solid.Materials.Count; materialIndex++)
             {
-                id = $"texture-0x{textureId:X8}-fx",
-                name = $"TextureFX-0x{textureId:X8}",
-                Items = new[]
+                var material = solid.Materials[materialIndex];
+                var textureId = material.TextureHash;
+                var effectIdBase = GetMaterialEffectId(solid, materialIndex);
+                effectList.Add(new effect
                 {
-                    new effectFx_profile_abstractProfile_COMMON
+                    id = effectIdBase,
+                    // name = $"TextureFX-0x{textureId:X8}",
+                    Items = new[]
                     {
-                        Items = new object[]
+                        new effectFx_profile_abstractProfile_COMMON
                         {
-                            new common_newparam_type
+                            Items = new object[]
                             {
-                                sid = $"texture-0x{textureId:X8}-fx-surface",
-                                Item = new fx_surface_common
+                                new common_newparam_type
                                 {
-                                    type = fx_surface_type_enum.Item2D,
-                                    init_from = new[]
+                                    sid = $"{effectIdBase}-surface",
+                                    Item = new fx_surface_common
                                     {
-                                        new fx_surface_init_from_common { Value = $"texture-0x{textureId:X8}-img" }
+                                        type = fx_surface_type_enum.Item2D,
+                                        init_from = new[]
+                                        {
+                                            new fx_surface_init_from_common { Value = $"texture-0x{textureId:X8}-img" }
+                                        }
                                     },
+                                    ItemElementName = ItemChoiceType.surface
                                 },
-                                ItemElementName = ItemChoiceType.surface
-                            },
-                            new common_newparam_type
-                            {
-                                sid = $"texture-0x{textureId:X8}-fx-sampler",
-                                Item = new fx_sampler2D_common()
+                                new common_newparam_type
                                 {
-                                    source = $"texture-0x{textureId:X8}-fx-surface",
-                                    minfilter = fx_sampler_filter_common.LINEAR_MIPMAP_LINEAR,
-                                    magfilter = fx_sampler_filter_common.LINEAR
-                                },
-                                ItemElementName = ItemChoiceType.sampler2D
-                            }
-                        },
-                        technique = new effectFx_profile_abstractProfile_COMMONTechnique
-                        {
-                            sid = "common",
-                            Item = new effectFx_profile_abstractProfile_COMMONTechniqueBlinn
-                            {
-                                diffuse = new common_color_or_texture_type
-                                {
-                                    Item = new common_color_or_texture_typeTexture
+                                    sid = $"{effectIdBase}-sampler",
+                                    Item = new fx_sampler2D_common
                                     {
-                                        texture = $"texture-0x{textureId:X8}-fx-sampler",
-                                        texcoord = "TEX0"
+                                        source = $"{effectIdBase}-surface",
+                                        minfilter = fx_sampler_filter_common.LINEAR_MIPMAP_LINEAR,
+                                        magfilter = fx_sampler_filter_common.LINEAR
+                                    },
+                                    ItemElementName = ItemChoiceType.sampler2D
+                                }
+                            },
+                            technique = new effectFx_profile_abstractProfile_COMMONTechnique
+                            {
+                                sid = "common",
+                                Item = new effectFx_profile_abstractProfile_COMMONTechniqueBlinn
+                                {
+                                    diffuse = new common_color_or_texture_type
+                                    {
+                                        Item = new common_color_or_texture_typeTexture
+                                        {
+                                            texture = $"{effectIdBase}-sampler",
+                                            texcoord = "TEX0"
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
-            });
-        }
+                });
+            }
 
         images.image = imageList.ToArray();
         materials.material = (from solidObject in solidsToAdd
-            from solidObjectMaterial in solidObject.Materials
-            let materialId = GetMaterialId(solidObjectMaterial)
-            let materialName = GetMaterialName(solidObjectMaterial)
+            from pair in solidObject.Materials.Select((mat, idx) => new { idx, mat })
+            let materialId = GetMaterialId(solidObject, pair.idx, pair.mat)
+            let materialName = GetMaterialName(pair.mat)
             select new material
             {
-                id = materialId, name = materialName,
-                instance_effect = new instance_effect { url = $"#texture-0x{solidObjectMaterial.TextureHash:X8}-fx" }
+                id = materialId,
+                name = materialName,
+                instance_effect = new instance_effect { url = $"#{GetMaterialEffectId(solidObject, pair.idx)}" }
             }).ToArray();
         effects.effect = effectList.ToArray();
 
@@ -566,7 +569,7 @@ public class ExportBundleCommand : BaseCommand
                                 new instance_material
                                 {
                                     symbol = $"material{materialIdx}",
-                                    target = $"#{GetMaterialId(material)}",
+                                    target = $"#{GetMaterialId(node.SolidObject, materialIdx, material)}",
                                     bind_vertex_input = new[]
                                     {
                                         new instance_materialBind_vertex_input
@@ -705,6 +708,11 @@ public class ExportBundleCommand : BaseCommand
         };
 
         collada.Save(outputPath);
+    }
+
+    private static string GetMaterialEffectId(SolidObject solid, int materialIndex)
+    {
+        return $"solid-{solid.Hash:X8}-mat{materialIndex}-fx";
     }
 
     private static geometry SolidToGeometry(SolidObject solidObject, string geometryId)
