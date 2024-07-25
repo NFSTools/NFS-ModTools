@@ -75,10 +75,10 @@ namespace Viewer
                     Children = new Transform3DCollection
                     {
                         new MatrixTransform3D(new Matrix3D(
-                            solid.Transform.M11, solid.Transform.M12, solid.Transform.M13, solid.Transform.M14,
-                            solid.Transform.M21, solid.Transform.M22, solid.Transform.M23, solid.Transform.M24,
-                            solid.Transform.M31, solid.Transform.M32, solid.Transform.M33, solid.Transform.M34,
-                            solid.Transform.M41, solid.Transform.M42, solid.Transform.M43, solid.Transform.M44)),
+                            solid.PivotMatrix.M11, solid.PivotMatrix.M12, solid.PivotMatrix.M13, solid.PivotMatrix.M14,
+                            solid.PivotMatrix.M21, solid.PivotMatrix.M22, solid.PivotMatrix.M23, solid.PivotMatrix.M24,
+                            solid.PivotMatrix.M31, solid.PivotMatrix.M32, solid.PivotMatrix.M33, solid.PivotMatrix.M34,
+                            solid.PivotMatrix.M41, solid.PivotMatrix.M42, solid.PivotMatrix.M43, solid.PivotMatrix.M44))
                     }
                 },
                 ItemsSource = new List<Element3D>(solid.Materials.Select(mat => CreateMeshElement(solid, mat)))

@@ -59,7 +59,7 @@ public class MostWantedSolidReader : SolidReader<MostWantedObject, MostWantedMat
         Solid.Hash = header.Hash;
         Solid.MinPoint = header.BoundsMin;
         Solid.MaxPoint = header.BoundsMax;
-        Solid.Transform = header.Transform;
+        Solid.PivotMatrix = header.Transform;
     }
 
     protected override void ProcessPlatChunk(BinaryReader binaryReader, uint chunkId,

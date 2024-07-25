@@ -9,7 +9,7 @@ namespace Common.Geometry.Data
 
         public string Name { get; set; }
 
-        public Matrix4x4 Transform { get; set; }
+        public Matrix4x4 PivotMatrix { get; set; }
 
         public Vector3 MinPoint { get; set; }
 

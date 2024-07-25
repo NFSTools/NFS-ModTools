@@ -331,7 +331,8 @@ public class ExportBundleCommand : BaseCommand
     private static void ExportMultipleSolids(IReadOnlyCollection<SolidObject> solidObjects, string outputPath,
         Dictionary<uint, string> texturePaths, IReadOnlyDictionary<uint, SolidObject> solidObjectLookup)
     {
-        var sceneNodes = solidObjects.Select(solid => new SceneExportNode(solid, solid.Name, solid.Transform)).ToList();
+        var sceneNodes = solidObjects.Select(solid => new SceneExportNode(solid, solid.Name, Matrix4x4.Identity))
+            .ToList();
 
         foreach (var solid in solidObjects)
         {
@@ -343,7 +344,7 @@ public class ExportBundleCommand : BaseCommand
                         $"Solid {solid.Name} references nonexistent solid: 0x{targetHash:X8}");
 
                 ValidateMorphTarget(solid, targetSolid);
-                sceneNodes.Add(new SceneExportNode(targetSolid, targetSolid.Name, targetSolid.Transform, false));
+                sceneNodes.Add(new SceneExportNode(targetSolid, targetSolid.Name, Matrix4x4.Identity, false));
             }
         }
 
@@ -356,7 +357,7 @@ public class ExportBundleCommand : BaseCommand
     {
         var sceneNodes = new List<SceneExportNode>
         {
-            new(solid, solid.Name, solid.Transform)
+            new(solid, solid.Name, Matrix4x4.Identity)
         };
 
         if (solid is IMorphableSolid morphableSolid)
@@ -370,7 +371,7 @@ public class ExportBundleCommand : BaseCommand
                 }
 
                 ValidateMorphTarget(solid, targetSolid);
-                sceneNodes.Add(new SceneExportNode(targetSolid, targetSolid.Name, targetSolid.Transform, false));
+                sceneNodes.Add(new SceneExportNode(targetSolid, targetSolid.Name, Matrix4x4.Identity, false));
             }
 
         var scene = new SceneExport(sceneNodes, solid.Name, solidObjectLookup);

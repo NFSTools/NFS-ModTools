@@ -148,7 +148,7 @@ public class UndergroundSolidReader : SolidReader<UndergroundObject, Underground
         Solid.Hash = header.Hash;
         Solid.MinPoint = header.BoundsMin;
         Solid.MaxPoint = header.BoundsMax;
-        Solid.Transform = header.PivotMatrix;
+        Solid.PivotMatrix = header.PivotMatrix;
     }
 
     protected override SolidMeshVertex GetVertex(BinaryReader reader, UndergroundMaterial material, int stride)

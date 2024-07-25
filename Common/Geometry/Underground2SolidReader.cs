@@ -58,7 +58,7 @@ public class Underground2SolidReader : SolidReader<Underground2Object, Undergrou
         Solid.MinPoint = header.BoundsMin;
         Solid.MaxPoint = header.BoundsMax;
 
-        Solid.Transform = header.Transform;
+        Solid.PivotMatrix = header.Transform;
     }
 
     protected override void ProcessPlatChunk(BinaryReader binaryReader, uint chunkId, uint chunkSize)

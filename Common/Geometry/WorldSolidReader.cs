@@ -77,7 +77,7 @@ public class WorldSolidReader : SolidReader<World15Object, World15Material>
         Solid.Hash = header.Hash;
         Solid.MinPoint = header.BoundsMin;
         Solid.MaxPoint = header.BoundsMax;
-        Solid.Transform = header.Transform;
+        Solid.PivotMatrix = header.Transform;
     }
 
     protected override void ProcessPlatChunk(BinaryReader binaryReader, uint chunkId, uint chunkSize)
