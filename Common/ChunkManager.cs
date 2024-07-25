@@ -136,6 +136,8 @@ namespace Common
                     {
                         if (_game == GameDetector.Game.World)
                             cd.Resource = new WorldLights().ReadLights(Reader, chunk.Length);
+                        else if (_game == GameDetector.Game.Carbon)
+                            cd.Resource = new CarbonLights().ReadLights(Reader, chunk.Length);
                         break;
                     }
                     default:
