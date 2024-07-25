@@ -5,7 +5,7 @@
         <PublishSingleFile>true</PublishSingleFile>
 
         <!-- NuGet Settings -->
-        <Version>2.1.0-dev</Version>
+        <Version>2.1.0</Version>
         <Authors>heyitsleo</Authors>
         <Company>NFSTools</Company>
         <Product>AssetDumper</Product>
