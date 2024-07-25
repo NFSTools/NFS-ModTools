@@ -801,65 +801,134 @@ public class ExportBundleCommand : BaseCommand
             }
         });
 
-        var colorsName = $"{geometryId}_color";
-        var colorSrcId = $"{colorsName}_src";
-        var colorsDataId = $"{colorsName}_data";
+        var colorSrcIds = new List<string>();
 
-        sources.Add(new source
         {
-            name = "color",
-            id = colorSrcId,
-            Item = new float_array
-            {
-                Values = allVertices
-                    .SelectMany(v =>
-                    {
-                        var color = v.Color ?? 0xFFFFFFFF;
+            var colorsName = $"{geometryId}_color";
+            var colorSrcId = $"{colorsName}_src";
+            var colorsDataId = $"{colorsName}_data";
 
-                        var a = (color >> 24) & 0xFF;
-                        var r = (color >> 16) & 0xFF;
-                        var g = (color >> 8) & 0xFF;
-                        var b = (color >> 0) & 0xFF;
-
-                        return new double[] { r / 255f, g / 255f, b / 255f, a / 255f };
-                    }).ToArray(),
-                id = colorsDataId,
-                count = (ulong)(allVertices.Count * 4)
-            },
-            technique_common = new sourceTechnique_common
+            sources.Add(new source
             {
-                accessor = new accessor
+                name = "color",
+                id = colorSrcId,
+                Item = new float_array
                 {
-                    count = (ulong)allVertices.Count,
-                    offset = 0,
-                    source = $"#{colorsDataId}",
-                    stride = 4,
-                    param = new[]
+                    Values = allVertices
+                        .SelectMany(v =>
+                        {
+                            var color = v.Color ?? 0xFFFFFFFF;
+
+                            var a = (color >> 24) & 0xFF;
+                            var r = (color >> 16) & 0xFF;
+                            var g = (color >> 8) & 0xFF;
+                            var b = (color >> 0) & 0xFF;
+
+                            return new double[] { r / 255f, g / 255f, b / 255f, a / 255f };
+                        }).ToArray(),
+                    id = colorsDataId,
+                    count = (ulong)(allVertices.Count * 4)
+                },
+                technique_common = new sourceTechnique_common
+                {
+                    accessor = new accessor
                     {
-                        new param
+                        count = (ulong)allVertices.Count,
+                        offset = 0,
+                        source = $"#{colorsDataId}",
+                        stride = 4,
+                        param = new[]
                         {
-                            name = "R",
-                            type = "float"
-                        },
-                        new param
-                        {
-                            name = "G",
-                            type = "float"
-                        },
-                        new param
-                        {
-                            name = "B",
-                            type = "float"
-                        },
-                        new param
-                        {
-                            name = "A",
-                            type = "float"
+                            new param
+                            {
+                                name = "R",
+                                type = "float"
+                            },
+                            new param
+                            {
+                                name = "G",
+                                type = "float"
+                            },
+                            new param
+                            {
+                                name = "B",
+                                type = "float"
+                            },
+                            new param
+                            {
+                                name = "A",
+                                type = "float"
+                            }
                         }
                     }
                 }
+            });
+
+            colorSrcIds.Add(colorSrcId);
+
+            if (allVertices.Any(v => v.Color2 != null))
+            {
+                var color2Name = $"{geometryId}_color2";
+                var color2SrcId = $"{color2Name}_src";
+                var color2DataId = $"{color2Name}_data";
+                sources.Add(new source
+                {
+                    name = "color2",
+                    id = color2SrcId,
+                    Item = new float_array
+                    {
+                        Values = allVertices
+                            .SelectMany(v =>
+                            {
+                                var color = v.Color2 ?? 0xFFFFFFFF;
+
+                                var a = (color >> 24) & 0xFF;
+                                var r = (color >> 16) & 0xFF;
+                                var g = (color >> 8) & 0xFF;
+                                var b = (color >> 0) & 0xFF;
+
+                                return new double[] { r / 255f, g / 255f, b / 255f, a / 255f };
+                            }).ToArray(),
+                        id = color2DataId,
+                        count = (ulong)(allVertices.Count * 4)
+                    },
+                    technique_common = new sourceTechnique_common
+                    {
+                        accessor = new accessor
+                        {
+                            count = (ulong)allVertices.Count,
+                            offset = 0,
+                            source = $"#{color2DataId}",
+                            stride = 4,
+                            param = new[]
+                            {
+                                new param
+                                {
+                                    name = "R",
+                                    type = "float"
+                                },
+                                new param
+                                {
+                                    name = "G",
+                                    type = "float"
+                                },
+                                new param
+                                {
+                                    name = "B",
+                                    type = "float"
+                                },
+                                new param
+                                {
+                                    name = "A",
+                                    type = "float"
+                                }
+                            }
+                        }
+                    }
+                });
+                colorSrcIds.Add(color2SrcId);
             }
-        });
+        }
 
         var normalsSrcIds = new string[solidObject.VertexSets.Count];
 
@@ -964,12 +1033,10 @@ public class ExportBundleCommand : BaseCommand
                 new()
                 {
                     semantic = "TEXCOORD", source = $"#{uvSrcId}"
-                },
-                new()
-                {
-                    semantic = "COLOR", source = $"#{colorSrcId}"
                 }
             };
+            inputs.AddRange(colorSrcIds.Select(colorSrcId => new InputLocalOffset
+                { semantic = "COLOR", source = $"#{colorSrcId}" }));
 
             if (hasNormals)
                 inputs.Add(new InputLocalOffset

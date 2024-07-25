@@ -228,19 +228,19 @@ public class WorldSolidReader : SolidReader<World15Object, World15Material>
                 vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                 vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                 vertex.Color = reader.ReadUInt32(); // daytime color
-                reader.ReadUInt32(); // nighttime color
+                vertex.Color2 = reader.ReadUInt32(); // nighttime color
                 break;
             case InternalEffectId.WorldPrelitShader:
                 vertex.Position = BinaryUtil.ReadVector3(reader);
                 vertex.Color = reader.ReadUInt32(); // daytime color
-                reader.ReadUInt32(); // nighttime color
+                vertex.Color2 = reader.ReadUInt32(); // nighttime color
                 vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                 break;
             case InternalEffectId.WorldZBiasPrelitShader:
                 vertex.Position = BinaryUtil.ReadVector3(reader);
                 vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                 vertex.Color = reader.ReadUInt32(); // daytime color
-                reader.ReadUInt32(); // nighttime color
+                vertex.Color2 = reader.ReadUInt32(); // nighttime color
                 vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                 break;
             case InternalEffectId.WorldNormalMap:
@@ -251,7 +251,7 @@ public class WorldSolidReader : SolidReader<World15Object, World15Material>
                 vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                 vertex.TexCoords = BinaryUtil.ReadVector2(reader);
                 vertex.Color = reader.ReadUInt32(); // daytime color
-                reader.ReadUInt32(); // nighttime color
+                vertex.Color2 = reader.ReadUInt32(); // nighttime color
                 vertex.Tangent = BinaryUtil.ReadNormal(reader, true);
                 break;
             case InternalEffectId.CarShader:

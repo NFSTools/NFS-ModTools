@@ -15,5 +15,8 @@ namespace Common.Geometry.Data
         public Vector3? BlendIndices { get; set; }
 
         public uint? Color { get; set; }
+
+        // This one is NFSW-specific
+        public uint? Color2 { get; set; }
     }
 }
