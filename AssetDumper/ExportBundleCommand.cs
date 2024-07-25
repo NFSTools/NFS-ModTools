@@ -6,9 +6,11 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using System.Xml;
 using CommandLine;
 using Common;
 using Common.Geometry.Data;
+using Common.Lights.Data;
 using Common.Scenery.Data;
 using Common.Textures.Data;
 using JetBrains.Annotations;
@@ -40,6 +42,11 @@ public class ExportBundleCommand : BaseCommand
         HelpText =
             $"Object export mode ({nameof(ModelExportMode.ExportAll)}, {nameof(ModelExportMode.ExportPacks)}, {nameof(ModelExportMode.ExportScenerySections)})")]
     public ModelExportMode ModelExportMode { get; [UsedImplicitly] set; } = ModelExportMode.ExportAll;
+
+    [Option("export-lights",
+        HelpText =
+            "When enabled, lights will be exported to the COLLADA scene. ONLY VALID WITH ExportScenerySections.")]
+    public bool ExportLights { get; [UsedImplicitly] set; }
 
     public override int Execute()
     {
@@ -161,6 +168,7 @@ public class ExportBundleCommand : BaseCommand
 
         var solidLists = resources.OfType<SolidList>().ToList();
         var scenerySections = resources.OfType<ScenerySection>().ToList();
+        var lightPacks = resources.OfType<LightPack>().ToList();
 
         var exportMode = ModelExportMode;
         if (scenerySections.Any() &&
@@ -175,7 +183,10 @@ public class ExportBundleCommand : BaseCommand
                 foreach (var scenerySection in scenerySections.OrderBy(s => s.SectionNumber))
                 {
                     ExportScenerySection(solidObjectLookup, scenerySection, Path.Combine(outputDir,
-                        scenerySection.SectionNumber + ".dae"), texturePaths);
+                            scenerySection.SectionNumber + ".dae"), texturePaths,
+                        ExportLights
+                            ? lightPacks.Where(lp => lp.ScenerySectionNumber == scenerySection.SectionNumber).ToList()
+                            : null);
                 }
             }
             else
@@ -281,7 +292,8 @@ public class ExportBundleCommand : BaseCommand
     }
 
     private static void ExportScenerySection(IReadOnlyDictionary<uint, SolidObject> objects,
-        ScenerySection scenerySection, string outputPath, Dictionary<uint, string> texturePaths)
+        ScenerySection scenerySection, string outputPath, Dictionary<uint, string> texturePaths,
+        List<LightPack> lightPacks)
     {
         Log.Information(
             "Exporting scenery section {ScenerySectionNumber} ({SceneryInfoCount} models, {SceneryInstanceCount} instances)",
@@ -306,7 +318,7 @@ public class ExportBundleCommand : BaseCommand
         }
 
         var scene = new SceneExport(sceneNodes, $"ScenerySection_{scenerySection.SectionNumber}", objects);
-        ExportScene(scene, outputPath, texturePaths);
+        ExportScene(scene, outputPath, texturePaths, lightPacks);
     }
 
     private static void ValidateMorphTarget(SolidObject baseObject, SolidObject targetObject)
@@ -349,7 +361,7 @@ public class ExportBundleCommand : BaseCommand
         }
 
         var scene = new SceneExport(sceneNodes, "MultiSolidExport", solidObjectLookup);
-        ExportScene(scene, outputPath, texturePaths);
+        ExportScene(scene, outputPath, texturePaths, null);
     }
 
     private static void ExportSingleSolid(SolidObject solid, string outputPath,
@@ -375,7 +387,7 @@ public class ExportBundleCommand : BaseCommand
             }
 
         var scene = new SceneExport(sceneNodes, solid.Name, solidObjectLookup);
-        ExportScene(scene, outputPath, texturePaths);
+        ExportScene(scene, outputPath, texturePaths, null);
     }
 
     private static string GetMaterialId(SolidObject solidObject, int materialIndex, SolidObjectMaterial material)
@@ -393,7 +405,8 @@ public class ExportBundleCommand : BaseCommand
         return $"0x{texture.TexHash:X8}_{texture.Name}.dds";
     }
 
-    private static void ExportScene(SceneExport scene, string outputPath, Dictionary<uint, string> texturePaths)
+    private static void ExportScene(SceneExport scene, string outputPath, Dictionary<uint, string> texturePaths,
+        List<LightPack> lightPacks)
     {
         var collada = new COLLADA
         {
@@ -586,16 +599,6 @@ public class ExportBundleCommand : BaseCommand
             });
         }
 
-        visualScenes.visual_scene = new[]
-        {
-            new visual_scene
-            {
-                id = scene.SceneName,
-                name = scene.SceneName,
-                node = sceneNodes.ToArray()
-            }
-        };
-
         var controllers = new library_controllers();
         var controllerList = new List<controller>();
 
@@ -686,6 +689,132 @@ public class ExportBundleCommand : BaseCommand
         }
 
         controllers.controller = controllerList.ToArray();
+
+        var lights = new library_lights();
+        var lightList = new List<light>();
+
+        if (lightPacks != null)
+            foreach (var lightPack in lightPacks)
+                for (var index = 0; index < lightPack.Lights.Count; index++)
+                {
+                    var light = lightPack.Lights[index];
+                    var exportLight = new light();
+                    exportLight.id = $"light_{lightPack.ScenerySectionNumber}_{index}";
+                    exportLight.name = light.Name;
+
+                    var color = light.Color;
+                    var a = (color >> 24) & 0xFF;
+                    var b = (float)((color >> 16) & 0xFF) / 255;
+                    var g = (float)((color >> 8) & 0xFF) / 255;
+                    var r = (float)((color >> 0) & 0xFF) / 255;
+
+                    exportLight.technique_common = new lightTechnique_common
+                    {
+                        Item = new lightTechnique_commonPoint
+                        {
+                            color = new TargetableFloat3
+                            {
+                                Values = new double[] { r, g, b }
+                            }
+                        }
+                    };
+
+                    var extraRadiusElement = new XmlDocument().CreateElement("radius");
+                    extraRadiusElement.InnerText = light.Size.ToString(CultureInfo.InvariantCulture);
+                    var extraEnergyElement = new XmlDocument().CreateElement("energy");
+                    // This is insanely stupid, but Blender's "power" system is also stupid.
+                    // 100,000W is a good enough maximum, probably...
+                    extraEnergyElement.InnerText =
+                        (100_000.0f * light.Intensity).ToString(CultureInfo.InvariantCulture);
+                    var extraRedElement = new XmlDocument().CreateElement("red");
+                    extraRedElement.InnerText = r.ToString(CultureInfo.InvariantCulture);
+                    var extraGreenElement = new XmlDocument().CreateElement("green");
+                    extraGreenElement.InnerText = g.ToString(CultureInfo.InvariantCulture);
+                    var extraBlueElement = new XmlDocument().CreateElement("blue");
+                    extraBlueElement.InnerText = b.ToString(CultureInfo.InvariantCulture);
+                    exportLight.extra = new[]
+                    {
+                        new extra
+                        {
+                            technique = new[]
+                            {
+                                new technique
+                                {
+                                    profile = "blender",
+                                    Any = new[]
+                                    {
+                                        extraRadiusElement,
+                                        extraEnergyElement,
+                                        extraRedElement,
+                                        extraGreenElement,
+                                        extraBlueElement
+                                    }
+                                }
+                            }
+                        }
+                    };
+
+                    lightList.Add(exportLight);
+
+                    // add node
+                    var lightMatrix = Matrix4x4.CreateTranslation(light.Position);
+                    var lightNode = new node();
+                    lightNode.id = $"{scene.SceneName}_inst_{exportLight.id}";
+                    lightNode.name = exportLight.name;
+                    lightNode.instance_light = new[]
+                    {
+                        new InstanceWithExtra
+                        {
+                            url = $"#{exportLight.id}"
+                        }
+                    };
+                    lightNode.Items = new object[]
+                    {
+                        new matrix
+                        {
+                            Values = new double[]
+                            {
+                                lightMatrix.M11,
+                                lightMatrix.M21,
+                                lightMatrix.M31,
+                                lightMatrix.M41,
+
+                                lightMatrix.M12,
+                                lightMatrix.M22,
+                                lightMatrix.M32,
+                                lightMatrix.M42,
+
+                                lightMatrix.M13,
+                                lightMatrix.M23,
+                                lightMatrix.M33,
+                                lightMatrix.M43,
+
+                                lightMatrix.M14,
+                                lightMatrix.M24,
+                                lightMatrix.M34,
+                                lightMatrix.M44
+                            }
+                        }
+                    };
+                    lightNode.ItemsElementName = new[]
+                    {
+                        ItemsChoiceType2.matrix
+                    };
+                    sceneNodes.Add(lightNode);
+                }
+
+        lights.light = lightList.ToArray();
+
+        visualScenes.visual_scene = new[]
+        {
+            new visual_scene
+            {
+                id = scene.SceneName,
+                name = scene.SceneName,
+                node = sceneNodes.ToArray()
+            }
+        };
+
         collada.Items = new object[]
         {
             images,
@@ -693,6 +822,7 @@ public class ExportBundleCommand : BaseCommand
             effects,
             geometries,
             controllers,
+            lights,
             visualScenes
         };
         collada.scene = new COLLADAScene

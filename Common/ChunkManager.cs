@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using Common.Geometry;
+using Common.Lights;
 using Common.Scenery;
 using Common.Textures;
 
@@ -129,6 +130,12 @@ namespace Common
 
                         cd.Resource = sceneryManager.ReadScenery(Reader, chunk.Length);
 
+                        break;
+                    }
+                    case 0x80135000:
+                    {
+                        if (_game == GameDetector.Game.World)
+                            cd.Resource = new WorldLights().ReadLights(Reader, chunk.Length);
                         break;
                     }
                     default:
