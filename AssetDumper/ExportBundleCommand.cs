@@ -341,7 +341,7 @@ public class ExportBundleCommand : BaseCommand
             {
                 if (!solidObjectLookup.TryGetValue(targetHash, out var targetSolid))
                     throw new KeyNotFoundException(
-                        $"Solid {solid.Name} references nonexistent solid: 0x{targetHash:X8}");
+                        $"Solid {solid.Name} references nonexistent solid as a morph target: 0x{targetHash:X8}");
 
                 ValidateMorphTarget(solid, targetSolid);
                 sceneNodes.Add(new SceneExportNode(targetSolid, targetSolid.Name, Matrix4x4.Identity, false));
