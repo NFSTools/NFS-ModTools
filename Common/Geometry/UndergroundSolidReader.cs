@@ -123,7 +123,7 @@ public class UndergroundSolidReader : SolidReader<UndergroundObject, Underground
                 MaxPoint = meshEntry.BoundsMax,
                 NumIndices = meshEntry.Length,
                 VertexSetIndex = 0,
-                TextureHash = Solid.TextureHashes[meshEntry.TextureIndex]
+                DiffuseTextureHash = Solid.TextureHashes[meshEntry.TextureIndex]
             });
         }
     }

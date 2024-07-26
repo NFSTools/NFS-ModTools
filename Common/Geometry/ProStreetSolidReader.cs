@@ -141,7 +141,7 @@ public class ProStreetSolidReader : SolidReader<ProStreetObject, ProStreetMateri
                 NumVerts = shadingGroup.VertexBufferUsage / shadingGroup.Flags2[2],
                 VertexSetIndex = j,
                 Hash = shadingGroup.UnknownId,
-                TextureHash = Solid.TextureHashes[shadingGroup.TextureShaderUsage[4]],
+                DiffuseTextureHash = Solid.TextureHashes[shadingGroup.TextureShaderUsage[4]],
                 EffectId = shadingGroup.EffectId
             });
 

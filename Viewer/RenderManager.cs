@@ -91,13 +91,13 @@ namespace Viewer
             model.Geometry = CreateMeshGeometry(solidObject, material);
 
             // If we already have a material for the texture, use it
-            if (_textureMaterials.TryGetValue(material.TextureHash, out var textureMaterial))
+            if (_textureMaterials.TryGetValue(material.DiffuseTextureHash, out var textureMaterial))
             {
                 model.Material = textureMaterial;
             }
             else
             {
-                model.Material = _textureMaterials[material.TextureHash] = new DiffuseMaterial
+                model.Material = _textureMaterials[material.DiffuseTextureHash] = new DiffuseMaterial
                 {
                     DiffuseColor = _missingTextureColor
                 };

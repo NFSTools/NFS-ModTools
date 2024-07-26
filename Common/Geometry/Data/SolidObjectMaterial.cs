@@ -18,7 +18,9 @@ namespace Common.Geometry.Data
 
         public uint NumIndices { get; set; } // NumTris * 3
 
-        public uint TextureHash { get; set; }
+        public uint DiffuseTextureHash { get; set; }
+        public uint? NormalTextureHash { get; set; }
+        public uint? SpecularTextureHash { get; set; }
 
         public string Name { get; set; }
         public ushort[] Indices { get; set; }

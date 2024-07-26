@@ -321,7 +321,7 @@ public class UndercoverSolidReader : SolidReader<UndercoverObject, UndercoverMat
                 NumIndices = (uint)shadingGroup.IdxUsed,
                 NumVerts = (uint)numVertices,
                 VertexSetIndex = j,
-                TextureHash = Solid.TextureHashes[shadingGroup.TextureNumber[0]],
+                DiffuseTextureHash = Solid.TextureHashes[shadingGroup.TextureNumber[0]],
                 EffectId = EffectIdMapping[shadingGroup.MaterialAttribKey],
                 NumReducedIndices = shadingGroup.NumReducedIdx,
                 Indices = new ushort[shadingGroup.IdxUsed]

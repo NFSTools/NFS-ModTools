@@ -125,7 +125,7 @@ public class Underground2SolidReader : SolidReader<Underground2Object, Undergrou
                 MaxPoint = shadingGroup.BoundsMax,
                 NumIndices = shadingGroup.Length,
                 VertexSetIndex = 0,
-                TextureHash = Solid.TextureHashes[(int)shadingGroup.TextureIndex]
+                DiffuseTextureHash = Solid.TextureHashes[(int)shadingGroup.TextureIndex]
             });
         }
     }

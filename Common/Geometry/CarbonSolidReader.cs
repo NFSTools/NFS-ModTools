@@ -182,7 +182,7 @@ public class CarbonSolidReader : SolidReader<CarbonObject, CarbonMaterial>
                 MinPoint = shadingGroup.BoundsMin,
                 MaxPoint = shadingGroup.BoundsMax,
                 NumVerts = shadingGroup.NumVerts,
-                TextureHash = Solid.TextureHashes[shadingGroup.TextureNumber[0]],
+                DiffuseTextureHash = Solid.TextureHashes[shadingGroup.TextureNumber[0]],
                 EffectId = shadingGroup.EffectId,
                 VertexSetIndex = streamIndex
             };

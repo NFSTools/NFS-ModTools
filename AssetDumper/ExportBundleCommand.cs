@@ -437,7 +437,7 @@ public class ExportBundleCommand : BaseCommand
 
     private static string GetMaterialName(SolidObjectMaterial material)
     {
-        return material.Name ?? $"TextureMTL-0x{material.TextureHash:X8}";
+        return material.Name ?? $"TextureMTL-0x{material.DiffuseTextureHash:X8}";
     }
 
     private static string GetTextureFileName(Texture texture)
@@ -495,7 +495,14 @@ public class ExportBundleCommand : BaseCommand
             .Distinct(SolidObject.HashComparer)
             .ToList();
         var texturesToAdd = solidsToAdd
-            .SelectMany(s => s.Materials.Select(m => m.TextureHash))
+            .SelectMany(s => s.Materials.SelectMany(m => new[]
+            {
+                m.DiffuseTextureHash,
+                m.NormalTextureHash,
+                m.SpecularTextureHash
+            }))
+            .Where(n => n != null)
+            .Select(n => n.Value)
             .Distinct()
             .ToList();
         var textureKeyToFbxTexture = new Dictionary<uint, FBXSharp.Objective.Texture>();
@@ -644,15 +651,28 @@ public class ExportBundleCommand : BaseCommand
             for (var iMaterial = 0; iMaterial < solidObject.Materials.Count; iMaterial++)
             {
                 var material = solidObject.Materials[iMaterial];
+                if (material.NormalTextureHash != null || material.SpecularTextureHash != null)
+                    Log.Information("Solid {SolidName} material {MaterialName} has normal/specular", solidObject.Name,
+                        material.Name);
                 // var fbxMaterial = fbxScene.CreateMaterial();
                 var fbxMaterialBuilder = new MaterialBuilder(fbxScene).WithName(material.Name);
 
-                if (textureKeyToFbxTexture.TryGetValue(material.TextureHash, out var fbxTexture))
+                if (textureKeyToFbxTexture.TryGetValue(material.DiffuseTextureHash, out var fbxDiffuseMap))
                     fbxMaterialBuilder =
-                        fbxMaterialBuilder.WithChannel(MaterialBuilder.ChannelType.DiffuseColor, fbxTexture);
+                        fbxMaterialBuilder.WithChannel(MaterialBuilder.ChannelType.DiffuseColor, fbxDiffuseMap);
                 else
                     fbxMaterialBuilder = fbxMaterialBuilder.WithColor(MaterialBuilder.ColorType.DiffuseColor,
                         new ColorRGB(239 / 255.0, 66 / 255.0, 245 / 255.0));
+
+                if (material.NormalTextureHash is { } normalTextureHash &&
+                    textureKeyToFbxTexture.TryGetValue(normalTextureHash, out var fbxNormalMap))
+                    fbxMaterialBuilder =
+                        fbxMaterialBuilder.WithChannel(MaterialBuilder.ChannelType.NormalMap, fbxNormalMap);
+
+                if (material.SpecularTextureHash is { } specularTextureHash &&
+                    textureKeyToFbxTexture.TryGetValue(specularTextureHash, out var fbxSpecularMap))
+                    fbxMaterialBuilder =
+                        fbxMaterialBuilder.WithChannel(MaterialBuilder.ChannelType.SpecularColor, fbxSpecularMap);
 
                 // fbxMaterialBuilder = fbxMaterialBuilder.WithFBXProperty()
                 solidMatToFbxMat[(solidObject.Hash, iMaterial)] = fbxMaterialBuilder.BuildMaterial();
@@ -827,7 +847,7 @@ public class ExportBundleCommand : BaseCommand
             .Distinct(SolidObject.HashComparer)
             .ToList();
         var texturesToAdd = solidsToAdd
-            .SelectMany(s => s.Materials.Select(m => m.TextureHash))
+            .SelectMany(s => s.Materials.Select(m => m.DiffuseTextureHash))
             .Distinct()
             .ToList();
 
@@ -851,7 +871,7 @@ public class ExportBundleCommand : BaseCommand
             for (var materialIndex = 0; materialIndex < solid.Materials.Count; materialIndex++)
             {
                 var material = solid.Materials[materialIndex];
-                var textureId = material.TextureHash;
+                var textureId = material.DiffuseTextureHash;
                 var effectIdBase = GetMaterialEffectId(solid, materialIndex);
                 effectList.Add(new effect
                 {

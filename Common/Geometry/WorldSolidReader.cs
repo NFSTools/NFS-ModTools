@@ -184,7 +184,13 @@ public class WorldSolidReader : SolidReader<World15Object, World15Material>
                 MinPoint = shadingGroup.BoundsMin,
                 MaxPoint = shadingGroup.BoundsMax,
                 NumVerts = shadingGroup.NumVerts,
-                TextureHash = Solid.TextureHashes[shadingGroup.DiffuseMapId],
+                DiffuseTextureHash = Solid.TextureHashes[shadingGroup.DiffuseMapId],
+                NormalTextureHash = shadingGroup.NormalMapId == shadingGroup.DiffuseMapId
+                    ? null
+                    : Solid.TextureHashes[shadingGroup.NormalMapId],
+                SpecularTextureHash = shadingGroup.SpecularMapId == shadingGroup.DiffuseMapId
+                    ? null
+                    : Solid.TextureHashes[shadingGroup.SpecularMapId],
                 EffectId = shadingGroup.EffectId,
                 VertexSetIndex = streamIndex
             });
