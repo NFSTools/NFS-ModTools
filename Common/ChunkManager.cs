@@ -134,10 +134,11 @@ namespace Common
                     }
                     case 0x80135000:
                     {
-                        if (_game == GameDetector.Game.World)
-                            cd.Resource = new WorldLights().ReadLights(Reader, chunk.Length);
-                        else if (_game == GameDetector.Game.Carbon)
-                            cd.Resource = new CarbonLights().ReadLights(Reader, chunk.Length);
+                        if (_game is GameDetector.Game.World or GameDetector.Game.Carbon
+                            or GameDetector.Game.Underground2)
+                            cd.Resource = new LightPackReader().ReadLights(Reader, chunk.Length);
+                        else
+                            throw new Exception($"Cannot process light pack chunk for game: {_game}");
                         break;
                     }
                     default:

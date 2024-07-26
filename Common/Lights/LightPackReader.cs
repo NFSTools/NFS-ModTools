@@ -6,7 +6,7 @@ using Common.Lights.Structures;
 
 namespace Common.Lights;
 
-public class WorldLights
+public class LightPackReader
 {
     private LightPack _lightPack;
 
