@@ -386,8 +386,12 @@ public class ExportBundleCommand : BaseCommand
             foreach (var targetHash in morphableSolid.MorphTargets)
             {
                 if (!solidObjectLookup.TryGetValue(targetHash, out var targetSolid))
-                    throw new KeyNotFoundException(
-                        $"Solid {solid.Name} references nonexistent solid as a morph target: 0x{targetHash:X8}");
+                {
+                    Log.Warning(
+                        "Solid {SolidName} references nonexistent solid [0x{TargetSolidHash:X8}] as morph target",
+                        solid.Name, targetHash);
+                    continue;
+                }
 
                 ValidateMorphTarget(solid, targetSolid);
                 sceneNodes.Add(new SceneExportNode(targetSolid, targetSolid.Name, Matrix4x4.Identity, false));
@@ -412,8 +416,9 @@ public class ExportBundleCommand : BaseCommand
             {
                 if (!solidObjectLookup.TryGetValue(targetHash, out var targetSolid))
                 {
-                    Console.Error.WriteLine(
-                        $"WARNING: Solid {solid.Name} references nonexistent solid [0x{targetHash:X8}] as morph target");
+                    Log.Warning(
+                        "Solid {SolidName} references nonexistent solid [0x{TargetSolidHash:X8}] as morph target",
+                        solid.Name, targetHash);
                     continue;
                 }
 
@@ -494,6 +499,7 @@ public class ExportBundleCommand : BaseCommand
             .Distinct()
             .ToList();
         var textureKeyToFbxTexture = new Dictionary<uint, FBXSharp.Objective.Texture>();
+        var solidKeyToSolid = new Dictionary<uint, SolidObject>();
 
         foreach (var textureHash in texturesToAdd)
         {
@@ -516,7 +522,9 @@ public class ExportBundleCommand : BaseCommand
 
         foreach (var solidObject in solidsToAdd)
         {
-            var geometryBuilder = new GeometryBuilder(fbxScene);
+            solidKeyToSolid.Add(solidObject.Hash, solidObject);
+            var geometryBuilder = new GeometryBuilder(fbxScene).WithName(solidObject.Name)
+                .WithFBXProperty("Hash", solidObject.Hash);
             var allVertices = solidObject.VertexSets.SelectMany(s => s).ToList();
             var vertexPositions = new FBXSharp.ValueTypes.Vector3[allVertices.Count];
 
@@ -566,13 +574,72 @@ public class ExportBundleCommand : BaseCommand
                 vertexUVs[i] = new Vector2(vertex.TexCoords.X, 1 - vertex.TexCoords.Y);
             }
 
-            // TODO: normals
-            // TODO: colors
-            // TODO: tangents
-            // TODO: morph targets/blend shapes
+            geometryBuilder = geometryBuilder.WithUVs(vertexUVs);
 
-            var geometry = geometryBuilder.WithUVs(vertexUVs).BuildGeometry();
-            solidKeyToFbxGeometry.Add(solidObject.Hash, geometry);
+            if (allVertices.All(v => v.Normal != null))
+            {
+                var vertexNormals = new FBXSharp.ValueTypes.Vector3[allIndices.Length];
+                for (var i = 0; i < allIndices.Length; i++)
+                {
+                    var vertex = allVertices[allIndices[i]];
+                    // ReSharper disable once PossibleInvalidOperationException
+                    var normal = vertex.Normal.Value;
+                    vertexNormals[i] = new FBXSharp.ValueTypes.Vector3(normal.X, normal.Y, normal.Z);
+                }
+
+                geometryBuilder = geometryBuilder.WithNormals(vertexNormals);
+            }
+
+            if (allVertices.Any(v => v.Color != null))
+            {
+                var vertexBaseColors = new Vector4[allIndices.Length];
+                for (var i = 0; i < allIndices.Length; i++)
+                {
+                    var vertex = allVertices[allIndices[i]];
+                    if (vertex.Color is { } color)
+                    {
+                        var a = (color >> 24) & 0xFF;
+                        var r = (color >> 16) & 0xFF;
+                        var g = (color >> 8) & 0xFF;
+                        var b = (color >> 0) & 0xFF;
+
+                        vertexBaseColors[i] = new Vector4(r / 255f, g / 255f, b / 255f, a / 255f);
+                    }
+                    else
+                    {
+                        vertexBaseColors[i] = new Vector4(1, 1, 1);
+                    }
+                }
+
+                geometryBuilder = geometryBuilder.WithColors(vertexBaseColors, 0, "BaseColors");
+            }
+
+            if (allVertices.Any(v => v.Color2 != null))
+            {
+                var vertexExtraColors = new Vector4[allIndices.Length];
+                for (var i = 0; i < allIndices.Length; i++)
+                {
+                    var vertex = allVertices[allIndices[i]];
+                    if (vertex.Color2 is { } color)
+                    {
+                        var a = (color >> 24) & 0xFF;
+                        var r = (color >> 16) & 0xFF;
+                        var g = (color >> 8) & 0xFF;
+                        var b = (color >> 0) & 0xFF;
+
+                        vertexExtraColors[i] = new Vector4(r / 255f, g / 255f, b / 255f, a / 255f);
+                    }
+                    else
+                    {
+                        vertexExtraColors[i] = new Vector4(1, 1, 1);
+                    }
+                }
+
+                geometryBuilder = geometryBuilder.WithColors(vertexExtraColors, 1, "ExtraColors");
+            }
+
+            // var geometry = geometryBuilder.WithUVs(vertexUVs).BuildGeometry();
+            solidKeyToFbxGeometry.Add(solidObject.Hash, geometryBuilder.BuildGeometry());
 
             for (var iMaterial = 0; iMaterial < solidObject.Materials.Count; iMaterial++)
             {
@@ -587,12 +654,67 @@ public class ExportBundleCommand : BaseCommand
                     fbxMaterialBuilder = fbxMaterialBuilder.WithColor(MaterialBuilder.ColorType.DiffuseColor,
                         new ColorRGB(239 / 255.0, 66 / 255.0, 245 / 255.0));
 
+                // fbxMaterialBuilder = fbxMaterialBuilder.WithFBXProperty()
                 solidMatToFbxMat[(solidObject.Hash, iMaterial)] = fbxMaterialBuilder.BuildMaterial();
             }
         }
 
+        // create blend shapes
+        foreach (var solidObject in solidsToAdd)
+        {
+            var geometry = solidKeyToFbxGeometry[solidObject.Hash];
+            if (solidObject is IMorphableSolid morphableSolid)
+                if (morphableSolid.MorphTargets.Count > 0)
+                {
+                    var legitMorphTargets =
+                        morphableSolid.MorphTargets.Where(solidKeyToFbxGeometry.ContainsKey).ToList();
+                    if (morphableSolid.MorphTargets.Count != legitMorphTargets.Count)
+                        Log.Warning("Solid '{SolidName}' [0x{SolidHash:X8}] has at least one invalid morph target...",
+                            solidObject.Name, solidObject.Hash);
+
+                    var startRawVertices = ExtractPositions(solidObject);
+
+                    foreach (var morphTarget in legitMorphTargets)
+                    {
+                        var morphTargetSolid = solidKeyToSolid[morphTarget];
+                        var morphShape = fbxScene.CreateShape();
+                        var targetIndices = TranslateIndices(morphTargetSolid);
+                        var targetRawVertices = ExtractPositions(morphTargetSolid);
+                        var targetRawNormals = ExtractNormals(morphTargetSolid);
+
+                        var vertices = new FBXSharp.ValueTypes.Vector3[targetIndices.Length];
+                        var normals = new FBXSharp.ValueTypes.Vector3[targetIndices.Length];
+
+                        for (var i = 0; i < targetIndices.Length; i++)
+                        {
+                            var realIndex = targetIndices[i];
+                            var translatedVertex = targetRawVertices[realIndex] - startRawVertices[realIndex];
+                            vertices[i] = new FBXSharp.ValueTypes.Vector3(translatedVertex.X,
+                                translatedVertex.Y,
+                                translatedVertex.Z);
+                            normals[i] = new FBXSharp.ValueTypes.Vector3(targetRawNormals[realIndex].X,
+                                targetRawNormals[realIndex].Y,
+                                targetRawNormals[realIndex].Z);
+                        }
+
+                        morphShape.SetupMorphTarget(targetIndices, vertices, normals);
+
+
+                        var blendShape = fbxScene.CreateBlendShape();
+                        var blendShapeChannel = fbxScene.CreateBlendShapeChannel();
+                        blendShapeChannel.FullWeights = new double[1];
+                        blendShapeChannel.DeformPercent = 0;
+                        blendShapeChannel.AddShape(morphShape);
+
+                        blendShape.AddChannel(blendShapeChannel);
+                        geometry.AddBlendShape(blendShape);
+                    }
+                }
+        }
+
         foreach (var sceneNode in scene.Nodes)
         {
+            if (!sceneNode.IncludeInVisualScene) continue;
             var solidObject = sceneNode.SolidObject;
             var geometry = solidKeyToFbxGeometry[solidObject.Hash];
 
@@ -629,6 +751,38 @@ public class ExportBundleCommand : BaseCommand
 
         using var fs = File.Create(outputPath);
         exporter.Save(fs, options);
+    }
+
+    private static Vector3[] ExtractPositions(SolidObject solidObject)
+    {
+        return solidObject.VertexSets.SelectMany(vs => vs).Select(v => v.Position).ToArray();
+    }
+
+    private static Vector3[] ExtractNormals(SolidObject solidObject)
+    {
+        return solidObject.VertexSets.SelectMany(vs => vs).Select(v =>
+            v.Normal ?? throw new Exception($"Some normals are missing from solid '{solidObject.Name}'")).ToArray();
+    }
+
+    private static int[] TranslateIndices(SolidObject solidObject)
+    {
+        var vertexOffset = 0;
+        var indexOffset = 0;
+        var lastVertexSet = 0;
+        var allIndices = new int[solidObject.Materials.Sum(m => m.Indices.Length)];
+        foreach (var material in solidObject.Materials)
+        {
+            if (material.VertexSetIndex != lastVertexSet)
+                vertexOffset += solidObject.VertexSets[lastVertexSet].Count;
+
+            for (var i = 0; i < material.Indices.Length; i++)
+                allIndices[indexOffset + i] = material.Indices[i] + vertexOffset;
+
+            indexOffset += material.Indices.Length;
+            lastVertexSet = material.VertexSetIndex;
+        }
+
+        return allIndices;
     }
 
     private static float RadiansToDegrees(float radians)
