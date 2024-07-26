@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Viewer", "Viewer\Viewer.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common.Windows", "Common.Windows\Common.Windows.csproj", "{9052B02B-55E7-4806-9F83-237ACE7A9203}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FBXSharp", "FBXSharp\FBXSharp.csproj", "{35FA8B81-9AA0-4485-9FBF-1B1E0C4B67CF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{F83C7766-12F3-4619-B1C9-74C6241FF1FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F83C7766-12F3-4619-B1C9-74C6241FF1FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F83C7766-12F3-4619-B1C9-74C6241FF1FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{35FA8B81-9AA0-4485-9FBF-1B1E0C4B67CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{35FA8B81-9AA0-4485-9FBF-1B1E0C4B67CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{35FA8B81-9AA0-4485-9FBF-1B1E0C4B67CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{35FA8B81-9AA0-4485-9FBF-1B1E0C4B67CF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

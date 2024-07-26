@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Numerics;
+using System.Reflection;
 using System.Text;
 using System.Xml;
 using CommandLine;
@@ -13,8 +13,16 @@ using Common.Geometry.Data;
 using Common.Lights.Data;
 using Common.Scenery.Data;
 using Common.Textures.Data;
+using FBXSharp;
+using FBXSharp.Core;
+using FBXSharp.Objective;
+using FBXSharp.ValueTypes;
 using JetBrains.Annotations;
 using Serilog;
+using Matrix4x4 = System.Numerics.Matrix4x4;
+using Quaternion = System.Numerics.Quaternion;
+using Texture = Common.Textures.Data.Texture;
+using Vector3 = System.Numerics.Vector3;
 
 namespace AssetDumper;
 
@@ -24,6 +32,12 @@ public enum ModelExportMode
     ExportPacks,
     ExportSceneryInstances,
     ExportScenerySections,
+}
+
+public enum SceneFormat
+{
+    Collada,
+    Fbx
 }
 
 [Verb("export", HelpText = "Export assets from one or more asset bundles")]
@@ -47,6 +61,9 @@ public class ExportBundleCommand : BaseCommand
         HelpText =
             "When enabled, lights will be exported to the COLLADA scene. ONLY VALID WITH ExportScenerySections.")]
     public bool ExportLights { get; [UsedImplicitly] set; }
+
+    [Option("scene-format", HelpText = "The format (Collada or Fbx) to export scenes in")]
+    public SceneFormat SceneFormat { get; [UsedImplicitly] set; } = SceneFormat.Collada;
 
     public override int Execute()
     {
@@ -144,6 +161,8 @@ public class ExportBundleCommand : BaseCommand
         // the same texture having a low-quality version skipped
         var notedSkippedTextures = new HashSet<uint>();
 
+        var textureInfos = new Dictionary<uint, Texture>();
+
         // Process texture packs
         foreach (var resource in resources.OfType<TexturePack>())
         {
@@ -156,6 +175,7 @@ public class ExportBundleCommand : BaseCommand
                 {
                     seenTextures[texture.TexHash] = texture.Data.Length;
                     texture.DumpToFile(Path.Combine(texturesDir, textureFileName));
+                    textureInfos[texture.TexHash] = texture;
                 }
                 else if (notedSkippedTextures.Add(texture.TexHash))
                 {
@@ -165,6 +185,13 @@ public class ExportBundleCommand : BaseCommand
                 }
             }
         }
+
+        var sceneFileExtension = SceneFormat switch
+        {
+            SceneFormat.Collada => "dae",
+            SceneFormat.Fbx => "fbx",
+            _ => throw new NotImplementedException(SceneFormat.ToString())
+        };
 
         var solidLists = resources.OfType<SolidList>().ToList();
         var scenerySections = resources.OfType<ScenerySection>().ToList();
@@ -182,8 +209,8 @@ public class ExportBundleCommand : BaseCommand
             {
                 foreach (var scenerySection in scenerySections.OrderBy(s => s.SectionNumber))
                 {
-                    ExportScenerySection(solidObjectLookup, scenerySection, Path.Combine(outputDir,
-                            scenerySection.SectionNumber + ".dae"), texturePaths,
+                    ExportScenerySection(solidObjectLookup, textureInfos, scenerySection, Path.Combine(outputDir,
+                            $"{scenerySection.SectionNumber}.{sceneFileExtension}"), SceneFormat, texturePaths,
                         ExportLights
                             ? lightPacks.Where(lp => lp.ScenerySectionNumber == scenerySection.SectionNumber).ToList()
                             : null);
@@ -240,7 +267,8 @@ public class ExportBundleCommand : BaseCommand
                 foreach (var (solidKey, solidTransforms) in groupedInstances)
                 {
                     var solid = solidObjectLookup[solidKey];
-                    ExportSingleSolid(solid, Path.Combine(outputDir, $"{solid.Name}.dae"), texturePaths,
+                    ExportSingleSolid(solid, Path.Combine(outputDir, $"{solid.Name}.{sceneFileExtension}"),
+                        SceneFormat, textureInfos, texturePaths,
                         solidObjectLookup);
 
                     using var solidTransformWriter = new StreamWriter(Path.Combine(outputDir, $"{solid.Name}.txt"));
@@ -275,9 +303,10 @@ public class ExportBundleCommand : BaseCommand
             {
                 Log.Information("Exporting {NumSolidLists} solid packs", solidLists.Count);
 
-                var outputPath = Path.Combine(outputDir, "combined.dae");
+                var outputPath = Path.Combine(outputDir, $"combined.{sceneFileExtension}");
                 Log.Information("Exporting all models to {OutputPath}", outputPath);
-                ExportMultipleSolids(solidObjectsToExport, outputPath, texturePaths, solidObjectLookup);
+                ExportMultipleSolids(solidObjectsToExport, outputPath, SceneFormat, textureInfos, texturePaths,
+                    solidObjectLookup);
             }
             else
             {
@@ -285,14 +314,18 @@ public class ExportBundleCommand : BaseCommand
                 foreach (var solidObject in solidObjectsToExport)
                 {
                     ExportSingleSolid(solidObject,
-                        Path.Combine(outputDir, $"{solidObject.Name}.dae"), texturePaths, solidObjectLookup);
+                        Path.Combine(outputDir, $"{solidObject.Name}.{sceneFileExtension}"), SceneFormat, textureInfos,
+                        texturePaths,
+                        solidObjectLookup);
                 }
             }
         }
     }
 
     private static void ExportScenerySection(IReadOnlyDictionary<uint, SolidObject> objects,
-        ScenerySection scenerySection, string outputPath, Dictionary<uint, string> texturePaths,
+        Dictionary<uint, Texture> textureInfos,
+        ScenerySection scenerySection, string outputPath, SceneFormat sceneFormat,
+        Dictionary<uint, string> texturePaths,
         List<LightPack> lightPacks)
     {
         Log.Information(
@@ -318,7 +351,7 @@ public class ExportBundleCommand : BaseCommand
         }
 
         var scene = new SceneExport(sceneNodes, $"ScenerySection_{scenerySection.SectionNumber}", objects);
-        ExportScene(scene, outputPath, texturePaths, lightPacks);
+        ExportScene(scene, outputPath, sceneFormat, textureInfos, texturePaths, lightPacks);
     }
 
     private static void ValidateMorphTarget(SolidObject baseObject, SolidObject targetObject)
@@ -341,6 +374,7 @@ public class ExportBundleCommand : BaseCommand
     }
 
     private static void ExportMultipleSolids(IReadOnlyCollection<SolidObject> solidObjects, string outputPath,
+        SceneFormat sceneFormat, Dictionary<uint, Texture> textureInfos,
         Dictionary<uint, string> texturePaths, IReadOnlyDictionary<uint, SolidObject> solidObjectLookup)
     {
         var sceneNodes = solidObjects.Select(solid => new SceneExportNode(solid, solid.Name, Matrix4x4.Identity))
@@ -361,10 +395,11 @@ public class ExportBundleCommand : BaseCommand
         }
 
         var scene = new SceneExport(sceneNodes, "MultiSolidExport", solidObjectLookup);
-        ExportScene(scene, outputPath, texturePaths, null);
+        ExportScene(scene, outputPath, sceneFormat, textureInfos, texturePaths, null);
     }
 
-    private static void ExportSingleSolid(SolidObject solid, string outputPath,
+    private static void ExportSingleSolid(SolidObject solid, string outputPath, SceneFormat sceneFormat,
+        Dictionary<uint, Texture> textureInfos,
         Dictionary<uint, string> texturePaths, IReadOnlyDictionary<uint, SolidObject> solidObjectLookup)
     {
         var sceneNodes = new List<SceneExportNode>
@@ -387,7 +422,7 @@ public class ExportBundleCommand : BaseCommand
             }
 
         var scene = new SceneExport(sceneNodes, solid.Name, solidObjectLookup);
-        ExportScene(scene, outputPath, texturePaths, null);
+        ExportScene(scene, outputPath, sceneFormat, textureInfos, texturePaths, null);
     }
 
     private static string GetMaterialId(SolidObject solidObject, int materialIndex, SolidObjectMaterial material)
@@ -405,7 +440,228 @@ public class ExportBundleCommand : BaseCommand
         return $"0x{texture.TexHash:X8}_{texture.Name}.dds";
     }
 
-    private static void ExportScene(SceneExport scene, string outputPath, Dictionary<uint, string> texturePaths,
+    private static void ExportScene(SceneExport scene, string outputPath, SceneFormat sceneFormat,
+        Dictionary<uint, Texture> textureInfos,
+        Dictionary<uint, string> texturePaths,
+        List<LightPack> lightPacks)
+    {
+        switch (sceneFormat)
+        {
+            case SceneFormat.Fbx:
+                ExportSceneFbx(scene, outputPath, textureInfos, texturePaths, lightPacks);
+                break;
+            case SceneFormat.Collada:
+                ExportSceneCollada(scene, outputPath, texturePaths, lightPacks);
+                break;
+            default:
+                throw new NotImplementedException(sceneFormat.ToString());
+        }
+    }
+
+    private static void ExportSceneFbx(SceneExport scene, string outputPath, Dictionary<uint, Texture> textureInfos,
+        Dictionary<uint, string> texturePaths,
+        List<LightPack> lightPacks)
+    {
+        var fbxScene = new Scene();
+
+        _ = fbxScene.CreatePredefinedTemplate(FBXClassType.Video, TemplateCreationType.NewOverrideAnyExisting);
+        _ = fbxScene.CreatePredefinedTemplate(FBXClassType.Texture, TemplateCreationType.NewOverrideAnyExisting);
+        _ = fbxScene.CreatePredefinedTemplate(FBXClassType.Geometry, TemplateCreationType.NewOverrideAnyExisting);
+        _ = fbxScene.CreatePredefinedTemplate(FBXClassType.Material, TemplateCreationType.NewOverrideAnyExisting);
+        _ = fbxScene.CreatePredefinedTemplate(FBXClassType.Model, TemplateCreationType.NewOverrideAnyExisting);
+        _ = fbxScene.CreatePredefinedTemplate(FBXClassType.NodeAttribute, TemplateCreationType.NewOverrideAnyExisting);
+
+        fbxScene.Settings.CoordAxis = 0;
+        fbxScene.Settings.CoordAxisSign = 1;
+        fbxScene.Settings.FrontAxis = (int)UpVector.AxisY;
+        fbxScene.Settings.FrontAxisSign = 1;
+        fbxScene.Settings.Name = "GlobalSettings";
+        fbxScene.Settings.OriginalUnitScaleFactor = 100;
+        fbxScene.Settings.OriginalUpAxis = -1;
+        fbxScene.Settings.OriginalUpAxisSign = 1;
+        fbxScene.Settings.TimeMode = new Enumeration((int)FrameRate.Rate60);
+        fbxScene.Settings.TimeSpanStart = new TimeBase(0.0);
+        fbxScene.Settings.TimeSpanStop = new TimeBase(1.0);
+        fbxScene.Settings.UnitScaleFactor = 100;
+        fbxScene.Settings.UpAxis = (int)UpVector.AxisZ;
+        fbxScene.Settings.UpAxisSign = 1;
+
+        var solidsToAdd = scene.Nodes.Select(n => n.SolidObject)
+            .Distinct(SolidObject.HashComparer)
+            .ToList();
+        var texturesToAdd = solidsToAdd
+            .SelectMany(s => s.Materials.Select(m => m.TextureHash))
+            .Distinct()
+            .ToList();
+        var textureKeyToFbxTexture = new Dictionary<uint, FBXSharp.Objective.Texture>();
+
+        foreach (var textureHash in texturesToAdd)
+        {
+            if (!texturePaths.TryGetValue(textureHash, out var texturePath))
+            {
+                Log.Warning("Texture 0x{TextureHash:X8} will not be linked to materials", textureHash);
+                continue;
+            }
+
+            var textureBuilder = new TextureBuilder(fbxScene)
+                .WithRelativePath(texturePath)
+                .WithName(textureInfos[textureHash].Name);
+
+            var texture = textureBuilder.BuildTexture();
+            textureKeyToFbxTexture.Add(textureHash, texture);
+        }
+
+        var solidKeyToFbxGeometry = new Dictionary<uint, Geometry>();
+        var solidMatToFbxMat = new Dictionary<(uint, int), Material>();
+
+        foreach (var solidObject in solidsToAdd)
+        {
+            var geometryBuilder = new GeometryBuilder(fbxScene);
+            var allVertices = solidObject.VertexSets.SelectMany(s => s).ToList();
+            var vertexPositions = new FBXSharp.ValueTypes.Vector3[allVertices.Count];
+
+            var numIndices = solidObject.Materials.Sum(m => m.Indices.Length);
+            var allIndices = new int[numIndices];
+            // var allIndices = solidObject.Materials.SelectMany(m => m.Indices.Select(i => (int)i)).ToArray();
+
+            for (var i = 0; i < allVertices.Count; i++)
+            {
+                var solidMeshVertex = allVertices[i];
+                vertexPositions[i] = new FBXSharp.ValueTypes.Vector3(solidMeshVertex.Position.X,
+                    solidMeshVertex.Position.Y, solidMeshVertex.Position.Z);
+            }
+
+            var lastVertexSet = 0;
+            var vertexOffset = 0;
+            var indexOffset = 0;
+            foreach (var material in solidObject.Materials)
+            {
+                if (material.VertexSetIndex != lastVertexSet)
+                    vertexOffset += solidObject.VertexSets[lastVertexSet].Count;
+
+                for (var i = 0; i < material.Indices.Length; i++)
+                    allIndices[indexOffset + i] = material.Indices[i] + vertexOffset;
+
+                indexOffset += material.Indices.Length;
+                lastVertexSet = material.VertexSetIndex;
+            }
+
+            var subMeshStartIndex = 0;
+
+            geometryBuilder = geometryBuilder.WithVertices(vertexPositions)
+                .WithIndices(allIndices, GeometryBuilder.PolyType.Tri);
+
+            for (var i = 0; i < solidObject.Materials.Count; i++)
+            {
+                var material = solidObject.Materials[i];
+                var numMaterialIndices = material.Indices.Length;
+                geometryBuilder = geometryBuilder.WithSubMesh(subMeshStartIndex / 3, numMaterialIndices / 3, i);
+                subMeshStartIndex += numMaterialIndices;
+            }
+
+            var vertexUVs = new Vector2[allIndices.Length];
+            for (var i = 0; i < allIndices.Length; i++)
+            {
+                var vertex = allVertices[allIndices[i]];
+                vertexUVs[i] = new Vector2(vertex.TexCoords.X, 1 - vertex.TexCoords.Y);
+            }
+
+            // TODO: normals
+            // TODO: colors
+            // TODO: tangents
+            // TODO: morph targets/blend shapes
+
+            var geometry = geometryBuilder.WithUVs(vertexUVs).BuildGeometry();
+            solidKeyToFbxGeometry.Add(solidObject.Hash, geometry);
+
+            for (var iMaterial = 0; iMaterial < solidObject.Materials.Count; iMaterial++)
+            {
+                var material = solidObject.Materials[iMaterial];
+                // var fbxMaterial = fbxScene.CreateMaterial();
+                var fbxMaterialBuilder = new MaterialBuilder(fbxScene).WithName(material.Name);
+
+                if (textureKeyToFbxTexture.TryGetValue(material.TextureHash, out var fbxTexture))
+                    fbxMaterialBuilder =
+                        fbxMaterialBuilder.WithChannel(MaterialBuilder.ChannelType.DiffuseColor, fbxTexture);
+                else
+                    fbxMaterialBuilder = fbxMaterialBuilder.WithColor(MaterialBuilder.ColorType.DiffuseColor,
+                        new ColorRGB(239 / 255.0, 66 / 255.0, 245 / 255.0));
+
+                solidMatToFbxMat[(solidObject.Hash, iMaterial)] = fbxMaterialBuilder.BuildMaterial();
+            }
+        }
+
+        foreach (var sceneNode in scene.Nodes)
+        {
+            var solidObject = sceneNode.SolidObject;
+            var geometry = solidKeyToFbxGeometry[solidObject.Hash];
+
+            var mesh = fbxScene.CreateMesh();
+            mesh.Geometry = geometry;
+
+            for (var i = 0; i < solidObject.Materials.Count; i++)
+                mesh.AddMaterial(solidMatToFbxMat[(solidObject.Hash, i)]);
+
+            if (!Matrix4x4.Decompose(sceneNode.Transform, out var scale, out var rotation, out var translation))
+                Log.Warning(
+                    "Failed to decompose matrix for node '{NodeName}' (solid '{SolidName}' [0x{SolidHash:X8}]). It may be sheared.",
+                    sceneNode.Name, solidObject.Name, solidObject.Hash);
+
+            var rotationAngles = ToEulerAngles(rotation);
+
+            mesh.LocalScale = new FBXSharp.ValueTypes.Vector3(scale.X, scale.Y, scale.Z);
+            mesh.LocalRotation = new FBXSharp.ValueTypes.Vector3(RadiansToDegrees(rotationAngles.X),
+                RadiansToDegrees(rotationAngles.Y), RadiansToDegrees(rotationAngles.Z));
+            mesh.LocalTranslation = new FBXSharp.ValueTypes.Vector3(translation.X, translation.Y, translation.Z);
+            mesh.Name = sceneNode.Name;
+
+            fbxScene.RootNode.AddChild(mesh);
+        }
+
+        var exporter = new FBXExporter7400(fbxScene);
+        var options = new FBXExporter7400.Options
+        {
+            AppVendor = "NFSTools",
+            AppName = "AssetDumper",
+            AppVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString(),
+            SaveTime = DateTime.Now
+        };
+
+        using var fs = File.Create(outputPath);
+        exporter.Save(fs, options);
+    }
+
+    private static float RadiansToDegrees(float radians)
+    {
+        return radians * (180f / MathF.PI);
+    }
+
+    // https://stackoverflow.com/a/70462919
+    private static Vector3 ToEulerAngles(Quaternion q)
+    {
+        Vector3 angles = new();
+
+        // roll / x
+        double sinr_cosp = 2 * (q.W * q.X + q.Y * q.Z);
+        double cosr_cosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
+        angles.X = (float)Math.Atan2(sinr_cosp, cosr_cosp);
+
+        // pitch / y
+        double sinp = 2 * (q.W * q.Y - q.Z * q.X);
+        if (Math.Abs(sinp) >= 1)
+            angles.Y = (float)Math.CopySign(Math.PI / 2, sinp);
+        else
+            angles.Y = (float)Math.Asin(sinp);
+
+        // yaw / z
+        double siny_cosp = 2 * (q.W * q.Z + q.X * q.Y);
+        double cosy_cosp = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
+        angles.Z = (float)Math.Atan2(siny_cosp, cosy_cosp);
+
+        return angles;
+    }
+
+    private static void ExportSceneCollada(SceneExport scene, string outputPath, Dictionary<uint, string> texturePaths,
         List<LightPack> lightPacks)
     {
         var collada = new COLLADA
