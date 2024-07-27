@@ -132,7 +132,13 @@ public class MostWantedSolidReader : SolidReader<MostWantedObject, MostWantedMat
                 MinPoint = shadingGroup.BoundsMin,
                 MaxPoint = shadingGroup.BoundsMax,
                 NumVerts = shadingGroup.NumVerts,
-                DiffuseTextureHash = Solid.TextureHashes[shadingGroup.TextureNumber[0]],
+                DiffuseTextureHash = Solid.TextureHashes[shadingGroup.DiffuseMapId],
+                NormalTextureHash = shadingGroup.NormalMapId == shadingGroup.DiffuseMapId
+                    ? null
+                    : Solid.TextureHashes[shadingGroup.NormalMapId],
+                SpecularTextureHash = shadingGroup.SpecularMapId == shadingGroup.DiffuseMapId
+                    ? null
+                    : Solid.TextureHashes[shadingGroup.SpecularMapId],
                 EffectId = shadingGroup.EffectId,
                 VertexSetIndex = streamIndex
             };
@@ -258,8 +264,11 @@ public class MostWantedSolidReader : SolidReader<MostWantedObject, MostWantedMat
 
         public readonly Vector3 BoundsMax; // @0xC
 
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
-        public readonly byte[] TextureNumber; // @0x18
+        public readonly byte DiffuseMapId; // @0x18
+        public readonly byte NormalMapId; // @0x19
+        public readonly byte HeightMapId; // @0x1A
+        public readonly byte SpecularMapId; // @0x1B
+        public readonly byte OpacityMapId; // @0x1C
 
         public readonly byte LightMaterialNumber; // @0x1D
 
