@@ -27,50 +27,23 @@ namespace FBXSharp.Objective
             Double4
         }
 
-        public struct Channel
-        {
-            public int Layer { get; }
-            public string Name { get; }
-            public Array Buffer { get; }
-            public ChannelType Type { get; }
-            public ComponentType Size { get; }
-
-            internal Channel(int layer, string name, ChannelType type, ComponentType size, Array array)
-            {
-                Layer = layer;
-                Name = name ?? string.Empty;
-                Type = type;
-                Size = size;
-                Buffer = array;
-            }
-
-            public override string ToString()
-            {
-                return $"{Type} {Layer} | {Name}";
-            }
-        }
-
-        public struct SubMesh
-        {
-            public int PolygonStart { get; }
-            public int PolygonCount { get; }
-            public int MaterialIndex { get; }
-
-            public SubMesh(int start, int count, int matIndex)
-            {
-                PolygonStart = start;
-                PolygonCount = count;
-                MaterialIndex = matIndex;
-            }
-        }
-
-        private readonly List<BlendShape> m_shapes;
-        private readonly List<Channel> m_channels;
-        private readonly List<Skin> m_skins;
-
         public static readonly FBXObjectType FType = FBXObjectType.Mesh;
 
         public static readonly FBXClassType FClass = FBXClassType.Geometry;
+        private readonly List<Channel> m_channels;
+
+        private readonly List<BlendShape> m_shapes;
+        private readonly List<Skin> m_skins;
+
+        internal Geometry(IElement element, IScene scene) : base(element, scene)
+        {
+            Vertices = Array.Empty<Vector3>();
+            Indices = Array.Empty<int[]>();
+            SubMeshes = Array.Empty<SubMesh>();
+            m_channels = new List<Channel>();
+            m_shapes = new List<BlendShape>();
+            m_skins = new List<Skin>();
+        }
 
         public override FBXObjectType Type => FType;
 
@@ -89,16 +62,6 @@ namespace FBXSharp.Objective
         public IReadOnlyList<Skin> Skins => m_skins;
 
         public IReadOnlyList<Channel> Channels => m_channels;
-
-        internal Geometry(IElement element, IScene scene) : base(element, scene)
-        {
-            Vertices = Array.Empty<Vector3>();
-            Indices = Array.Empty<int[]>();
-            SubMeshes = Array.Empty<SubMesh>();
-            m_channels = new List<Channel>();
-            m_shapes = new List<BlendShape>();
-            m_skins = new List<Skin>();
-        }
 
         private int InternalGetIndexCount()
         {
@@ -467,7 +430,7 @@ namespace FBXSharp.Objective
                     elemento[1 + c] = new Element("LayerElement", new IElement[]
                     {
                         Element.WithAttribute("Type", ElementaryFactory.GetElementAttribute(element.Name)),
-                        Element.WithAttribute("TypeIndex", ElementaryFactory.GetElementAttribute(channel.Layer))
+                        Element.WithAttribute("TypedIndex", ElementaryFactory.GetElementAttribute(channel.Layer))
                     }, null);
                 }
 
@@ -485,6 +448,43 @@ namespace FBXSharp.Objective
 
             return new Element(Class.ToString(), elements, BuildAttributes("Geometry", Type.ToString(), binary));
         }
+
+        public struct Channel
+        {
+            public int Layer { get; }
+            public string Name { get; }
+            public Array Buffer { get; }
+            public ChannelType Type { get; }
+            public ComponentType Size { get; }
+
+            internal Channel(int layer, string name, ChannelType type, ComponentType size, Array array)
+            {
+                Layer = layer;
+                Name = name ?? string.Empty;
+                Type = type;
+                Size = size;
+                Buffer = array;
+            }
+
+            public override string ToString()
+            {
+                return $"{Type} {Layer} | {Name}";
+            }
+        }
+
+        public struct SubMesh
+        {
+            public int PolygonStart { get; }
+            public int PolygonCount { get; }
+            public int MaterialIndex { get; }
+
+            public SubMesh(int start, int count, int matIndex)
+            {
+                PolygonStart = start;
+                PolygonCount = count;
+                MaterialIndex = matIndex;
+            }
+        }
     }
 
     public class GeometryBuilder : BuilderBase
@@ -495,20 +495,13 @@ namespace FBXSharp.Objective
             Quad = 4
         }
 
-        private readonly List<Vector3> m_vertices;
-        private readonly List<int[]> m_polygons;
-        private readonly List<Geometry.Channel> m_channels;
-        private readonly List<Geometry.SubMesh> m_subMeshes;
         private readonly List<BlendShape> m_blendShapes;
+        private readonly List<Geometry.Channel> m_channels;
+        private readonly List<int[]> m_polygons;
         private readonly List<Skin> m_skins;
+        private readonly List<Geometry.SubMesh> m_subMeshes;
 
-        public IReadOnlyList<Geometry.Channel> Channels => m_channels;
-
-        public IReadOnlyList<Geometry.SubMesh> SubMeshes => m_subMeshes;
-
-        public IReadOnlyList<BlendShape> BlendShapes => m_blendShapes;
-
-        public IReadOnlyList<Skin> Skins => m_skins;
+        private readonly List<Vector3> m_vertices;
 
         public GeometryBuilder(Scene scene) : base(scene)
         {
@@ -519,6 +512,14 @@ namespace FBXSharp.Objective
             m_blendShapes = new List<BlendShape>();
             m_skins = new List<Skin>();
         }
+
+        public IReadOnlyList<Geometry.Channel> Channels => m_channels;
+
+        public IReadOnlyList<Geometry.SubMesh> SubMeshes => m_subMeshes;
+
+        public IReadOnlyList<BlendShape> BlendShapes => m_blendShapes;
+
+        public IReadOnlyList<Skin> Skins => m_skins;
 
         public Geometry BuildGeometry()
         {
