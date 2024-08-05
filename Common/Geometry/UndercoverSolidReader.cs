@@ -322,7 +322,7 @@ public class UndercoverSolidReader : SolidReader<UndercoverObject, UndercoverMat
                 NumVerts = (uint)numVertices,
                 VertexSetIndex = j,
                 DiffuseTextureHash = Solid.TextureHashes[shadingGroup.TextureNumber[0]],
-                EffectId = EffectIdMapping[shadingGroup.MaterialAttribKey],
+                EffectId = (uint)EffectIdMapping[shadingGroup.MaterialAttribKey],
                 NumReducedIndices = shadingGroup.NumReducedIdx,
                 Indices = new ushort[shadingGroup.IdxUsed]
             };
@@ -352,7 +352,7 @@ public class UndercoverSolidReader : SolidReader<UndercoverObject, UndercoverMat
         var effectId = material.EffectId;
         var vertex = new SolidMeshVertex();
 
-        switch (effectId)
+        switch ((UndercoverEffectId)effectId)
         {
             case UndercoverEffectId.mw2_constant:
             case UndercoverEffectId.mw2_constant_alpha_bias:

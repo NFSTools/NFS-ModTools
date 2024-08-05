@@ -14,26 +14,6 @@ namespace Common.Geometry.Data
         public List<List<MorphInfo>> MorphLists { get; set; }
         public List<Matrix4x4> MorphMatrices { get; set; }
 
-        enum InternalEffectID
-        {
-            WorldShader,
-            WorldZBiasShader,
-            WorldNormalMap,
-            WorldRoadShader,
-            WorldPrelitShader,
-            WorldZBiasPrelitShader,
-            WorldBoneShader,
-            WorldFEShader,
-            CarShader,
-            CARNORMALMAP,
-            GLASS_REFLECT,
-            GLASS_REFLECTNM,
-            Tree,
-            UCAP,
-            skyshader,
-            WATER,
-        }
-
         public struct MorphInfo
         {
             // morph range is [VertexStartIndex, VertexEndIndex]

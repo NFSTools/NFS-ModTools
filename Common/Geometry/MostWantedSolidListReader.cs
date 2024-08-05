@@ -5,8 +5,9 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry
 {
-    public class MostWantedMaterial : EffectBasedMaterial
+    public class MostWantedMaterial : SolidObjectMaterial, IEffectBasedMaterial
     {
+        public uint EffectId { get; set; }
     }
 
     public class MostWantedSolidListReader : SolidListReader

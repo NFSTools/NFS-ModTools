@@ -5,10 +5,10 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry
 {
-    public class UndercoverMaterial : SolidObjectMaterial
+    public class UndercoverMaterial : SolidObjectMaterial, IEffectBasedMaterial
     {
-        public UndercoverEffectId EffectId { get; set; }
         public uint NumReducedIndices { get; set; }
+        public uint EffectId { get; set; }
     }
 
     public class UndercoverSolidListReader : SolidListReader

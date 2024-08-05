@@ -192,7 +192,8 @@ public class WorldSolidReader : SolidReader<World15Object, World15Material>
                     ? null
                     : Solid.TextureHashes[shadingGroup.SpecularMapId],
                 EffectId = shadingGroup.EffectId,
-                VertexSetIndex = streamIndex
+                VertexSetIndex = streamIndex,
+                SortKey = shadingGroup.SortKey
             });
 
             NumVertices += shadingGroup.NumVerts;
@@ -357,7 +358,7 @@ public class WorldSolidReader : SolidReader<World15Object, World15Material>
     internal struct Material
     {
         public uint Flags;
-        public uint TextureHash;
+        public uint SortKey;
         public uint EffectId;
         public int Unknown2;
 

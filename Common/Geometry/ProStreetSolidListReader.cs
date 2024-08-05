@@ -5,8 +5,9 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry
 {
-    public class ProStreetMaterial : EffectBasedMaterial
+    public class ProStreetMaterial : SolidObjectMaterial, IEffectBasedMaterial
     {
+        public uint EffectId { get; set; }
     }
 
     public class ProStreetSolidListReader : SolidListReader

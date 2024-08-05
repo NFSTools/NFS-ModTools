@@ -5,7 +5,7 @@ namespace FBXSharp.ValueTypes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct ColorRGBA
     {
-        public const int SizeOf = 0x10;
+        public const int SizeOf = 0x20;
 
         public double R;
         public double G;

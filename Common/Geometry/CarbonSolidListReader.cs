@@ -5,8 +5,9 @@ using Common.Geometry.Data;
 
 namespace Common.Geometry
 {
-    public class CarbonMaterial : EffectBasedMaterial
+    public class CarbonMaterial : SolidObjectMaterial, IEffectBasedMaterial
     {
+        public uint EffectId { get; set; }
     }
 
     public class CarbonSolidListReader : SolidListReader
