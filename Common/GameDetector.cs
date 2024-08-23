@@ -12,6 +12,7 @@ namespace Common
             ProStreet,
             ProStreetTest, // special value
             World,
+            World09,
             Underground2,
             Underground,
             Unknown,
