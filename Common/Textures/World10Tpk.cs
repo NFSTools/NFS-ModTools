@@ -8,9 +8,9 @@ using Common.Textures.Data;
 namespace Common.Textures;
 
 /// <summary>
-///     TPK support for NFS:W.
+///     TPK support for NFS:W from 2010.
 /// </summary>
-public class Version5Tpk : TpkManager
+public class World10Tpk : TpkManager
 {
     private const uint InfoChunkId = 0x33310001;
     private const uint HashChunkId = 0x33310002;
@@ -132,23 +132,9 @@ public class Version5Tpk : TpkManager
                     {
                         foreach (var t in _texturePack.Textures)
                         {
-                            // BC4 = 42 43 34 
-                            // BC5 = 42 43 35
-
-                            br.BaseStream.Seek(12, SeekOrigin.Current);
-
-                            var compType = br.ReadUInt32();
-
-                            //if (compType == 0x31495441)
-                            //{
-                            //    compType = 0x0034
-                            //}
-
-                            t.Format = compType;
-
-                            //t.Format = (TextureFormat)br.ReadUInt32();
-                            //Console.WriteLine($"{t.Name} = 0x{((int)t.Format):X8}");
-                            br.BaseStream.Seek(16, SeekOrigin.Current);
+                            br.BaseStream.Seek(0x0C, SeekOrigin.Current);
+                            t.Format = br.ReadUInt32();
+                            br.BaseStream.Seek(0x08, SeekOrigin.Current);
                         }
 
                         Debug.Assert(br.BaseStream.Position == chunkEndPos);

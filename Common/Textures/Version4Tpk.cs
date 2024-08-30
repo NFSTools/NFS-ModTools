@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using Common.Textures.Data;
@@ -142,6 +143,8 @@ namespace Common.Textures
                                 t.Format = br.ReadUInt32();
                                 br.BaseStream.Seek(0x08, SeekOrigin.Current);
                             }
+
+                            Debug.Assert(br.BaseStream.Position == chunkEndPos);
 
                             break;
                         }

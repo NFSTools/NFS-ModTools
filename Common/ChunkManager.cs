@@ -89,6 +89,7 @@ namespace Common
                             GameDetector.Game.ProStreet => new ProStreetSolidListReader(),
                             GameDetector.Game.Undercover => new UndercoverSolidListReader(),
                             GameDetector.Game.World => new WorldSolidListReader(),
+                            GameDetector.Game.World10 => new WorldSolidListReader(),
                             GameDetector.Game.World09 => new World09SolidListReader(),
                             _ => throw new Exception($"Cannot process solid list chunk for game: {_game}")
                         };
@@ -109,6 +110,7 @@ namespace Common
                             GameDetector.Game.ProStreetTest => new Version3Tpk(),
                             GameDetector.Game.Undercover => new Version4Tpk(),
                             GameDetector.Game.World => new Version5Tpk(),
+                            GameDetector.Game.World10 => new World10Tpk(),
                             GameDetector.Game.World09 => new Version3Tpk(),
                             _ => throw new Exception($"Cannot process TPK chunk for game: {_game}")
                         };
@@ -127,6 +129,7 @@ namespace Common
                             GameDetector.Game.ProStreet => new ProStreetScenery(),
                             GameDetector.Game.Undercover => new UndercoverScenery(),
                             GameDetector.Game.World => new WorldScenery(),
+                            GameDetector.Game.World10 => new WorldScenery(),
                             GameDetector.Game.World09 => new CarbonScenery(),
                             _ => throw new Exception($"Cannot process scenery chunk for game: {_game}")
                         };
@@ -138,7 +141,7 @@ namespace Common
                     case 0x80135000:
                     {
                         if (_game is GameDetector.Game.World or GameDetector.Game.Carbon
-                            or GameDetector.Game.Underground2 or GameDetector.Game.World09)
+                            or GameDetector.Game.Underground2 or GameDetector.Game.World09 or GameDetector.Game.World10)
                             cd.Resource = new LightPackReader().ReadLights(Reader, chunk.Length);
                         else
                             throw new Exception($"Cannot process light pack chunk for game: {_game}");

@@ -269,6 +269,13 @@ public class WorldSolidReader : SolidReader<World15Object, World15Material>
                 vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                 vertex.Tangent = BinaryUtil.ReadNormal(reader, true);
                 break;
+            case InternalEffectId.skyshader:
+                vertex.Position = BinaryUtil.ReadVector3(reader);
+                vertex.Normal = BinaryUtil.ReadNormal(reader, true);
+                vertex.TexCoords = BinaryUtil.ReadVector2(reader);
+                reader.BaseStream.Position += 8; // extra texcoord? why?
+                vertex.Color = reader.ReadUInt32();
+                break;
             default:
                 throw new Exception($"Unsupported effect in object {Solid.Name}: {id}");
         }
