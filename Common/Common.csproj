@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <OutputType>Library</OutputType>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -8,6 +8,9 @@
     <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="NFSTools.CompLib" Version="1.0.0" />
+    <ProjectReference Include="..\Modules\CompLib\CompLib.csproj" />
+	<EmbeddedResource Include="data\shaderusages.txt" />
+	<EmbeddedResource Include="data\shaderusages_legacy.txt" />
+     <PackageReference Include="System.Text.Encoding.CodePages" Version="9.0.0" />
   </ItemGroup>
 </Project>

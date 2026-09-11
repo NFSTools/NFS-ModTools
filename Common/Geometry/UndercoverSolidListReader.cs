@@ -9,6 +9,7 @@ namespace Common.Geometry
     {
         public uint NumReducedIndices { get; set; }
         public uint EffectId { get; set; }
+        public uint ShaderNameHash { get; set; }
     }
 
     public class UndercoverSolidListReader : SolidListReader

@@ -5,6 +5,15 @@ namespace Common
 {
     public static class Hasher
     {
+        static Hasher()
+        {
+            // Windows-1252 (and other legacy code pages) aren't included by default on
+            // .NET Core/.NET 5+ - they were split out into this optional provider. Registering
+            // it here guarantees it's done exactly once before any hashing runs, regardless of
+            // which code path calls into Hasher first.
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        }
+
         public static uint BinHash(string k)
         {
             var hash = 0xFFFFFFFFu;

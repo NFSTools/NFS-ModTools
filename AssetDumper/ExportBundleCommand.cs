@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Xml;
+﻿using AssetDumper;
 using CommandLine;
 using Common;
 using Common.Geometry;
@@ -20,6 +12,16 @@ using FBXSharp.Objective;
 using FBXSharp.ValueTypes;
 using JetBrains.Annotations;
 using Serilog;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Reflection.PortableExecutable;
+using System.Text;
+using System.Xml;
 using Matrix4x4 = System.Numerics.Matrix4x4;
 using Quaternion = System.Numerics.Quaternion;
 using Texture = Common.Textures.Data.Texture;
@@ -110,8 +112,8 @@ public class ExportBundleCommand : BaseCommand
                 cm.Read(file);
                 sw.Stop();
                 var fileResources = (from c in cm.Chunks
-                    where c.Resource != null
-                    select c.Resource).ToList();
+                                     where c.Resource != null
+                                     select c.Resource).ToList();
                 resources.AddRange(fileResources);
                 Log.Information("Read {NumResources} resource(s) from {FilePath} in {ElapsedDurationMS}ms",
                     fileResources.Count,
@@ -436,6 +438,16 @@ public class ExportBundleCommand : BaseCommand
         return $"_mesh{materialIndex}_0x{solidObject.Hash:X8}";
     }
 
+    private static bool VertexSetHasTexCoords1(SolidObject solidObject, SolidObjectMaterial material)
+    {
+        return solidObject.VertexSets[material.VertexSetIndex].Any(v => v.TexCoords1.HasValue);
+    }
+
+    private static bool VertexSetHasTexCoords2(SolidObject solidObject, SolidObjectMaterial material)
+    {
+        return solidObject.VertexSets[material.VertexSetIndex].Any(v => v.TexCoords2.HasValue);
+    }
+
     private static string GetMaterialName(SolidObjectMaterial material)
     {
         return material.Name ?? $"TextureMTL-0x{material.DiffuseTextureHash:X8}";
@@ -446,7 +458,7 @@ public class ExportBundleCommand : BaseCommand
         return $"0x{texture.TexHash:X8}_{texture.Name}.dds";
     }
 
-    private static void ExportScene(SceneExport scene, string outputPath, SceneFormat sceneFormat,
+    internal static void ExportScene(SceneExport scene, string outputPath, SceneFormat sceneFormat,
         Dictionary<uint, Texture> textureInfos,
         Dictionary<uint, string> texturePaths,
         List<LightPack> lightPacks)
@@ -462,9 +474,10 @@ public class ExportBundleCommand : BaseCommand
             default:
                 throw new NotImplementedException(sceneFormat.ToString());
         }
+
     }
 
-    private static void ExportSceneFbx(SceneExport scene, string outputPath, Dictionary<uint, Texture> textureInfos,
+    internal static void ExportSceneFbx(SceneExport scene, string outputPath, Dictionary<uint, Texture> textureInfos,
         Dictionary<uint, string> texturePaths,
         List<LightPack> lightPacks)
     {
@@ -508,7 +521,6 @@ public class ExportBundleCommand : BaseCommand
             .ToList();
         var textureKeyToFbxTexture = new Dictionary<uint, FBXSharp.Objective.Texture>();
         var solidKeyToSolid = new Dictionary<uint, SolidObject>();
-
         foreach (var textureHash in texturesToAdd)
         {
             if (!texturePaths.TryGetValue(textureHash, out var texturePath))
@@ -1004,45 +1016,45 @@ public class ExportBundleCommand : BaseCommand
 
         if (lightPacks != null)
             foreach (var lightPack in lightPacks)
-            foreach (var light in lightPack.Lights)
-            {
-                var fbxLightAttribute = fbxScene.CreateLightAttribute();
-                var fbxLight = fbxScene.CreateLight();
+                foreach (var light in lightPack.Lights)
+                {
+                    var fbxLightAttribute = fbxScene.CreateLightAttribute();
+                    var fbxLight = fbxScene.CreateLight();
 
-                fbxLight.LocalTranslation =
-                    new FBXSharp.ValueTypes.Vector3(light.Position.X, light.Position.Y, light.Position.Z);
-                fbxLightAttribute.AddProperty(new FBXProperty<Enumeration>("enum", string.Empty, "LightType",
-                    IElementPropertyFlags.Imported, new Enumeration(0)));
+                    fbxLight.LocalTranslation =
+                        new FBXSharp.ValueTypes.Vector3(light.Position.X, light.Position.Y, light.Position.Z);
+                    fbxLightAttribute.AddProperty(new FBXProperty<Enumeration>("enum", string.Empty, "LightType",
+                        IElementPropertyFlags.Imported, new Enumeration(0)));
 
-                var color = light.Color;
-                var b = (float)((color >> 16) & 0xFF) / 255;
-                var g = (float)((color >> 8) & 0xFF) / 255;
-                var r = (float)((color >> 0) & 0xFF) / 255;
+                    var color = light.Color;
+                    var b = (float)((color >> 16) & 0xFF) / 255;
+                    var g = (float)((color >> 8) & 0xFF) / 255;
+                    var r = (float)((color >> 0) & 0xFF) / 255;
 
-                fbxLightAttribute.AddProperty(new FBXProperty<FBXSharp.ValueTypes.Vector3>("ColorRGB", "Color",
-                    "Color", IElementPropertyFlags.Imported, new FBXSharp.ValueTypes.Vector3(r, g, b)));
+                    fbxLightAttribute.AddProperty(new FBXProperty<FBXSharp.ValueTypes.Vector3>("ColorRGB", "Color",
+                        "Color", IElementPropertyFlags.Imported, new FBXSharp.ValueTypes.Vector3(r, g, b)));
 
-                fbxLightAttribute.AddProperty(new FBXProperty<double>("double", "Number", "Intensity",
-                    IElementPropertyFlags.Imported, 100_000.0 * light.Intensity * 100));
-                fbxLightAttribute.AddProperty(new FBXProperty<int>("bool", "", "CastShadow",
-                    IElementPropertyFlags.Imported, 0));
-                fbxLightAttribute.AddProperty(new FBXProperty<float>("float", "", "Radius",
-                    IElementPropertyFlags.UserDefined, light.Size));
-                fbxLightAttribute.AddProperty(new FBXProperty<float>("float", "", "FarStart",
-                    IElementPropertyFlags.UserDefined, light.FarStart));
-                fbxLightAttribute.AddProperty(new FBXProperty<float>("float", "", "FarEnd",
-                    IElementPropertyFlags.UserDefined, light.FarEnd));
-                fbxLightAttribute.AddProperty(new FBXProperty<float>("float", "", "Falloff",
-                    IElementPropertyFlags.UserDefined, light.Falloff));
+                    fbxLightAttribute.AddProperty(new FBXProperty<double>("double", "Number", "Intensity",
+                        IElementPropertyFlags.Imported, 100_000.0 * light.Intensity * 100));
+                    fbxLightAttribute.AddProperty(new FBXProperty<int>("bool", "", "CastShadow",
+                        IElementPropertyFlags.Imported, 0));
+                    fbxLightAttribute.AddProperty(new FBXProperty<float>("float", "", "Radius",
+                        IElementPropertyFlags.UserDefined, light.Size));
+                    fbxLightAttribute.AddProperty(new FBXProperty<float>("float", "", "FarStart",
+                        IElementPropertyFlags.UserDefined, light.FarStart));
+                    fbxLightAttribute.AddProperty(new FBXProperty<float>("float", "", "FarEnd",
+                        IElementPropertyFlags.UserDefined, light.FarEnd));
+                    fbxLightAttribute.AddProperty(new FBXProperty<float>("float", "", "Falloff",
+                        IElementPropertyFlags.UserDefined, light.Falloff));
 
-                fbxLight.Name = light.Name;
-                fbxLight.Attribute = fbxLightAttribute;
-                fbxLight.AddProperty(new FBXProperty<uint>("int", "", "SectionNumber",
-                    IElementPropertyFlags.UserDefined, lightPack.ScenerySectionNumber));
-                fbxLight.AddProperty(new FBXProperty<string>("KString", "", "NameHash",
-                    IElementPropertyFlags.UserDefined, $"0x{light.NameHash:X8}"));
-                fbxScene.RootNode.AddChild(fbxLight);
-            }
+                    fbxLight.Name = light.Name;
+                    fbxLight.Attribute = fbxLightAttribute;
+                    fbxLight.AddProperty(new FBXProperty<uint>("int", "", "SectionNumber",
+                        IElementPropertyFlags.UserDefined, lightPack.ScenerySectionNumber));
+                    fbxLight.AddProperty(new FBXProperty<string>("KString", "", "NameHash",
+                        IElementPropertyFlags.UserDefined, $"0x{light.NameHash:X8}"));
+                    fbxScene.RootNode.AddChild(fbxLight);
+                }
 
         var exporter = new FBXExporter7400(fbxScene);
         var options = new FBXExporter7400.Options
@@ -1119,9 +1131,11 @@ public class ExportBundleCommand : BaseCommand
         return angles;
     }
 
-    private static void ExportSceneCollada(SceneExport scene, string outputPath, Dictionary<uint, string> texturePaths,
-        List<LightPack> lightPacks)
+    internal static void ExportSceneCollada(SceneExport scene, string outputPath, Dictionary<uint, string> texturePaths,
+    List<LightPack> lightPacks)
     {
+        var swTotal = System.Diagnostics.Stopwatch.StartNew();
+
         var collada = new COLLADA
         {
             version = VersionType.Item141
@@ -1130,103 +1144,314 @@ public class ExportBundleCommand : BaseCommand
         var solidsToAdd = scene.Nodes.Select(n => n.SolidObject)
             .Distinct(SolidObject.HashComparer)
             .ToList();
-        var texturesToAdd = solidsToAdd
-            .SelectMany(s => s.Materials.Select(m => m.DiffuseTextureHash))
-            .Distinct()
-            .ToList();
 
         var images = new library_images();
+        var seenExportNames = new HashSet<string>();
         var imageList = new List<image>();
         var materials = new library_materials();
         var effects = new library_effects();
         var effectList = new List<effect>();
 
-        foreach (var textureId in texturesToAdd)
-            if (texturePaths.TryGetValue(textureId, out var texturePath))
-                imageList.Add(new image
+        string ResolveTextureName(uint hash)
+        {
+            if (hash == 0 || !texturePaths.TryGetValue(hash, out var path)) return "-";
+            var fileName = Path.GetFileNameWithoutExtension(path);
+            var prefix = $"0x{hash:X8}_";
+            return fileName.StartsWith(prefix) ? fileName[prefix.Length..] : fileName;
+        }
+
+        uint ResolveDiffuseHash(SolidObjectMaterial material)
+        {
+            if (material is not UndercoverMaterial undercoverMaterial)
+                return material.DiffuseTextureHash;
+
+            return UndercoverLayerClassifier.ResolveDiffuseHash(undercoverMaterial, ResolveTextureName);
+        }
+
+        string ComputeTextureSetTag(uint[] hashes)
+        {
+            if (hashes == null || hashes.Length == 0) return null;
+            unchecked
+            {
+                uint h = 2166136261; // FNV-1a offset basis
+                foreach (var t in hashes.OrderBy(x => x))
                 {
-                    id = $"texture-0x{textureId:X8}-img",
-                    name = $"TextureIMG-0x{textureId:X8}",
-                    Item = texturePath,
-                    depth = 1
-                });
+                    h ^= t;
+                    h *= 16777619; // FNV-1a prime
+                }
+                return h.ToString("X8");
+            }
+        }
+
+        string ResolveMaterialExportName(SolidObjectMaterial material)
+        {
+            if (material is UndercoverMaterial undercoverMaterial)
+            {
+                var effectName = GetMaterialEffectName(undercoverMaterial);
+                return UndercoverLayerClassifier.BuildExportName(
+                    undercoverMaterial, ResolveTextureName, effectName, GetMaterialName(material));
+            }
+
+            if (material is ProStreetMaterial prostreetMaterial)
+            {
+                var diffuseName = ResolveTextureName(material.DiffuseTextureHash);
+                var shaderName = ProStreetSolidReader.GetEffectName(prostreetMaterial.EffectId);
+                var baseName = diffuseName != "-" ? $"{diffuseName}_{shaderName}" : GetMaterialName(material);
+
+                // Fold in the full captured texture set so two shading groups that share a
+                // diffuse+effect but differ in any other layer (e.g. a different damage/detail
+                // variant) never collide under the same name and get wrongly merged in Blender.
+                var tag = ComputeTextureSetTag(prostreetMaterial.TextureHashes);
+                return tag == null ? baseName : $"{baseName}_{tag}";
+            }
+
+            if (material is CarbonMaterial carbonMaterial)
+            {
+                var diffuseName = ResolveTextureName(material.DiffuseTextureHash);
+                var shaderName = GetMaterialEffectName(carbonMaterial);
+                return diffuseName != "-" ? $"{diffuseName}_{shaderName}" : $"{GetMaterialName(material)}_{shaderName}";
+            }
+
+            return GetMaterialName(material);
+        }
+
+        var texturesToAdd = solidsToAdd
+            .SelectMany(s => s.Materials.SelectMany(m =>
+                m is ProStreetMaterial psm && psm.TextureHashes != null
+                    ? new[] { ResolveDiffuseHash(m) }.Concat(psm.TextureHashes)
+                    : new[] { ResolveDiffuseHash(m) }))
+            .Where(hash => hash != 0 && texturePaths.ContainsKey(hash))
+            .Distinct()
+            .ToList();
+
+        foreach (var textureId in texturesToAdd)
+            imageList.Add(new image
+            {
+                id = $"texture-0x{textureId:X8}-img",
+                name = $"TextureIMG-0x{textureId:X8}",
+                Item = texturePaths[textureId],
+                depth = 1
+            });
 
         foreach (var solid in solidsToAdd)
+        {
+            /*// Orphaned-texture diagnostic: runs once per solid, before the per-material loop
+            var claimedHashes = solid.Materials
+                .OfType<ProStreetMaterial>()
+                .SelectMany(m => m.TextureHashes ?? Array.Empty<uint>())
+                .ToHashSet();
+
+            foreach (var texHash in solid.TextureHashes)
+            {
+                if (texHash == 0 || claimedHashes.Contains(texHash)) continue;
+
+                var texName = ResolveTextureName(texHash);
+                File.AppendAllText("prostreet_orphaned_textures.txt",
+                    $"{solid.Name} | hash=0x{texHash:X8} | name={texName} | claimedByAnyMaterial=false\n");
+            }*/
+
             for (var materialIndex = 0; materialIndex < solid.Materials.Count; materialIndex++)
             {
                 var material = solid.Materials[materialIndex];
-                var textureId = material.DiffuseTextureHash;
+                var exportName = ResolveMaterialExportName(material);
+                var log = new StringBuilder();
+                log.AppendLine(exportName);
+
+                if (material is UndercoverMaterial undercoverMaterial)
+                {
+                    var combo = UndercoverLayerClassifier.Classify(undercoverMaterial, ResolveTextureName);
+
+                    var named = (undercoverMaterial.MaterialTextureHashes ?? Array.Empty<uint>())
+                                            .Select(h => new { hash = h, name = ResolveTextureName(h) })
+                                            .Where(t => t.name != "-" && !UndercoverLayerClassifier.IsExcepted(t.name))
+                                            .ToList();
+
+                    var diffuses = named.Where(t => t.name.EndsWith("_D", StringComparison.OrdinalIgnoreCase)).ToList();
+                    var normals = named.Where(t => t.name.EndsWith("_N", StringComparison.OrdinalIgnoreCase)).ToList();
+                    var speculars = named.Where(t => t.name.EndsWith("_S", StringComparison.OrdinalIgnoreCase)).ToList();
+                    var dataMapName = named.FirstOrDefault(t => t.name.EndsWith("_M", StringComparison.OrdinalIgnoreCase))?.name;
+                    var blendMaskName = named.FirstOrDefault(t => t.name.EndsWith("_B", StringComparison.OrdinalIgnoreCase))?.name;
+                    var opacityName = named.FirstOrDefault(t => t.name.EndsWith("_O", StringComparison.OrdinalIgnoreCase))?.name;
+                    var illumName = named.FirstOrDefault(t => t.name.EndsWith("_I", StringComparison.OrdinalIgnoreCase))?.name;
+                    var reflectionName = named.FirstOrDefault(t => t.name.EndsWith("_R", StringComparison.OrdinalIgnoreCase))?.name;
+
+                    string FindPaired(uint diffuseHash, IEnumerable<dynamic> candidates, uint delta) =>
+                    candidates.FirstOrDefault(c => c.hash == diffuseHash + delta)?.name;
+
+                    void AppendLayer(string header, dynamic diffuse, string m = null, string b = null, string o = null, string i = null, string r = null)
+                    {
+                        log.AppendLine(header);
+                        if (diffuse != null)
+                        {
+                            log.AppendLine($"  d {diffuse.name}");
+                            var n = FindPaired(diffuse.hash, normals, 0x0A);
+                            if (n != null) log.AppendLine($"  n {n}");
+                            var s = FindPaired(diffuse.hash, speculars, 0x0F);
+                            if (s != null) log.AppendLine($"  s {s}");
+                        }
+                        if (m != null) log.AppendLine($"  m {m}");
+                        if (b != null) log.AppendLine($"  b {b}");
+                        if (o != null) log.AppendLine($"  o {o}");
+                        if (i != null) log.AppendLine($"  i {i}");
+                        if (r != null) log.AppendLine($"  r {r}");
+                    }
+
+                    switch (combo)
+                    {
+                        case UndercoverLayerCombo.TerrainBlend:
+                            AppendLayer("LayerA", diffuses.ElementAtOrDefault(0));
+                            AppendLayer("LayerB", diffuses.ElementAtOrDefault(1), b: blendMaskName);
+                            break;
+                        case UndercoverLayerCombo.TwoLayerWithDataMap:
+                            var resolvedHash = UndercoverLayerClassifier.ResolveDiffuseHash(undercoverMaterial, ResolveTextureName);
+                            dynamic overlayDiffuse = diffuses.FirstOrDefault(d => d.hash == resolvedHash) ?? diffuses[0];
+                            dynamic baseDiffuse = diffuses.First(d => d.hash != overlayDiffuse.hash);
+                            AppendLayer("Overlay", overlayDiffuse, m: dataMapName);
+                            AppendLayer("BaseLayer", baseDiffuse, o: opacityName, i: illumName, r: reflectionName);
+                            break;
+                        case UndercoverLayerCombo.SingleWithDataMap:
+                            AppendLayer("BaseLayer", diffuses.ElementAtOrDefault(0), m: dataMapName, o: opacityName, i: illumName, r: reflectionName);
+                            break;
+                        case UndercoverLayerCombo.Unknown:
+                            Log.Warning("Material {MaterialName} is unclassified. Dumping all assigned texture slots.", material.Name);
+                            var slotIndex = 0;
+                            foreach (var texHash in material.MaterialTextureHashes)
+                            {
+                                var currentSlot = slotIndex++;
+                                if (texHash == 0) continue;
+
+                                if (texturePaths.TryGetValue(texHash, out var texPath))
+                                {
+                                    var slotName = $"Slot_{currentSlot:D2}";
+                                    AppendLayer(slotName, new { name = texPath, hash = texHash });
+                                    Log.Information("  -> Assigned Slot {SlotIndex} ({SlotName}): {TexturePath}", currentSlot, slotName, texPath);
+                                }
+                            }
+                            break;
+                        case UndercoverLayerCombo.Single:
+                            AppendLayer("BaseLayer", diffuses.ElementAtOrDefault(0), o: opacityName, i: illumName, r: reflectionName);
+                            break;
+                        default:
+                            log.AppendLine("(unclassified)");
+                            break;
+                    }
+                }
+                else if (material is ProStreetMaterial prostreetMaterial)
+                {
+                    /*log.AppendLine($"  effect {ProStreetSolidReader.GetEffectName(prostreetMaterial.EffectId)}");
+                    if (prostreetMaterial.TextureHashes != null)
+                        foreach (var texHash in prostreetMaterial.TextureHashes)
+                        {
+                            var texName = ResolveTextureName(texHash);
+                            if (texName != "-") log.AppendLine($"  tex {texName}");
+                        }*/
+                }
+
+                /*log.AppendLine();
+                File.AppendAllText("material_texture_dump.txt", log.ToString());*/
+
+                {
+                    var usageLog = new StringBuilder();
+                    usageLog.AppendLine($"{solid.Name} | {exportName}");
+
+                    IEnumerable<uint> slotHashes = material switch
+                    {
+                        UndercoverMaterial ucm => ucm.MaterialTextureHashes ?? Array.Empty<uint>(),
+                        ProStreetMaterial psm => psm.TextureHashes ?? Array.Empty<uint>(),
+                        CarbonMaterial cm => new uint?[] { cm.DiffuseTextureHash, cm.NormalTextureHash, cm.SpecularTextureHash }
+                            .Where(h => h.HasValue).Select(h => h!.Value),
+                        _ => new[] { material.DiffuseTextureHash }
+                    };
+
+                    foreach (var texHash in slotHashes)
+                    {
+                        var texName = ResolveTextureName(texHash);
+                        if (texName != "-") usageLog.AppendLine($"  {texName} (0x{texHash:X8})");
+                    }
+
+                    usageLog.AppendLine();
+                    File.AppendAllText("materialtextureusage.txt", usageLog.ToString());
+                }
+
+                var diffuseTextureId = ResolveDiffuseHash(material);
                 var effectIdBase = GetMaterialEffectId(solid, materialIndex);
+
+                var newparams = new List<object>
+            {
+                new common_newparam_type
+                {
+                    sid = $"{effectIdBase}-diffuse-surface",
+                    Item = new fx_surface_common
+                    {
+                        type = fx_surface_type_enum.Item2D,
+                        init_from = new[]
+                        {
+                            new fx_surface_init_from_common { Value = $"texture-0x{diffuseTextureId:X8}-img" }
+                        }
+                    },
+                    ItemElementName = ItemChoiceType.surface
+                },
+                new common_newparam_type
+                {
+                    sid = $"{effectIdBase}-diffuse-sampler",
+                    Item = new fx_sampler2D_common
+                    {
+                        source = $"{effectIdBase}-diffuse-surface",
+                        minfilter = fx_sampler_filter_common.LINEAR_MIPMAP_LINEAR,
+                        magfilter = fx_sampler_filter_common.LINEAR
+                    },
+                    ItemElementName = ItemChoiceType.sampler2D
+                }
+            };
+
+                var technique = new effectFx_profile_abstractProfile_COMMONTechniqueBlinn
+                {
+                    diffuse = new common_color_or_texture_type
+                    {
+                        Item = new common_color_or_texture_typeTexture
+                        {
+                            texture = $"{effectIdBase}-diffuse-sampler",
+                            texcoord = "TEX0"
+                        }
+                    }
+                };
+
                 effectList.Add(new effect
                 {
                     id = effectIdBase,
-                    // name = $"TextureFX-0x{textureId:X8}",
                     Items = new[]
                     {
-                        new effectFx_profile_abstractProfile_COMMON
+                    new effectFx_profile_abstractProfile_COMMON
+                    {
+                        Items = newparams.ToArray(),
+                        technique = new effectFx_profile_abstractProfile_COMMONTechnique
                         {
-                            Items = new object[]
-                            {
-                                new common_newparam_type
-                                {
-                                    sid = $"{effectIdBase}-surface",
-                                    Item = new fx_surface_common
-                                    {
-                                        type = fx_surface_type_enum.Item2D,
-                                        init_from = new[]
-                                        {
-                                            new fx_surface_init_from_common { Value = $"texture-0x{textureId:X8}-img" }
-                                        }
-                                    },
-                                    ItemElementName = ItemChoiceType.surface
-                                },
-                                new common_newparam_type
-                                {
-                                    sid = $"{effectIdBase}-sampler",
-                                    Item = new fx_sampler2D_common
-                                    {
-                                        source = $"{effectIdBase}-surface",
-                                        minfilter = fx_sampler_filter_common.LINEAR_MIPMAP_LINEAR,
-                                        magfilter = fx_sampler_filter_common.LINEAR
-                                    },
-                                    ItemElementName = ItemChoiceType.sampler2D
-                                }
-                            },
-                            technique = new effectFx_profile_abstractProfile_COMMONTechnique
-                            {
-                                sid = "common",
-                                Item = new effectFx_profile_abstractProfile_COMMONTechniqueBlinn
-                                {
-                                    diffuse = new common_color_or_texture_type
-                                    {
-                                        Item = new common_color_or_texture_typeTexture
-                                        {
-                                            texture = $"{effectIdBase}-sampler",
-                                            texcoord = "TEX0"
-                                        }
-                                    }
-                                }
-                            }
+                            sid = "common",
+                            Item = technique
                         }
                     }
+                    }
                 });
-            }
+            } // end materialIndex for-loop
+        } // end foreach solid loop
 
         images.image = imageList.ToArray();
+
         materials.material = (from solidObject in solidsToAdd
-            from pair in solidObject.Materials.Select((mat, idx) => new { idx, mat })
-            let materialId = GetMaterialId(solidObject, pair.idx, pair.mat)
-            let materialName = GetMaterialName(pair.mat)
-            select new material
-            {
-                id = materialId,
-                name = materialName,
-                instance_effect = new instance_effect { url = $"#{GetMaterialEffectId(solidObject, pair.idx)}" }
-            }).ToArray();
+                              from pair in solidObject.Materials.Select((mat, idx) => new { idx, mat })
+                              let materialId = GetMaterialId(solidObject, pair.idx, pair.mat)
+                              let materialName = ResolveMaterialExportName(pair.mat)
+                              select new material
+                              {
+                                  id = materialId,
+                                  name = materialName,
+                                  instance_effect = new instance_effect { url = $"#{GetMaterialEffectId(solidObject, pair.idx)}" }
+                              }).ToArray();
         effects.effect = effectList.ToArray();
 
-        // Build geometry library
+        Log.Information("  [materials/effects] {ElapsedMs}ms", swTotal.ElapsedMilliseconds);
 
+        // Build geometry library
         var geometries = new library_geometries();
         var geometryList = new List<geometry>();
         var geometryIds = new Dictionary<uint, string>();
@@ -1234,14 +1459,16 @@ public class ExportBundleCommand : BaseCommand
         foreach (var solidObject in solidsToAdd)
         {
             var geometryId = $"geometry-0x{solidObject.Hash:X8}";
-            geometryList.Add(SolidToGeometry(solidObject, geometryId));
+            var materialNames = solidObject.Materials.Select(ResolveMaterialExportName).ToList();
+            geometryList.Add(SolidToGeometry(solidObject, geometryId, materialNames, texturePaths));
             geometryIds.Add(solidObject.Hash, geometryId);
         }
 
         geometries.geometry = geometryList.ToArray();
 
-        var visualScenes = new library_visual_scenes();
+        Log.Information("  [geometry] {ElapsedMs}ms", swTotal.ElapsedMilliseconds);
 
+        var visualScenes = new library_visual_scenes();
         var sceneNodes = new List<node>();
 
         for (var idx = 0; idx < scene.Nodes.Count; idx++)
@@ -1255,61 +1482,46 @@ public class ExportBundleCommand : BaseCommand
                 id = $"scene_{scene.SceneName}_node_{idx}",
                 Items = new object[]
                 {
-                    new matrix
-                    {
-                        Values = new double[]
-                        {
-                            instanceMatrix.M11,
-                            instanceMatrix.M21,
-                            instanceMatrix.M31,
-                            instanceMatrix.M41,
-
-                            instanceMatrix.M12,
-                            instanceMatrix.M22,
-                            instanceMatrix.M32,
-                            instanceMatrix.M42,
-
-                            instanceMatrix.M13,
-                            instanceMatrix.M23,
-                            instanceMatrix.M33,
-                            instanceMatrix.M43,
-
-                            instanceMatrix.M14,
-                            instanceMatrix.M24,
-                            instanceMatrix.M34,
-                            instanceMatrix.M44,
-                        }
-                    }
-                },
-                ItemsElementName = new[]
+                new matrix
                 {
-                    ItemsChoiceType2.matrix
-                },
-                instance_geometry = new[]
-                {
-                    new instance_geometry
+                    Values = new double[]
                     {
-                        url = $"#{geometryIds[node.SolidObject.Hash]}",
-                        bind_material = new bind_material
-                        {
-                            technique_common = node.SolidObject.Materials.Select((material, materialIdx) =>
-                                new instance_material
-                                {
-                                    symbol = $"material{materialIdx}",
-                                    target = $"#{GetMaterialId(node.SolidObject, materialIdx, material)}",
-                                    bind_vertex_input = new[]
-                                    {
-                                        new instance_materialBind_vertex_input
-                                        {
-                                            semantic = "TEX0",
-                                            input_semantic = "TEXCOORD",
-                                            input_set = 0,
-                                        }
-                                    }
-                                }).ToArray()
-                        }
+                        instanceMatrix.M11, instanceMatrix.M21, instanceMatrix.M31, instanceMatrix.M41,
+                        instanceMatrix.M12, instanceMatrix.M22, instanceMatrix.M32, instanceMatrix.M42,
+                        instanceMatrix.M13, instanceMatrix.M23, instanceMatrix.M33, instanceMatrix.M43,
+                        instanceMatrix.M14, instanceMatrix.M24, instanceMatrix.M34, instanceMatrix.M44,
                     }
                 }
+                },
+                ItemsElementName = new[] { ItemsChoiceType2.matrix },
+                instance_geometry = new[]
+                {
+                new instance_geometry
+                {
+                    url = $"#{geometryIds[node.SolidObject.Hash]}",
+                    bind_material = new bind_material
+                    {
+                        technique_common = node.SolidObject.Materials.Select((material, materialIdx) =>
+                        {
+                            var bindInputs = new List<instance_materialBind_vertex_input>
+                            {
+                                new() { semantic = "TEX0", input_semantic = "TEXCOORD", input_set = 0 }
+                            };
+                            if (VertexSetHasTexCoords1(node.SolidObject, material))
+                                bindInputs.Add(new() { semantic = "TEX1", input_semantic = "TEXCOORD", input_set = 1 });
+                            if (VertexSetHasTexCoords2(node.SolidObject, material))
+                                bindInputs.Add(new() { semantic = "TEX2", input_semantic = "TEXCOORD", input_set = 2 });
+
+                            return new instance_material
+                            {
+                                symbol = $"material{materialIdx}",
+                                target = $"#{GetMaterialId(node.SolidObject, materialIdx, material)}",
+                                bind_vertex_input = bindInputs.ToArray()
+                            };
+                        }).ToArray()
+                    }
+                }
+            }
             });
         }
 
@@ -1348,8 +1560,8 @@ public class ExportBundleCommand : BaseCommand
                         stride = 1,
                         param = new[]
                         {
-                            new param { name = "IDREF", type = "IDREF" }
-                        }
+                        new param { name = "IDREF", type = "IDREF" }
+                    }
                     }
                 };
 
@@ -1370,24 +1582,20 @@ public class ExportBundleCommand : BaseCommand
                         stride = 1,
                         param = new[]
                         {
-                            new param { name = "MORPH_WEIGHT", type = "float" }
-                        }
+                        new param { name = "MORPH_WEIGHT", type = "float" }
+                    }
                     }
                 };
 
-                morph.source = new[]
-                {
-                    morphTargetsSource,
-                    morphWeightsSource
-                };
+                morph.source = new[] { morphTargetsSource, morphWeightsSource };
 
                 morph.targets = new morphTargets
                 {
                     input = new[]
                     {
-                        new InputLocal { semantic = "MORPH_TARGET", source = $"#{morphTargetsSource.id}" },
-                        new InputLocal { semantic = "MORPH_WEIGHT", source = $"#{morphWeightsSource.id}" }
-                    }
+                    new InputLocal { semantic = "MORPH_TARGET", source = $"#{morphTargetsSource.id}" },
+                    new InputLocal { semantic = "MORPH_WEIGHT", source = $"#{morphWeightsSource.id}" }
+                }
                 };
 
                 var controllerName = $"{baseSolidGeometryId}_morph";
@@ -1401,8 +1609,6 @@ public class ExportBundleCommand : BaseCommand
                 controllerList.Add(controller);
             }
         }
-
-        controllers.controller = controllerList.ToArray();
 
         var lights = new library_lights();
         var lightList = new List<light>();
@@ -1436,8 +1642,6 @@ public class ExportBundleCommand : BaseCommand
                     var extraRadiusElement = new XmlDocument().CreateElement("radius");
                     extraRadiusElement.InnerText = light.Size.ToString(CultureInfo.InvariantCulture);
                     var extraEnergyElement = new XmlDocument().CreateElement("energy");
-                    // This is insanely stupid, but Blender's "power" system is also stupid.
-                    // 100,000W is a good enough maximum, probably...
                     extraEnergyElement.InnerText =
                         (100_000.0f * light.Intensity).ToString(CultureInfo.InvariantCulture);
                     var extraRedElement = new XmlDocument().CreateElement("red");
@@ -1448,72 +1652,50 @@ public class ExportBundleCommand : BaseCommand
                     extraBlueElement.InnerText = b.ToString(CultureInfo.InvariantCulture);
                     exportLight.extra = new[]
                     {
-                        new extra
+                    new extra
+                    {
+                        technique = new[]
                         {
-                            technique = new[]
+                            new technique
                             {
-                                new technique
+                                profile = "blender",
+                                Any = new[]
                                 {
-                                    profile = "blender",
-                                    Any = new[]
-                                    {
-                                        extraRadiusElement,
-                                        extraEnergyElement,
-                                        extraRedElement,
-                                        extraGreenElement,
-                                        extraBlueElement
-                                    }
+                                    extraRadiusElement,
+                                    extraEnergyElement,
+                                    extraRedElement,
+                                    extraGreenElement,
+                                    extraBlueElement
                                 }
                             }
                         }
-                    };
+                    }
+                };
 
                     lightList.Add(exportLight);
 
-                    // add node
                     var lightMatrix = Matrix4x4.CreateTranslation(light.Position);
                     var lightNode = new node();
                     lightNode.id = $"{scene.SceneName}_inst_{exportLight.id}";
                     lightNode.name = exportLight.name;
                     lightNode.instance_light = new[]
                     {
-                        new InstanceWithExtra
-                        {
-                            url = $"#{exportLight.id}"
-                        }
-                    };
+                    new InstanceWithExtra { url = $"#{exportLight.id}" }
+                };
                     lightNode.Items = new object[]
                     {
-                        new matrix
-                        {
-                            Values = new double[]
-                            {
-                                lightMatrix.M11,
-                                lightMatrix.M21,
-                                lightMatrix.M31,
-                                lightMatrix.M41,
-
-                                lightMatrix.M12,
-                                lightMatrix.M22,
-                                lightMatrix.M32,
-                                lightMatrix.M42,
-
-                                lightMatrix.M13,
-                                lightMatrix.M23,
-                                lightMatrix.M33,
-                                lightMatrix.M43,
-
-                                lightMatrix.M14,
-                                lightMatrix.M24,
-                                lightMatrix.M34,
-                                lightMatrix.M44
-                            }
-                        }
-                    };
-                    lightNode.ItemsElementName = new[]
+                    new matrix
                     {
-                        ItemsChoiceType2.matrix
+                        Values = new double[]
+                        {
+                            lightMatrix.M11, lightMatrix.M21, lightMatrix.M31, lightMatrix.M41,
+                            lightMatrix.M12, lightMatrix.M22, lightMatrix.M32, lightMatrix.M42,
+                            lightMatrix.M13, lightMatrix.M23, lightMatrix.M33, lightMatrix.M43,
+                            lightMatrix.M14, lightMatrix.M24, lightMatrix.M34, lightMatrix.M44
+                        }
+                    }
                     };
+                    lightNode.ItemsElementName = new[] { ItemsChoiceType2.matrix };
                     sceneNodes.Add(lightNode);
                 }
 
@@ -1521,23 +1703,23 @@ public class ExportBundleCommand : BaseCommand
 
         visualScenes.visual_scene = new[]
         {
-            new visual_scene
-            {
-                id = scene.SceneName,
-                name = scene.SceneName,
-                node = sceneNodes.ToArray()
-            }
-        };
+        new visual_scene
+        {
+            id = scene.SceneName,
+            name = scene.SceneName,
+            node = sceneNodes.ToArray()
+        }
+    };
 
         collada.Items = new object[]
         {
-            images,
-            materials,
-            effects,
-            geometries,
-            controllers,
-            lights,
-            visualScenes
+        images,
+        materials,
+        effects,
+        geometries,
+        controllers,
+        lights,
+        visualScenes
         };
         collada.scene = new COLLADAScene
         {
@@ -1552,21 +1734,249 @@ public class ExportBundleCommand : BaseCommand
         };
 
         collada.Save(outputPath);
-    }
 
+        swTotal.Stop();
+        Log.Information("ExportSceneCollada for {OutputPath} took {ElapsedMs}ms ({SolidCount} solids)",
+            outputPath, swTotal.ElapsedMilliseconds, solidsToAdd.Count);
+    }
     private static string GetMaterialEffectId(SolidObject solid, int materialIndex)
     {
         return $"solid-{solid.Hash:X8}-mat{materialIndex}-fx";
     }
 
-    private static geometry SolidToGeometry(SolidObject solidObject, string geometryId)
+    internal static string GetMaterialEffectName(SolidObjectMaterial material)
+    {
+        if (material is not IEffectBasedMaterial effectBasedMaterial)
+            return "-";
+
+        string[] possibleEffectIds = material switch
+        {
+            MostWantedMaterial => new[]
+            {
+                "WorldShader", "WorldReflectShader", "WorldBoneShader", "WorldNormalMap", "CarShader",
+                "GlossyWindow", "billboardshader", "WorldMinShader", "WorldNoFogShader", "FEShader",
+                "FEMaskShader", "FilterShader", "OverbrightShader", "ScreenFilterShader", "RainDropShader",
+                "RunwayLightShader", "VisualTreatmentShader", "WorldPrelitShader", "ParticlesShader",
+                "skyshader", "shadow_map_mesh", "SkyboxCurrentGen", "ShadowPolyCurrentGen",
+                "CarShadowMapShader", "WorldDepthShader", "WorldNormalMapDepth", "CarShaderDepth",
+                "GlossyWindowDepth", "TreeDepthShader", "shadow_map_mesh_depth", "NormalMapNoFog"
+            },
+            CarbonMaterial => new[]
+            {
+                "WorldShader", "WorldReflectShader", "WorldBoneShader", "WorldNormalMap", "CarShader",
+                "CARNORMALMAP", "WorldMinShader", "FEShader", "FEMaskShader", "FilterShader",
+                "ScreenFilterShader", "RainDropShader", "VisualTreatmentShader", "WorldPrelitShader",
+                "ParticlesShader", "skyshader", "shadow_map_mesh", "CarShadowMapShader", "WorldDepthShader",
+                "shadow_map_mesh_depth", "NormalMapNoFog", "InstanceMesh", "ScreenEffectShader", "HDRShader",
+                "UCAP", "GLASS_REFLECT", "WATER", "RVMPIP", "GHOSTCAR"
+            },
+            ProStreetMaterial => new[]
+            {
+                "STANDARD", "TREELEAVES", "WORLD", "WORLDBONE", "WORLDNORMALMAP", "CARNORMALMAP", "CARVINYL",
+                "CAR", "VISUAL_TREATMENT", "PARTICLES", "SKY", "GRASSCARD", "GRASSTERRAIN", "WorldDepthShader",
+                "ScreenEffectShader", "UCAP", "WATER", "GHOSTCAR", "ROAD", "ROADLIGHTMAP", "WORLDCONSTANT",
+                "TERRAIN", "WORLDBAKEDLIGHTING", "SHADOWMAPMESH", "DEBUGPOLY", "CROWD", "WORLDDECAL", "SMOKE",
+                "FLAG", "TUNNEL", "WORLDENVIROMAP", "ALWAYSFACING"
+            },
+            UndercoverMaterial => new[]
+            {
+                "car", "car_a", "car_a_nzw", "car_nm", "car_nm_a", "car_nm_v_s", "car_nm_v_s_a", "car_si",
+                "car_si_a", "car_t", "car_t_a", "car_t_nm", "car_v", "diffuse_spec_2sided", "mw2_branches",
+                "mw2_car_heaven", "mw2_car_heaven_default", "mw2_cardebris", "mw2_carhvn_floor",
+                "mw2_combo_refl", "mw2_constant", "mw2_constant_alpha_bias", "mw2_dif_spec_a_bias",
+                "mw2_diffuse_spec", "mw2_diffuse_spec_alpha", "mw2_diffuse_spec_illum",
+                "mw2_diffuse_spec_salpha", "mw2_dirt", "mw2_dirt_overlay", "mw2_dirt_rock",
+                "mw2_fol_alwaysfacing", "mw2_foliage", "mw2_foliage_lod", "mw2_glass_no_n", "mw2_glass_refl",
+                "mw2_grass", "mw2_grass_dirt", "mw2_grass_rock", "mw2_icon", "mw2_illuminated",
+                "mw2_indicator", "mw2_matte", "mw2_matte_alpha", "mw2_normalmap", "mw2_normalmap_bias",
+                "mw2_ocean", "mw2_pano", "mw2_parallax", "mw2_road", "mw2_road_lite", "mw2_road_overlay",
+                "mw2_road_refl", "mw2_road_refl_lite", "mw2_road_refl_overlay", "mw2_road_refl_tile",
+                "mw2_road_tile", "mw2_rock", "mw2_rock_overlay", "mw2_scrub", "mw2_scrub_lod", "mw2_sky",
+                "mw2_smokegeo", "mw2_texture_scroll", "mw2_trunk", "mw2_tunnel_illum", "mw2_tunnel_road",
+                "mw2_tunnel_wall", "normalmap2sided", "shadowmesh", "standardeffect", "ubereffect",
+                "ubereffectblend", "watersplash", "worldbone", "worldbonenocull", "worldbonetransparency",
+                "none"
+            },
+            World15Material => new[]
+            {
+                "WorldShader", "WorldZBiasShader", "WorldNormalMap", "WorldRoadShader", "WorldPrelitShader",
+                "WorldZBiasPrelitShader", "WorldBoneShader", "WorldFEShader", "CarShader", "CARNORMALMAP",
+                "GLASS_REFLECT", "GLASS_REFLECTNM", "Tree", "UCAP", "skyshader", "WATER"
+            },
+            _ => Array.Empty<string>()
+        };
+
+        var id = (int)effectBasedMaterial.EffectId;
+        return id >= 0 && id < possibleEffectIds.Length ? possibleEffectIds[id] : $"unknown({id})";
+    }
+
+    private static geometry SolidToGeometry(SolidObject solidObject, string geometryId, List<string> materialNames,
+        Dictionary<uint, string> texturePaths)
     {
         var mesh = new mesh();
         var sources = new List<source>();
 
         var allVertices = new List<SolidMeshVertex>();
-
         foreach (var vertexSet in solidObject.VertexSets) allVertices.AddRange(vertexSet);
+
+        void LogUVDiagnostics(string objectName, List<string> names, SolidObject solid)
+        {
+            var log = new StringBuilder();
+
+            for (var i = 0; i < solid.VertexSets.Count; i++)
+            {
+                var vertices = solid.VertexSets[i].ToList();
+                var matName = i < names.Count ? names[i] : "(unknown material)";
+                log.AppendLine($"=== {objectName} [material {i}: {matName}] ({vertices.Count} verts) ===");
+
+                void LogChannel(string label, IEnumerable<System.Numerics.Vector2?> coords)
+                {
+                    var present = coords.Where(c => c.HasValue).Select(c => c!.Value).ToList();
+                    if (present.Count == 0)
+                    {
+                        log.AppendLine($"  {label}: absent");
+                        return;
+                    }
+                    var minU = present.Min(c => c.X);
+                    var maxU = present.Max(c => c.X);
+                    var minV = present.Min(c => c.Y);
+                    var maxV = present.Max(c => c.Y);
+                    log.AppendLine($"  {label}: U=[{minU:F6},{maxU:F6}] range={maxU - minU:F6}  V=[{minV:F6},{maxV:F6}] range={maxV - minV:F6}  count={present.Count}");
+                }
+
+                LogChannel("UV0", vertices.Select(v => (System.Numerics.Vector2?)v.TexCoords));
+                LogChannel("UV1", vertices.Select(v => v.TexCoords1));
+                LogChannel("UV2", vertices.Select(v => v.TexCoords2));
+
+                void LogGradient(string label, IEnumerable<(System.Numerics.Vector3 pos, System.Numerics.Vector2? uv)> data)
+                {
+                    var present = data.Where(d => d.uv.HasValue).ToList();
+                    if (present.Count < 4) return;
+
+                    var xs = present.Select(d => d.pos.X).ToList();
+                    var ys = present.Select(d => d.pos.Y).ToList();
+                    var zs = present.Select(d => d.pos.Z).ToList();
+                    var rangeX = xs.Max() - xs.Min();
+                    var rangeY = ys.Max() - ys.Min();
+                    var rangeZ = zs.Max() - zs.Min();
+
+                    Func<System.Numerics.Vector3, float> axisSelector;
+                    string axisName;
+                    if (rangeX >= rangeY && rangeX >= rangeZ) { axisSelector = p => p.X; axisName = "X"; }
+                    else if (rangeY >= rangeZ) { axisSelector = p => p.Y; axisName = "Y"; }
+                    else { axisSelector = p => p.Z; axisName = "Z"; }
+
+                    var sorted = present.OrderBy(d => axisSelector(d.pos)).ToList();
+                    var tenPct = Math.Max(1, sorted.Count / 10);
+                    var lowEnd = sorted.Take(tenPct).Select(d => d.uv!.Value).ToList();
+                    var highEnd = sorted.Skip(sorted.Count - tenPct).Select(d => d.uv!.Value).ToList();
+
+                    var lowAvgX = lowEnd.Average(v => v.X);
+                    var highAvgX = highEnd.Average(v => v.X);
+                    var lowAvgY = lowEnd.Average(v => v.Y);
+                    var highAvgY = highEnd.Average(v => v.Y);
+
+                    log.AppendLine($"  {label} gradient along dominant axis {axisName}: " +
+                        $"U {lowAvgX:F4}->{highAvgX:F4} ({(highAvgX >= lowAvgX ? "increasing" : "decreasing")})  " +
+                        $"V {lowAvgY:F4}->{highAvgY:F4} ({(highAvgY >= lowAvgY ? "increasing" : "decreasing")})");
+                }
+
+                LogGradient("UV1", vertices.Select(v => (v.Position, v.TexCoords1)));
+                LogGradient("UV2", vertices.Select(v => (v.Position, v.TexCoords2)));
+
+                void LogCornerSamples(string label, IEnumerable<(System.Numerics.Vector3 pos, System.Numerics.Vector2? uv)> data)
+                {
+                    var present = data.Where(d => d.uv.HasValue).ToList();
+                    if (present.Count < 4) return;
+
+                    var xs = present.Select(d => d.pos.X).ToList();
+                    var ys = present.Select(d => d.pos.Y).ToList();
+                    var minX = xs.Min(); var maxX = xs.Max();
+                    var minY = ys.Min(); var maxY = ys.Max();
+
+                    (float x, float y) NearestUV(float cornerX, float cornerY)
+                    {
+                        var nearest = present
+                            .OrderBy(d => (d.pos.X - cornerX) * (d.pos.X - cornerX) +
+                                          (d.pos.Y - cornerY) * (d.pos.Y - cornerY))
+                            .First();
+                        var uv = nearest.uv!.Value;
+                        return (uv.X, uv.Y);
+                    }
+
+                    var c00 = NearestUV(minX, minY);
+                    var c01 = NearestUV(minX, maxY);
+                    var c10 = NearestUV(maxX, minY);
+                    var c11 = NearestUV(maxX, maxY);
+
+                    log.AppendLine($"  {label} corners: bbox X=[{minX:F4},{maxX:F4}] Y=[{minY:F4},{maxY:F4}]  " +
+                        $"UV@(minX,minY)=({c00.x:F4},{c00.y:F4}) UV@(minX,maxY)=({c01.x:F4},{c01.y:F4}) " +
+                        $"UV@(maxX,minY)=({c10.x:F4},{c10.y:F4}) UV@(maxX,maxY)=({c11.x:F4},{c11.y:F4})");
+                }
+
+                LogCornerSamples("UV1", vertices.Select(v => (v.Position, v.TexCoords1)));
+                LogCornerSamples("UV2", vertices.Select(v => (v.Position, v.TexCoords2)));
+
+                void LogUnknownXb4(List<SolidMeshVertex> verts)
+                {
+                    var withData = verts.Where(v => v.Unknown_xb4 != null).ToList();
+                    if (withData.Count == 0) return;
+
+                    var sample = withData.Take(5).ToList();
+                    foreach (var v in sample)
+                    {
+                        var b = v.Unknown_xb4;
+                        var asBytes = string.Join(",", b.Select(x => x.ToString()));
+                        var asBytesNorm = string.Join(",", b.Select(x => (x / 255f).ToString("F4")));
+                        var s0 = BitConverter.ToInt16(b, 0);
+                        var s1 = BitConverter.ToInt16(b, 2);
+                        var asShortsNorm = $"{(s0 / 32767f):F4},{(s1 / 32767f):F4}";
+                        var asFloat = BitConverter.ToSingle(b, 0);
+
+                        log.AppendLine($"  xb4 sample: bytes=[{asBytes}] byteNorm=[{asBytesNorm}] shortNorm=[{asShortsNorm}] asFloat={asFloat:F6}");
+                    }
+
+                    var byte0Range = (withData.Min(v => v.Unknown_xb4[0]), withData.Max(v => v.Unknown_xb4[0]));
+                    var byte1Range = (withData.Min(v => v.Unknown_xb4[1]), withData.Max(v => v.Unknown_xb4[1]));
+                    var byte2Range = (withData.Min(v => v.Unknown_xb4[2]), withData.Max(v => v.Unknown_xb4[2]));
+                    var byte3Range = (withData.Min(v => v.Unknown_xb4[3]), withData.Max(v => v.Unknown_xb4[3]));
+                    log.AppendLine($"  xb4 per-byte ranges across mesh: b0=[{byte0Range.Item1},{byte0Range.Item2}] b1=[{byte1Range.Item1},{byte1Range.Item2}] b2=[{byte2Range.Item1},{byte2Range.Item2}] b3=[{byte3Range.Item1},{byte3Range.Item2}]");
+                }
+
+                LogUnknownXb4(vertices);
+
+                void LogUnknownTan0s(List<SolidMeshVertex> verts)
+                {
+                    var withData = verts.Where(v => v.Unknown_Tan0s != null).ToList();
+                    if (withData.Count == 0) return;
+
+                    foreach (var v in withData.Take(5))
+                    {
+                        var b = v.Unknown_Tan0s;
+                        var s0 = BitConverter.ToInt16(b, 0);
+                        var s1 = BitConverter.ToInt16(b, 2);
+                        var s2 = BitConverter.ToInt16(b, 4);
+                        var s3 = BitConverter.ToInt16(b, 6);
+                        var norm = $"{(s0 / 32767f):F4},{(s1 / 32767f):F4},{(s2 / 32767f):F4},{(s3 / 32767f):F4}";
+                        var rawBytes = string.Join(",", b.Select(x => x.ToString()));
+                        log.AppendLine($"  Tan0s sample: bytes=[{rawBytes}] shortsNorm=[{norm}]");
+                    }
+
+                    int Short(byte[] arr, int off) => BitConverter.ToInt16(arr, off);
+                    var r0 = (withData.Min(v => Short(v.Unknown_Tan0s, 0)), withData.Max(v => Short(v.Unknown_Tan0s, 0)));
+                    var r1 = (withData.Min(v => Short(v.Unknown_Tan0s, 2)), withData.Max(v => Short(v.Unknown_Tan0s, 2)));
+                    var r2 = (withData.Min(v => Short(v.Unknown_Tan0s, 4)), withData.Max(v => Short(v.Unknown_Tan0s, 4)));
+                    var r3 = (withData.Min(v => Short(v.Unknown_Tan0s, 6)), withData.Max(v => Short(v.Unknown_Tan0s, 6)));
+                    log.AppendLine($"  Tan0s short ranges across mesh: s0=[{r0.Item1},{r0.Item2}] s1=[{r1.Item1},{r1.Item2}] s2=[{r2.Item1},{r2.Item2}] s3=[{r3.Item1},{r3.Item2}]");
+                }
+
+                LogUnknownTan0s(vertices);
+            }
+
+            log.AppendLine();
+            File.AppendAllText("uv_export_dump.log", log.ToString());
+        }
+        LogUVDiagnostics(solidObject.Name, materialNames, solidObject);
 
         var positionsName = $"{geometryId}_positions";
         var positionSrcId = $"{positionsName}_src";
@@ -1593,25 +2003,16 @@ public class ExportBundleCommand : BaseCommand
                     stride = 3,
                     param = new[]
                     {
-                        new param
-                        {
-                            name = "X",
-                            type = "float"
-                        },
-                        new param
-                        {
-                            name = "Y",
-                            type = "float"
-                        },
-                        new param
-                        {
-                            name = "Z",
-                            type = "float"
-                        },
-                    }
+                    new param { name = "X", type = "float" },
+                    new param { name = "Y", type = "float" },
+                    new param { name = "Z", type = "float" },
+                }
                 }
             }
         });
+
+        // ...rest of the method unchanged
+
 
         var uvSrcName = $"{geometryId}_uv";
         var uvSrcId = $"{uvSrcName}_src";
@@ -1619,7 +2020,7 @@ public class ExportBundleCommand : BaseCommand
 
         sources.Add(new source
         {
-            name = $"texcoords",
+            name = "texcoords",
             id = uvSrcId,
             Item = new float_array
             {
@@ -1638,20 +2039,88 @@ public class ExportBundleCommand : BaseCommand
                     stride = 2,
                     param = new[]
                     {
-                        new param
-                        {
-                            name = "S",
-                            type = "float"
-                        },
-                        new param
-                        {
-                            name = "T",
-                            type = "float"
-                        },
+                        new param { name = "S", type = "float" },
+                        new param { name = "T", type = "float" },
                     }
                 }
             }
         });
+
+        string uv1SrcId = null;
+        if (allVertices.Any(v => v.TexCoords1.HasValue))
+        {
+            var uv1SrcName = $"{geometryId}_uv1";
+            uv1SrcId = $"{uv1SrcName}_src";
+            var uv1DataId = $"{uv1SrcId}_data";
+
+            sources.Add(new source
+            {
+                name = "texcoords1",
+                id = uv1SrcId,
+                Item = new float_array
+                {
+                    Values = allVertices
+                        .SelectMany(v => v.TexCoords1.HasValue
+                            ? new double[] { v.TexCoords1.Value.X, 1 - v.TexCoords1.Value.Y }
+                            : new double[] { 0, 0 }).ToArray(),
+                    id = uv1DataId,
+                    count = (ulong)(allVertices.Count * 2)
+                },
+                technique_common = new sourceTechnique_common
+                {
+                    accessor = new accessor
+                    {
+                        count = (ulong)allVertices.Count,
+                        offset = 0,
+                        source = $"#{uv1DataId}",
+                        stride = 2,
+                        param = new[]
+                        {
+                            new param { name = "S", type = "float" },
+                            new param { name = "T", type = "float" },
+                        }
+                    }
+                }
+            });
+        }
+
+        string uv2SrcId = null;
+        if (allVertices.Any(v => v.TexCoords2.HasValue))
+        {
+            var uv2SrcName = $"{geometryId}_uv2";
+            uv2SrcId = $"{uv2SrcName}_src";
+            var uv2DataId = $"{uv2SrcId}_data";
+
+            sources.Add(new source
+            {
+                name = "texcoords2",
+                id = uv2SrcId,
+                Item = new float_array
+                {
+                    Values = allVertices
+                        .SelectMany(v => v.TexCoords2.HasValue
+                            ? new double[] { v.TexCoords2.Value.X, 1 - v.TexCoords2.Value.Y }
+                            : new double[] { 0, 0 }).ToArray(),
+                    id = uv2DataId,
+                    count = (ulong)(allVertices.Count * 2)
+                },
+                technique_common = new sourceTechnique_common
+                {
+                    accessor = new accessor
+                    {
+                        count = (ulong)allVertices.Count,
+                        offset = 0,
+                        source = $"#{uv2DataId}",
+                        stride = 2,
+                        param = new[]
+                        {
+                            new param { name = "S", type = "float" },
+                            new param { name = "T", type = "float" },
+                        }
+                    }
+                }
+            });
+        }
 
         var colorSrcIds = new List<string>();
 
@@ -1804,7 +2273,7 @@ public class ExportBundleCommand : BaseCommand
                             return new double[] { normal.X, normal.Y, normal.Z };
                         }).ToArray(),
                     id = normalDataId,
-                    count = (ulong)(allVertices.Count * 3)
+                    count = (ulong)(vertexSet.Count * 3)
                 },
                 technique_common = new sourceTechnique_common
                 {
@@ -1854,16 +2323,23 @@ public class ExportBundleCommand : BaseCommand
             id = vertexSrcId
         };
 
+        var vertexSetOffsets = new int[solidObject.VertexSets.Count];
+        {
+            var running = 0;
+            for (var i = 0; i < solidObject.VertexSets.Count; i++)
+            {
+                vertexSetOffsets[i] = running;
+                running += solidObject.VertexSets[i].Count;
+            }
+        }
+
         var items = new List<object>();
-        var vertexOffset = 0;
-        var lastVertexSet = 0;
 
         for (var materialIndex = 0; materialIndex < solidObject.Materials.Count; materialIndex++)
         {
             var material = solidObject.Materials[materialIndex];
-            var faces = new List<ushort[]>();
-
-            if (material.VertexSetIndex != lastVertexSet) vertexOffset += solidObject.VertexSets[lastVertexSet].Count;
+            var faces = new List<uint[]>();
+            var vertexOffset = vertexSetOffsets[material.VertexSetIndex];
 
             var hasNormals = normalsSrcIds[material.VertexSetIndex] != null;
 
@@ -1873,22 +2349,20 @@ public class ExportBundleCommand : BaseCommand
                 var idx2 = material.Indices[i + 1];
                 var idx3 = material.Indices[i + 2];
 
-                faces.Add(new[] { idx1, idx2, idx3 });
+                faces.Add(new uint[] { idx1, idx2, idx3 });
             }
 
             var inputs = new List<InputLocalOffset>
             {
-                new()
-                {
-                    semantic = "VERTEX", source = $"#{vertexSrcId}"
-                },
-                new()
-                {
-                    semantic = "TEXCOORD", source = $"#{uvSrcId}"
-                }
+                new() { semantic = "VERTEX", source = $"#{vertexSrcId}" },
+                new() { semantic = "TEXCOORD", source = $"#{uvSrcId}", set = 0 }
             };
+            if (uv1SrcId != null && VertexSetHasTexCoords1(solidObject, material))
+                inputs.Add(new InputLocalOffset { semantic = "TEXCOORD", source = $"#{uv1SrcId}", set = 1 });
+            if (uv2SrcId != null && VertexSetHasTexCoords2(solidObject, material))
+                inputs.Add(new InputLocalOffset { semantic = "TEXCOORD", source = $"#{uv2SrcId}", set = 2 });
             inputs.AddRange(colorSrcIds.Select(colorSrcId => new InputLocalOffset
-                { semantic = "COLOR", source = $"#{colorSrcId}" }));
+            { semantic = "COLOR", source = $"#{colorSrcId}" }));
 
             if (hasNormals)
                 inputs.Add(new InputLocalOffset
@@ -1898,11 +2372,11 @@ public class ExportBundleCommand : BaseCommand
                     offset = 1
                 });
 
-            var indexList = new List<ushort>();
+            var indexList = new List<uint>();
 
             foreach (var index in faces.SelectMany(face => face))
             {
-                indexList.Add((ushort)(vertexOffset + index));
+                indexList.Add((uint)(vertexOffset + index));
                 if (hasNormals)
                     indexList.Add(index);
             }
@@ -1914,8 +2388,6 @@ public class ExportBundleCommand : BaseCommand
                 material = $"material{materialIndex}",
                 p = string.Join(" ", indexList)
             });
-
-            lastVertexSet = material.VertexSetIndex;
         }
 
         mesh.Items = items.ToArray();
@@ -1928,7 +2400,7 @@ public class ExportBundleCommand : BaseCommand
         };
     }
 
-    private class SceneExport
+    internal class SceneExport
     {
         public SceneExport(List<SceneExportNode> nodes, string sceneName,
             IReadOnlyDictionary<uint, SolidObject> solidObjects)

@@ -115,26 +115,35 @@ public abstract class SolidReader<TSolid, TMaterial> : SolidReader
         // Filling in vbCounts...
         if (vertexBuffersCount == 1)
         {
-            // The mesh descriptor tells us how many vertices exist.
-            // Since we only have one vertex buffer, we can use the info
-            // from the mesh descriptor instead of doing the material loop
-            // seen after this block.
             vbCounts[0] = NumVertices;
         }
         else if (vertexBuffersCount > 1)
         {
-            // Fill in vbCounts by examining every material.
-            // We need to make sure at least one of our materials
-            // actually has a NumVerts > 0, otherwise weird things
-            // will probably happen.
             Debug.Assert(Solid.Materials.Any(m => m.NumVerts > 0));
             foreach (var t in Solid.Materials) vbCounts[t.VertexSetIndex] += t.NumVerts;
         }
         else
         {
-            // If we have no vertex buffers, we can bail out.
             return;
         }
+
+        // Diagnostic: find buffers no material claims, and log the stride of ones that are claimed
+        /*for (var i = 0; i < vertexBuffersCount; i++)
+        {
+            if (vbCounts[i] == 0)
+            {
+                if (VertexBuffers[i].Length > 0)
+                    File.AppendAllText("orphaned_vertex_buffers.txt",
+                        $"{Solid.Name} | vertexSetIndex={i} | bufferBytes={VertexBuffers[i].Length} | referencedByAnyMaterial=false\n");
+                continue;
+            }
+
+            var claimedStride = VertexBuffers[i].Length % vbCounts[i] == 0
+                ? VertexBuffers[i].Length / vbCounts[i]
+                : -1;
+            //File.AppendAllText("vertex_buffer_strides.txt",
+            //    $"{Solid.Name} | vertexSetIndex={i} | vertCount={vbCounts[i]} | bufferBytes={VertexBuffers[i].Length} | stride={claimedStride}\n");
+        }*/
 
         // Verifying the integrity of our data...
         for (var i = 0; i < vbReaders.Length; i++)

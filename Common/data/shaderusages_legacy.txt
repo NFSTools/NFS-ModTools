@@ -1,0 +1,97 @@
+# <platform> <shader ID> [friendly name] [recognized names...] [VertexFormat=?] [TextureUsages=?,?,?...]
+
+# custom vertex formats using existing components will be parsed (eg Component0_Component1_..._ComponentN)
+# valid components include a type, subtype if necessary and factor if the subtype requires one: (eg Pos0s10 or Positions10 will both be read as type Pos subtype s factor 10)
+# Pos (float4 by default); subtypes f3 (float3), s (fixed position short with factor eg s1, s8, s32), h4 (half precision float4)
+# Tex (float2 by default); subtypes s (fixed precision short with factor), h2 (half precision float2)
+# Col (RGBA ubyte4 by default); subtypes ARGB (ARGB ubyte4), f4 (float4)
+# Norm (float4 by default); subtypes f3 (float3), s (fixed position short with implicit factor 32767.0), d4n (X360 dec4n), cmp3n (placeholder for PS3 cmp3n)
+# Tan (float4 by default); subtypes f3 (float3), s (fixed position short with implicit factor 32767.0), d4n (X360 dec4n), cmp3n (placeholder for PS3 cmp3n)
+# BlendWeight (placeholder for NIS BlendWeight ubyte4)
+# BlendIndices (placeholder for NIS BlendIndices ubyte4)
+# xf (unknown floats with count, eg xf3 skips 3 floats or 12 bytes)
+# xb (unkown bytes with count, eg xb4 skips 4 bytes)
+
+Prostreet_PC	0	PROSTREET_PC_0	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s
+Prostreet_PC	1	PROSTREET_PC_1	VertexFormat=Pos0f3_Col0_Norm0f4_Tan0f3_Tex0	#plants, actual VF probably Pos0f3_Col0_Norm0f4_Tan0f3_Tex0 [52], what a retarded thing to do to store normals as floats
+Prostreet_PC	2	PROSTREET_PC_2	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tex1	#everything, actual VF probably Pos0f3_?f3_Col0_Tex0_Tex1 [44]
+Prostreet_PC	3	PROSTREET_PC_3	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tex1_Tex2_Tex3_xf3	#length 72
+Prostreet_PC    4   PROSTREET_PC_4  VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tex1_xf4_xb8  TextureUsages=DIFFUSE,SPECULAR,NORMALMAP,REFLECTION,AMBIENT #buildings, prop cars, actual VF probably Pos0f3_Norm0f3_Col0_Tex0_Tex1_?f4_?b8 [68], ambient uses 2nd UV channel
+Prostreet_PC	7	DiffuseAlpha	DiffuseNormalAlpha	DiffuseAlphaNormal	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s	TextureUsages=DIFFUSE,NORMAL
+Prostreet_PC	6	DiffuseSwatchAlpha	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s	TextureUsages=DIFFUSE,AMBIENT
+Prostreet_PC	5	DiffuseNormalSwatchAlpha	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s	TextureUsages=DIFFUSE,NORMALMAP,AMBIENT	default
+#putting values in reverse order to influence which may get picked first when defaulting
+Prostreet_PC	8	PROSTREET_PC_8	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s
+Prostreet_PC	9	PROSTREET_PC_9	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s
+Prostreet_PC	10	PROSTREET_PC_10	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tex1	#sky and street light lightbulb, actual VF probably Pos0f3_Norm0f3_Col0_Tex0_Tex1 [44]
+Prostreet_PC	11	PROSTREET_PC_11	VertexFormat=Pos0f3_Col0_Norm0s_Tan0s_Tex0_Tex1	#plants, actual VF probably Pos0f3_Col0_Norm0s_Tan0s_Tex0_Tex1 [48]
+Prostreet_PC	12	PROSTREET_PC_12	VertexFormat=Pos0f3_Tex0_Tex1_Tex2_xb4_Norm0s_Tan0s_Col0	#TextureUsages=TERRAINONE,TERRAINTWO,NORMALMAP,NORMALMAP2	#chop, actual VF probably Pos0f3_Tex0_Tex1_Tex2_?[4b]_Norm0s_Tan0s_Col0 [60]
+Prostreet_PC	13	PROSTREET_PC_13	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s
+Prostreet_PC	14	PROSTREET_PC_14	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s
+Prostreet_PC	15	PROSTREET_PC_15	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s
+Prostreet_PC	16	PROSTREET_PC_16	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s
+Prostreet_PC	17	PROSTREET_PC_17	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s
+Prostreet_PC	18	PROSTREET_PC_18	VertexFormat=Pos0f3_Tex0_Tex1_Tex2_xb4_xb4_Norm0s	TextureUsages=ROADBASE,ROADELEMENTS,ROADDAMAGE,DETAILMAP #road, actual VF probably Pos0f3_Tex0_Tex1_Tex2_?[4b]_?[4b]_Norm0s [52]
+Prostreet_PC	19	PROSTREET_PC_19	VertexFormat=Pos0f3_Tex0_Tex1_Tex2_xb4_Norm0s_Col0	TextureUsages=ROADBASE,ROADELEMENTS,LIGHTMAP,DETAILMAP #tunnel road xb4 80808080
+Prostreet_PC	20	PROSTREET_PC_20	VertexFormat=Pos0f3_Tex0_Col0	#signs, might be ar_constant, actual VF probably Pos0f3_Tex0_Col0 [24]
+Prostreet_PC	21	PROSTREET_PC_21	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s
+Prostreet_PC	22	PROSTREET_PC_22	VertexFormat=Pos0f3_Col0_Tex0_Tex1_Tan0s_Norm0s	TextureUsages=DIFFUSE,AMBIENT	#objects, actual VF probably Pos0f3_Col0_Tex0_Tex1_Tan0s_Norm0s [48]
+Prostreet_PC	23	PROSTREET_PC_23	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s
+Prostreet_PC	24	PROSTREET_PC_24	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s
+Prostreet_PC	25	PROSTREET_PC_25	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s
+Prostreet_PC	26	PROSTREET_PC_26	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s
+Prostreet_PC	27	PROSTREET_PC_27	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s
+Prostreet_PC	28	PROSTREET_PC_28	VertexFormat=Pos0s10_Tex0s1_Col0_Norm0s_Tan0s
+Prostreet_PC	29	PROSTREET_PC_29	VertexFormat=Pos0f3_Tex0_Tex1_xb4_xb4_Col0_Norm0s TextureUsages=DIFFUSE,LIGHTMAP,NORMALMAP,SPECULAR #tunnel walls 7F7F7FFF is color, xb4 80808080
+
+Prostreet_X360	0	PROSTREET_X360_0	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	1	PROSTREET_X360_1	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	2	PROSTREET_X360_2	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	3	PROSTREET_X360_3	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	4	PROSTREET_X360_4	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	5	PROSTREET_X360_5	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	6	PROSTREET_X360_6	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	7	PROSTREET_X360_7	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	8	PROSTREET_X360_8	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	10	DiffuseAlpha	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2	TextureUsages=DIFFUSE
+Prostreet_X360	11	DiffuseSwatchAlpha	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2	TextureUsages=DIFFUSE,AMBIENT
+Prostreet_X360	9	DiffuseNormalSwatchAlpha	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2	TextureUsages=DIFFUSE,NORMALMAP,AMBIENT	default
+Prostreet_X360	12	PROSTREET_X360_12	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	13	PROSTREET_X360_13	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	14	PROSTREET_X360_14	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	15	PROSTREET_X360_15	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	16	PROSTREET_X360_16	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	17	PROSTREET_X360_17	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	18	PROSTREET_X360_18	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	19	PROSTREET_X360_19	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	20	PROSTREET_X360_20	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	21	PROSTREET_X360_21	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+Prostreet_X360	22	PROSTREET_X360_22	VertexFormat=Pos0h4_Norm0d4n_Tan0d4n_Col0_Tex0h2
+
+Carbon_PC	0	CARBON_PC_0	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0
+Carbon_PC	1	CARBON_PC_1	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	2	CARBON_PC_2	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	3	CARBON_PC_3	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	4	DiffuseAlpha	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3	TextureUsages=DIFFUSE
+Carbon_PC	5	DiffuseNormalAlpha	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3	TextureUsages=DIFFUSE,NORMALMAP	#UV MAPPING SEEMS WRONG
+Carbon_PC	6	DiffuseSwatch	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3	TextureUsages=DIFFUSE,SWATCH
+Carbon_PC	7	DiffuseNormalSwatch	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3	TextureUsages=DIFFUSE,NORMALMAP,SWATCH	default
+Carbon_PC	8	CARBON_PC_8	VertexFormat=Pos0s10_Tex0s8_Col0_Norm0s_Tan0s	#FOR NFS WORLD
+Carbon_PC	9	CARBON_PC_9	VertexFormat=Pos0s10_Tex0s8_Col0_Norm0s_Tan0s	#FOR NFS WORLD
+Carbon_PC	10	CARBON_PC_10	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	11	CARBON_PC_11	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	12	CARBON_PC_12	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	13	CARBON_PC_13	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	14	CARBON_PC_14	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	15	CARBON_PC_15	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	16	CARBON_PC_16	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	17	CARBON_PC_17	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	18	CARBON_PC_18	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	19	CARBON_PC_19	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	20	CARBON_PC_20	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	21	CARBON_PC_21	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	22	CARBON_PC_22	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	23	CARBON_PC_23	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	24	CARBON_PC_24	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	25	CARBON_PC_25	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3
+Carbon_PC	26	CARBON_PC_26	VertexFormat=Pos0f3_Norm0f3_Col0_Tex0_Tan0f3

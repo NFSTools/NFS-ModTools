@@ -322,12 +322,28 @@ public class UndercoverSolidReader : SolidReader<UndercoverObject, UndercoverMat
                 NumVerts = (uint)numVertices,
                 VertexSetIndex = j,
                 DiffuseTextureHash = Solid.TextureHashes[shadingGroup.TextureNumber[0]],
+                SecondaryTextureHash = shadingGroup.NumTextures > 1 &&
+                                       shadingGroup.TextureNumber[1] < Solid.TextureHashes.Count
+                    ? Solid.TextureHashes[shadingGroup.TextureNumber[1]]
+                    : (uint?)null,
+                MaterialTextureHashes = (uint[])shadingGroup.TextureNameMaterial.Clone(),
                 EffectId = (uint)EffectIdMapping[shadingGroup.MaterialAttribKey],
+                ShaderNameHash = shadingGroup.MaterialAttribKey,
                 NumReducedIndices = shadingGroup.NumReducedIdx,
                 Indices = new ushort[shadingGroup.IdxUsed]
             };
 
             Solid.Materials.Add(solidObjectMaterial);
+
+            if (Solid.Hash == 0xB54E9991)
+            {
+                File.AppendAllText("effect_debug.log",
+                    $"[CAP CANDIDATE] SolidHash=0x{Solid.Hash:X8} " +
+                    $"DiffuseHash=0x{solidObjectMaterial.DiffuseTextureHash:X8} " +
+                    $"MaterialAttribKey=0x{shadingGroup.MaterialAttribKey:X8} " +
+                    $"EffectId={(UndercoverEffectId)solidObjectMaterial.EffectId} ({solidObjectMaterial.EffectId}) " +
+                    $"SecondaryTextureHash={(solidObjectMaterial.SecondaryTextureHash.HasValue ? $"0x{solidObjectMaterial.SecondaryTextureHash:X8}" : "null")}\n");
+            }
         }
     }
 
@@ -404,9 +420,7 @@ public class UndercoverSolidReader : SolidReader<UndercoverObject, UndercoverMat
                 reader.ReadSingle();
                 vertex.Color = reader.ReadUInt32();
                 vertex.TexCoords = BinaryUtil.ReadShort2N(reader) * 32;
-                // TODO: TEXCOORD1??? what do we do with this?
-                reader.ReadInt16();
-                reader.ReadInt16();
+                vertex.TexCoords1 = BinaryUtil.ReadShort2N(reader) * 32;
                 vertex.Normal = BinaryUtil.ReadNormal(reader, true);
                 // todo: read packed tangent vector
                 reader.BaseStream.Position += 0x8;

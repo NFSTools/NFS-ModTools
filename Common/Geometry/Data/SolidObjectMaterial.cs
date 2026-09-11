@@ -22,6 +22,16 @@ namespace Common.Geometry.Data
         public uint? NormalTextureHash { get; set; }
         public uint? SpecularTextureHash { get; set; }
 
+        // Second slot from the primary TextureNumber/TextureHashes array (index-based),
+        // present when NumTextures > 1. Likely candidate for the blend-mask texture on
+        // grass/dirt/rock/road effects, but the role isn't empirically confirmed yet.
+        public uint? SecondaryTextureHash { get; set; }
+
+        // Raw hashes from the separate TextureNameMaterial array (10 slots), captured
+        // uninterpreted - role of each slot is not yet known.
+        public uint[] MaterialTextureHashes { get; set; }
+
+
         public string Name { get; set; }
         public ushort[] Indices { get; set; }
     }

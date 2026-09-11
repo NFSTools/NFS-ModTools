@@ -1,13 +1,15 @@
-﻿using System.Diagnostics;
+﻿using Common.Geometry.Data;
+using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
-using Common.Geometry.Data;
 
 namespace Common.Geometry
 {
     public class ProStreetMaterial : SolidObjectMaterial, IEffectBasedMaterial
     {
         public uint EffectId { get; set; }
+        public uint[] TextureHashes { get; set; }
     }
 
     public class ProStreetSolidListReader : SolidListReader
@@ -36,6 +38,7 @@ namespace Common.Geometry
 
         private void ProcessStreamingTable(SolidList solidList, BinaryReader binaryReader, uint chunkSize)
         {
+            var swReadTotal = System.Diagnostics.Stopwatch.StartNew();
             var chunkEndPos = binaryReader.BaseStream.Position + chunkSize;
             Debug.Assert(chunkSize % 24 == 0, "chunkSize % 24 == 0");
             while (binaryReader.BaseStream.Position < chunkEndPos)
@@ -66,6 +69,9 @@ namespace Common.Geometry
 
                 binaryReader.BaseStream.Position = curPos;
             }
+
+            swReadTotal.Stop();
+            Console.WriteLine($"ProcessStreamingTable: read {solidList.Objects.Count} objects in {swReadTotal.ElapsedMilliseconds}ms");
         }
 
         protected override SolidReader CreateObjectReader()
