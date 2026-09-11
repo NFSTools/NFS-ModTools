@@ -1,0 +1,3 @@
+[submodule "Modules/CompLib"]
+	path = Modules/CompLib
+	url = https://github.com/Sh2dow/CompLib.git
